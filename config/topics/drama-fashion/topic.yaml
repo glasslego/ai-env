@@ -1,0 +1,53 @@
+# 드라마 패션 룩북
+topic:
+  id: drama-fashion
+  name: "드라마패션룩북"
+  obsidian_base: "51_자동화시스템/03_드라마패션룩북"
+  project_repo: ~/work/glasslego/drama-fashion
+
+# ── 3-Track 리서치 ──
+research:
+  auto:
+    - query: "celebrity fashion catalog web app architecture Next.js FastAPI 2025"
+      output: "07_참고/auto-fashion-web-architecture.md"
+    - query: "fashion image tagging AI CLIP YOLO clothing detection python"
+      output: "07_참고/auto-fashion-ai-tagging.md"
+    - query: "korean drama fashion style recommendation personalization algorithm"
+      output: "07_참고/auto-style-recommendation.md"
+    - query: "telegram bot mini app monetization Stars payment python-telegram-bot"
+      output: "07_참고/auto-telegram-monetization.md"
+
+# ── Plan/Spec 생성 ──
+plan:
+  synthesis_prompt: |
+    리서치 자료 + 기존 Obsidian 스펙 문서(02_기획/, 03_구현/)를 종합하여
+    드라마패션룩북의 통합 기술 설계 문서를 작성해줘.
+
+    작성 항목:
+    1. **시스템 아키텍처**: Next.js 15 + FastAPI + PostgreSQL + Redis 전체 흐름
+    2. **데이터 모델**: 셀럽, 드라마, 착장, 스타일 태그, 유저 프로필 ERD
+    3. **API 설계**: 착장 카탈로그, 셀럽, 드라마, 검색/필터, 스타일 가이드
+    4. **프론트엔드**: App Router 라우팅, 컴포넌트 구조, SSG/ISR 전략
+    5. **AI/ML**: YOLO 착장 감지 → CLIP 임베딩 → 스타일 분류 → 체형 매칭
+    6. **텔레그램**: 봇 + 미니앱 + Stars 결제 파이프라인
+    7. **MVP 로드맵**: Phase 0~4 우선순위 매트릭스
+  output: "01_시스템구성/plan-spec.md"
+
+# ── 코드 생성 ──
+code:
+  style: tdd
+  target_repo: ~/work/glasslego/drama-fashion
+  test_framework: pytest
+  modules:
+    - name: "models"
+      desc: "SQLAlchemy 2.0 DB 모델 (Celebrity, Drama, Outfit, StyleTag, User)"
+    - name: "repositories"
+      desc: "Repository 패턴 CRUD (착장, 셀럽, 드라마, 스타일태그)"
+    - name: "services"
+      desc: "비즈니스 로직 (검색, 필터, 스타일 매칭, 추천)"
+    - name: "api"
+      desc: "FastAPI 라우터 (착장/셀럽/드라마/검색/스타일가이드 API)"
+    - name: "data_pipeline"
+      desc: "착장 데이터 수집기 + 이미지 프로세서 + Meilisearch 인덱서"
+    - name: "telegram_bot"
+      desc: "텔레그램 봇/미니앱 (채널 자동화, Stars 결제)"

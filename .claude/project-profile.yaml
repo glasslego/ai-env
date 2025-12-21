@@ -1,0 +1,31 @@
+# ai-env 프로젝트 프로파일
+# 스킬/커맨드가 이 파일을 읽어 프로젝트 컨텍스트를 자동 로드한다.
+
+project:
+  name: ai-env
+  type: cli-tool
+  description: AI 개발 환경(Claude, Codex, Gemini) 설정 및 MCP 서버 통합 관리 CLI
+
+architecture:
+  pattern: 3-layer
+  layers:
+    core: "src/ai_env/core/"       # 비즈니스 로직 (config, sync, secrets, doctor, pipeline, workflow)
+    mcp: "src/ai_env/mcp/"         # MCP 설정 생성 (generator, vibe)
+    cli: "src/ai_env/cli/"         # Click CLI + Rich UI
+
+specs:
+  directory: "specs/"
+  format: "SPEC-NNN"
+  template: "specs/SPEC-010-efficiency-improvements.md"  # 최근 구현 완료된 스펙을 템플릿으로
+
+tests:
+  framework: pytest
+  command: "uv run pytest tests/ -x -q"
+  lint_command: "uv run ruff check . && uv run ruff format --check ."
+
+status:
+  file: "_project-status.yaml"
+
+research:
+  obsidian_base: "~/Documents/Obsidian/PARA-2025"
+  sources_dir: "config/topics/"

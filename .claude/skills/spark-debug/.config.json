@@ -1,0 +1,55 @@
+{
+  "default_cluster": "hadoop-cdp",
+  "hadoop_client_base": "/Users/megan/work/hadoop/hadoop-client-env-v2",
+  "clusters": {
+    "hadoop-cdp": {
+      "name": "hadoop-cdp",
+      "env_script": "/Users/megan/work/hadoop/hadoop-client-env-v2/bin/hadoop-cdp-env",
+      "target_dir": "/Users/megan/work/hadoop/hadoop-client-env-v2/target/hadoop-cdp",
+      "config_dir": "/Users/megan/work/hadoop/hadoop-client-env-v2/target/hadoop-cdp/config/spark3",
+      "kerberos": {
+        "keytab": "~/hadoop-cdp-write.keytab",
+        "principal": "hadoop-cdp-write@KAKAO.HADOOP",
+        "realm": "KAKAO.HADOOP"
+      }
+    },
+    "hadoop-dev": {
+      "name": "hadoop-dev",
+      "env_script": "/Users/megan/work/hadoop/hadoop-client-env-v2/bin/hadoop-dev-env",
+      "target_dir": "/Users/megan/work/hadoop/hadoop-client-env-v2/target/hadoop-dev",
+      "config_dir": "/Users/megan/work/hadoop/hadoop-client-env-v2/target/hadoop-dev/config/spark3",
+      "kerberos": {
+        "keytab": "~/hadoop-cdp-write.keytab",
+        "principal": "hadoop-cdp-write@KAKAO.HADOOP",
+        "realm": "KAKAO.HADOOP"
+      }
+    },
+    "hadoop-doopey": {
+      "name": "hadoop-doopey",
+      "env_script": "/Users/megan/work/hadoop/hadoop-client-env-v2/bin/hadoop-doopey-env",
+      "target_dir": "/Users/megan/work/hadoop/hadoop-client-env-v2/target/hadoop-doopey",
+      "config_dir": "/Users/megan/work/hadoop/hadoop-client-env-v2/target/hadoop-doopey/config/spark3",
+      "kerberos": {
+        "keytab": "~/hadoop-cdp-write.keytab",
+        "principal": "hadoop-cdp-write@KAKAO.HADOOP",
+        "realm": "KAKAO.HADOOP"
+      }
+    }
+  },
+  "yarn": {
+    "log_lines_default": 100,
+    "follow_interval": 2,
+    "max_log_size": 10485760,
+    "app_states": ["RUNNING", "ACCEPTED", "SUBMITTED", "FINISHED", "FAILED", "KILLED"]
+  },
+  "log_patterns": {
+    "error": ["ERROR", "Exception", "FATAL", "Failed"],
+    "warn": ["WARN", "WARNING"],
+    "oom": ["OutOfMemoryError", "Java heap space", "GC overhead"],
+    "network": ["Connection refused", "timeout", "UnknownHostException"]
+  },
+  "defaults": {
+    "log_files": ["stdout", "stderr"],
+    "container_log_files": ["stdout", "stderr", "syslog"]
+  }
+}
