@@ -1,0 +1,21 @@
+{
+  "environments": {
+    "prod": {
+      "host": "http://cdp-prod.es.onkakao.net:9200",
+      "indices": {
+        "gift_ranking": "gift_product_ranking",
+        "promotion_builder": "kcai_integrated_gift_product",
+        "epsilon_gift_product": "epsilon_gift_product_v1"
+      }
+    },
+    "stage": {
+      "host": "http://cdpair-cbt.es.onkakao.net:9200",
+      "indices": {
+        "gift_ranking": "gift_product_ranking",
+        "promotion_builder": "kcai_integrated_gift_product",
+        "epsilon_gift_product": "epsilon_gift_product_v1"
+      }
+    }
+  },
+  "default_env": "stage"
+}

@@ -1,0 +1,316 @@
+# MCP 서버 정의
+# 이 파일에서 MCP 서버를 정의하면 ai-env가 각 클라이언트용 config를 생성합니다.
+
+mcp_servers:
+  # === Docker 기반 서버 ===
+  # GitHub.com (glasslego)
+  github:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 45
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - -e
+      - GITHUB_PERSONAL_ACCESS_TOKEN
+      - ghcr.io/github/github-mcp-server
+      - stdio
+    env_keys:
+      - GITHUB_GLASSLEGO_TOKEN
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - gemini
+
+  # GitHub Kakao Enterprise
+  github-kakao:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 45
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - -e
+      - GITHUB_PERSONAL_ACCESS_TOKEN
+      - -e
+      - GITHUB_HOST=https://github.daumkakao.com
+      - ghcr.io/github/github-mcp-server
+      - stdio
+    env_keys:
+      - GITHUB_KAKAO_TOKEN
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - gemini
+
+  jira-wiki-mcp:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: docker
+    args:
+      - run
+      - --rm
+      - -i
+      - -e
+      - JIRA_URL=${JIRA_URL}
+      - -e
+      - JIRA_PERSONAL_TOKEN=${JIRA_PERSONAL_TOKEN}
+      - -e
+      - CONFLUENCE_URL=${CONFLUENCE_URL}
+      - -e
+      - CONFLUENCE_PERSONAL_TOKEN=${CONFLUENCE_PERSONAL_TOKEN}
+      - ghcr.io/sooperset/mcp-atlassian:latest
+    env_keys:
+      - JIRA_URL
+      - JIRA_PERSONAL_TOKEN
+      - CONFLUENCE_URL
+      - CONFLUENCE_PERSONAL_TOKEN
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - gemini
+
+  # === NPX 기반 서버 ===
+  playwright:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@executeautomation/playwright-mcp-server"
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  desktop-commander:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: npx
+    args:
+      - -y
+      - "@wonderwhy-er/desktop-commander"
+    targets:
+      - claude_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  brave-search:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-brave-search"
+    env_keys:
+      - BRAVE_API_KEY
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  context7:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@upstash/context7-mcp@latest"
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  mem0:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 30
+    command: npx
+    args:
+      - -y
+      - "@mem0/mcp"
+    env_keys:
+      - MEM0_API_KEY
+    targets:
+      - antigravity
+      - claude_local
+      - gemini
+
+  fetch:
+    enabled: true
+    type: stdio
+    command: uvx
+    args:
+      - mcp-server-fetch
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  filesystem:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-filesystem"
+      - .
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  git:
+    enabled: true
+    type: stdio
+    command: uvx
+    args:
+      - mcp-server-git
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  memory:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-memory"
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  # Supabase hosted MCP endpoint (remote)
+  supabase:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: npx
+    args:
+      - -y
+      - mcp-remote
+      - https://mcp.supabase.com/mcp
+    targets:
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  # Browserbase remote MCP endpoint (requires custom remote URL)
+  browserbase:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: npx
+    args:
+      - -y
+      - mcp-remote
+      - ${BROWSERBASE_MCP_URL}
+    env_keys:
+      - BROWSERBASE_MCP_URL
+    targets:
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  sequential-thinking:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-sequential-thinking"
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  # === SSE 기반 서버 ===
+  browseract:
+    enabled: false
+    type: sse
+    url_env: BROWSERACT_MCP_URL
+    targets:
+      - antigravity
+      - claude_local
+      - gemini
+      - codex
+
+  # Kakao 내부
+  kkoto-mcp:
+    enabled: true
+    type: sse
+    startup_timeout_sec: 30
+    url_env: KKOTO_MCP_URL
+    targets:
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - gemini
+
+  cdp-mcp-server:
+    enabled: true
+    type: sse
+    startup_timeout_sec: 30
+    url_env: CDP_MCP_URL
+    targets:
+      - codex_desktop
+      - antigravity
+      - claude_local
+      - gemini

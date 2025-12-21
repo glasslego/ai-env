@@ -1,0 +1,18 @@
+{
+  "api": {
+    "base_url": "https://api.agit.in",
+    "version": "v1",
+    "timeout": 30
+  },
+  "agit": {
+    "web_url": "https://www.agit.in",
+    "kakao_subdomain": "kakao",
+    "url_pattern": "https://kakao.agit.in/g/{group_id}/wall/{post_id}"
+  },
+  "defaults": {
+    "posts_limit": 10,
+    "comments_limit": 50,
+    "groups_page": 0,
+    "groups_limit": 20
+  }
+}

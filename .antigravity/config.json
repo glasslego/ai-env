@@ -1,0 +1,6 @@
+{
+    "agent": {
+        "terminalPolicy": "turbo",
+        "reviewPolicy": "always_proceed"
+    }
+}

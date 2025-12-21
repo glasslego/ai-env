@@ -1,0 +1,65 @@
+# ai-env 메인 설정
+version: "1.0"
+
+# 기본 에이전트
+default_agent: claude
+
+# 환경변수 소스 파일
+env_file: ".env"
+
+# Codex 기본 모델 설정
+codex_model: gpt-5.3-codex-spark
+codex_model_reasoning_effort: high
+
+# === AI Providers ===
+# 모델은 각 도구에서 최신 버전을 자동으로 사용합니다
+providers:
+  claude:
+    enabled: true
+    env_key: ANTHROPIC_API_KEY
+
+  codex:
+    enabled: true
+    env_key: OPENAI_API_KEY
+
+  gemini:
+    enabled: true
+    env_key: GOOGLE_API_KEY
+
+  antigravity:
+    enabled: true
+
+# === Agent 우선순위 (claude --fallback) ===
+# claude --fallback이 이 순서대로 에이전트를 시도
+# 앞의 에이전트가 세션 한도/에러로 종료되면 다음 에이전트로 자동 전환
+# "agent:model" 형식으로 모델 지정 가능 (예: claude:sonnet → claude --model sonnet)
+agent_priority:
+  - claude           # Opus (default model)
+  - claude:sonnet    # Claude with --model sonnet
+  - codex
+
+# Fallback 세션 로그/핸드오프 저장 경로
+# 미설정 시 macOS temp 사용 후 삭제 (기존 동작)
+# 환경변수 CLAUDE_FALLBACK_LOG_DIR로 오버라이드 가능
+fallback_log_dir: ~/work/ai-agent-log
+
+# === 출력 경로 (글로벌 설정) ===
+outputs:
+  # Desktop 앱들
+  claude_desktop: ~/Library/Application Support/Claude/claude_desktop_config.json
+  chatgpt_desktop: ~/Library/Application Support/ChatGPT/config.json
+  codex_desktop: ~/.codex/codex.config.json
+  antigravity: ~/.gemini/antigravity/mcp_config.json
+
+  # CLI 도구들 (글로벌)
+  claude_global: ~/.claude/settings.json
+  codex_global: ~/.codex/config.toml
+  gemini_global: ~/.gemini/settings.json
+
+  # 로컬 프로젝트 설정 (glocal = 다른 프로젝트용 템플릿)
+  claude_local: ./.claude/settings.glocal.json
+  codex_local: ./.codex/config.toml
+  gemini_local: ./.gemini/settings.local.json
+
+  # 기타
+  shell_exports: ./generated/shell_exports.sh

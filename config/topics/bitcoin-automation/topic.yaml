@@ -1,0 +1,61 @@
+# 비트코인 자동매매 시스템 리서치 파이프라인
+topic:
+  id: bitcoin-automation
+  name: "비트코인 자동매매 시스템"
+  obsidian_base: "51_자동화시스템/02_비트코인자동화"
+  project_repo: ~/work/glasslego/bitcoin-auto
+
+# ── 3-Track 리서치 ──
+research:
+  # Track A: Claude Code 자동 실행 (brave-search + web_fetch)
+  auto:
+    - query: "ccxt python async trading bot best practices 2025"
+      output: "07_참고/auto-ccxt-best-practices.md"
+    - query: "bitcoin automated trading system architecture microservice event-driven"
+      output: "07_참고/auto-system-architecture.md"
+    - query: "binance upbit futures API websocket rate limit python"
+      output: "07_참고/auto-exchange-api-guide.md"
+    - query: "freqtrade vs jesse vs hummingbot comparison 2025"
+      output: "07_참고/auto-opensource-bot-comparison.md"
+    - query: "cryptocurrency trading backtesting framework python vectorbt"
+      output: "07_참고/auto-backtest-framework.md"
+
+  # Track B/C 심층리서치 프롬프트 → config/prompts/bitcoin-automation/*.md
+
+# ── Plan/Spec 생성 ──
+plan:
+  synthesis_prompt: |
+    아래 리서치 자료들을 모두 읽고 종합하여 비트코인 자동매매 시스템의
+    기술 설계 문서(plan-spec)를 작성해줘.
+
+    작성 항목:
+    1. **시스템 아키텍처**: 컴포넌트 다이어그램 (mermaid), 데이터 플로우
+    2. **기술 스택 선정**: 각 선택의 근거 (3개 리서치 소스 교차 검증)
+    3. **구현 우선순위**: MVP(v0.1) → v0.2 → v1.0 로드맵
+    4. **전략 선정**: MVP에 적합한 전략 2-3개와 선정 근거
+    5. **테스트 전략**: 단위테스트 / 통합테스트 / 백테스트 분리 방안
+    6. **리스크 관리**: 기술적 리스크 + 재무적 리스크
+    7. **Gemini vs GPT 리서치 비교**: 두 심층리서치에서 상충되는 의견이 있으면 명시
+
+    특히 Gemini 리서치(시장/트렌드)와 GPT 리서치(기술/학술)의 관점 차이를
+    잘 살려서 균형 잡힌 설계를 해줘.
+  output: "01_시스템구성/plan-spec.md"
+
+# ── 코드 생성 ──
+code:
+  style: tdd
+  target_repo: ~/work/glasslego/bitcoin-auto
+  test_framework: pytest
+  modules:
+    - name: "exchange_client"
+      desc: "ccxt 기반 거래소 클라이언트 (async, 업비트/바이낸스)"
+    - name: "data_collector"
+      desc: "실시간 시세 수집기 (WebSocket + REST fallback)"
+    - name: "strategy_engine"
+      desc: "전략 실행 엔진 (플러그인 구조)"
+    - name: "backtest"
+      desc: "벡터 기반 백테스트 프레임워크"
+    - name: "risk_manager"
+      desc: "포지션 사이징, 손절/익절, 드로다운 제어"
+    - name: "notifier"
+      desc: "텔레그램/슬랙 알림"

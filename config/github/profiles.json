@@ -1,0 +1,28 @@
+{
+  "profiles": {
+    "personal": {
+      "account": "glasslego",
+      "email": "namjung.won@gmail.com",
+      "ssh_host": "github.com",
+      "token_file": "tokens/personal.token",
+      "description": "개인 GitHub 계정"
+    },
+    "kakao": {
+      "account": "megan-won",
+      "email": "megan.won@kakaocorp.com",
+      "ssh_host": "github.daumkakao.com",
+      "token_file": "tokens/kakao.token",
+      "description": "카카오 GitHub Enterprise 계정"
+    }
+  },
+  "remote_mapping": {
+    "github.com": "personal",
+    "github.daumkakao.com": "kakao"
+  },
+  "notes": {
+    "token_generation": {
+      "personal": "https://github.com/settings/tokens → Fine-grained tokens",
+      "kakao": "https://github.daumkakao.com/settings/tokens"
+    }
+  }
+}

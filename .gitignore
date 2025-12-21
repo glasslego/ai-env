@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Type checking and linting caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Other tool configs
+.specify/
+
+# OS
+.DS_Store
+*.log
+
+# Secrets - 절대 커밋 금지
+.env
+.env.*
+!.env.example
+secrets/
+
+# GitHub tokens
+config/github/tokens/*.token
+
+# Generated configs
+generated/
+
+# 로컬 프로젝트별 AI 설정 (실제 설정값 포함)
+.claude/settings.local.json
+.claude/settings.glocal.json
+.codex/config.toml
+.gemini/settings.local.json
+
+# 디렉토리 구조 유지
+!.claude/
+!.codex/
+!.gemini/
+!.claude/README.md
+!.codex/README.md
+!.gemini/README.md
+
+# Temp files
+.tmp.*
+*.tmp
+.err
+.out
+cde-skills
+cde-ranking-skills
