@@ -1,0 +1,80 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__jira-wiki-mcp",
+      "mcp__github",
+      "mcp__playwright",
+      "mcp__kkoto-mcp",
+      "mcp__cdp-mcp-server",
+      "mcp__sequential-thinking",
+      "Bash(git:*)",
+      "Bash(uv:*)",
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(pre-commit:*)",
+      "Bash(black:*)",
+      "Bash(isort:*)",
+      "Bash(ruff:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "acceptEdits"
+  },
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_GLASSLEGO_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_GLASSLEGO_TOKEN}"
+      }
+    },
+    "jira-wiki-mcp": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "JIRA_URL=${JIRA_URL}",
+        "-e", "JIRA_PERSONAL_TOKEN=${JIRA_PERSONAL_TOKEN}",
+        "-e", "CONFLUENCE_URL=${CONFLUENCE_URL}",
+        "-e", "CONFLUENCE_PERSONAL_TOKEN=${CONFLUENCE_PERSONAL_TOKEN}",
+        "ghcr.io/sooperset/mcp-atlassian:latest"
+      ],
+      "env": {
+        "JIRA_URL": "${JIRA_URL}",
+        "JIRA_PERSONAL_TOKEN": "${JIRA_PERSONAL_TOKEN}",
+        "CONFLUENCE_URL": "${CONFLUENCE_URL}",
+        "CONFLUENCE_PERSONAL_TOKEN": "${CONFLUENCE_PERSONAL_TOKEN}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "kkoto-mcp": {
+      "type": "sse",
+      "url": "${KKOTO_MCP_URL}"
+    },
+    "cdp-mcp-server": {
+      "type": "sse",
+      "url": "${CDP_MCP_URL}"
+    }
+  }
+}

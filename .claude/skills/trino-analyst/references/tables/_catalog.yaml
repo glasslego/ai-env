@@ -1,0 +1,35 @@
+tables:
+  # 팩트 테이블 (주문 데이터)
+  - name: kudu.dw.fact_gift
+    file: fact_gift.md
+    description: 선물하기 주문 팩트 테이블 (결제 완료 기준)
+    keywords: [선물하기, 주문, 거래액, GMV, 구매자, 수신자, 브랜드, 카테고리]
+    date_column: order_paid_date
+
+  - name: kudu.dw.fact_talkstore
+    file: fact_talkstore.md
+    description: 톡스토어(톡딜) 주문 팩트 테이블 (결제 완료 기준)
+    keywords: [톡스토어, 톡딜, 주문, 거래액, GMV, 공동구매, 스토어]
+    date_column: order_paid_date
+
+  # 로그 테이블 (이벤트 데이터)
+  - name: iceberg.log_iceberg.tiara_gift
+    file: tiara_gift.md
+    description: 선물하기 사용자 이벤트 로그 (행동 데이터)
+    keywords: [선물하기, 로그, 이벤트, 페이지뷰, 클릭, UV, PV, 유입채널, 전환]
+    partition: dt, hr
+    note: map 구조, element_at() 함수 사용 필요
+
+  - name: iceberg.log_iceberg.tiara_shoptab
+    file: tiara_shoptab.md
+    description: 쇼핑탭 사용자 이벤트 로그 (행동 데이터)
+    keywords: [쇼핑탭, 로그, 이벤트, 검색, AB테스트, 클릭]
+    partition: dt, hr
+    note: struct 구조, element_at() 함수 사용 필요
+
+  - name: iceberg.log_iceberg.tiara_talkstore
+    file: tiara_talkstore.md
+    description: 톡스토어(톡딜) 사용자 이벤트 로그 (행동 데이터)
+    keywords: [톡스토어, 톡딜, 로그, 이벤트, 노출, 페이지뷰]
+    partition: dt, hr
+    note: map 구조, element_at() 함수 사용 필요

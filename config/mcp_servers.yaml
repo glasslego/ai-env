@@ -1,0 +1,125 @@
+# MCP 서버 정의
+# 이 파일에서 MCP 서버를 정의하면 ai-env가 각 클라이언트용 config를 생성합니다.
+
+mcp_servers:
+  # === Docker 기반 서버 ===
+  # GitHub MCP - glasslego 계정
+  github:
+    enabled: true
+    type: stdio
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - -e
+      - GITHUB_GLASSLEGO_TOKEN
+      - ghcr.io/github/github-mcp-server
+    env_keys:
+      - GITHUB_GLASSLEGO_TOKEN
+    targets:
+      - claude_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  jira-wiki-mcp:
+    enabled: true
+    type: stdio
+    command: docker
+    args:
+      - run
+      - --rm
+      - -i
+      - -e
+      - JIRA_URL=${JIRA_URL}
+      - -e
+      - JIRA_PERSONAL_TOKEN=${JIRA_PERSONAL_TOKEN}
+      - -e
+      - CONFLUENCE_URL=${CONFLUENCE_URL}
+      - -e
+      - CONFLUENCE_PERSONAL_TOKEN=${CONFLUENCE_PERSONAL_TOKEN}
+      - ghcr.io/sooperset/mcp-atlassian:latest
+    env_keys:
+      - JIRA_URL
+      - JIRA_PERSONAL_TOKEN
+      - CONFLUENCE_URL
+      - CONFLUENCE_PERSONAL_TOKEN
+    targets:
+      - claude_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  notion:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-notion"
+    env_keys:
+      - NOTION_API_TOKEN
+    targets:
+      - claude_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  # === NPX 기반 서버 ===
+  playwright:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@executeautomation/playwright-mcp-server"
+    targets:
+      - claude_desktop
+      - claude_local
+      - codex
+      - gemini
+
+  sequential-thinking:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-sequential-thinking"
+    targets:
+      - antigravity
+      - claude_local
+
+  # === SSE 기반 서버 (Kakao 내부) ===
+  kkoto-mcp:
+    enabled: true
+    type: sse
+    url_env: KKOTO_MCP_URL
+    targets:
+      - antigravity
+      - claude_local
+      - gemini
+
+  cdp-mcp-server:
+    enabled: true
+    type: sse
+    url_env: CDP_MCP_URL
+    targets:
+      - antigravity
+      - claude_local
+      - gemini
+
+  # === Kubernetes MCP ===
+  kubernetes:
+    enabled: false
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@anthropic/mcp-server-kubernetes"
+    targets:
+      - claude_desktop
