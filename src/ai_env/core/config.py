@@ -76,33 +76,82 @@ def get_project_root() -> Path:
 
 
 def load_settings(config_path: Path | None = None) -> Settings:
-    """설정 파일 로드"""
+    """설정 파일 로드
+
+    Args:
+        config_path: 설정 파일 경로 (None이면 기본 경로 사용)
+
+    Returns:
+        로드된 Settings 객체
+
+    Raises:
+        ValueError: YAML 파싱 오류 또는 설정 검증 실패 시
+    """
     if config_path is None:
         config_path = get_project_root() / "config" / "settings.yaml"
 
     if not config_path.exists():
         return Settings()
 
-    with open(config_path) as f:
-        data = yaml.safe_load(f)
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
 
-    return Settings(**data)
+        if data is None:
+            return Settings()
+
+        return Settings(**data)
+
+    except yaml.YAMLError as e:
+        raise ValueError(f"Failed to parse YAML file {config_path}: {e}") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load settings from {config_path}: {e}") from e
 
 
 def load_mcp_config(config_path: Path | None = None) -> MCPConfig:
-    """MCP 설정 파일 로드"""
+    """MCP 설정 파일 로드
+
+    Args:
+        config_path: 설정 파일 경로 (None이면 기본 경로 사용)
+
+    Returns:
+        로드된 MCPConfig 객체
+
+    Raises:
+        ValueError: YAML 파싱 오류 또는 설정 검증 실패 시
+    """
     if config_path is None:
         config_path = get_project_root() / "config" / "mcp_servers.yaml"
 
     if not config_path.exists():
         return MCPConfig()
 
-    with open(config_path) as f:
-        data = yaml.safe_load(f)
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
 
-    return MCPConfig(**data)
+        if data is None:
+            return MCPConfig()
+
+        return MCPConfig(**data)
+
+    except yaml.YAMLError as e:
+        raise ValueError(f"Failed to parse YAML file {config_path}: {e}") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load MCP config from {config_path}: {e}") from e
 
 
 def expand_path(path: str) -> Path:
-    """경로 확장 (~, 환경변수 등)"""
+    """경로 확장 (~, 환경변수 등)
+
+    Args:
+        path: 확장할 경로 문자열 (예: "~/config", "$HOME/data")
+
+    Returns:
+        확장된 절대 경로
+
+    Example:
+        >>> expand_path("~/.config")
+        Path('/Users/username/.config')
+    """
     return Path(os.path.expandvars(os.path.expanduser(path)))

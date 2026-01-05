@@ -13,8 +13,9 @@ mcp_servers:
       - -i
       - --rm
       - -e
-      - GITHUB_GLASSLEGO_TOKEN
+      - GITHUB_PERSONAL_ACCESS_TOKEN
       - ghcr.io/github/github-mcp-server
+      - stdio
     env_keys:
       - GITHUB_GLASSLEGO_TOKEN
     targets:
@@ -93,6 +94,8 @@ mcp_servers:
     targets:
       - antigravity
       - claude_local
+      - codex
+      - gemini
 
   # === SSE 기반 서버 (Kakao 내부) ===
   kkoto-mcp:
@@ -103,6 +106,7 @@ mcp_servers:
       - antigravity
       - claude_local
       - gemini
+      - codex
 
   cdp-mcp-server:
     enabled: true
@@ -112,6 +116,7 @@ mcp_servers:
       - antigravity
       - claude_local
       - gemini
+      - codex
 
   # === Kubernetes MCP ===
   kubernetes:

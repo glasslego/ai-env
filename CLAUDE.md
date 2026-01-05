@@ -14,19 +14,24 @@ uv sync
 
 # 개발 의존성 포함 설치
 uv sync --all-extras
+pre-commit install  # Git 훅 설정
 
-# CLI 실행
+# CLI 실행 (두 가지 방법 - ai-env 또는 축약형 aie)
 uv run ai-env --help
-uv run ai-env status
+uv run aie status  # 축약형
 
 # 테스트 실행
-uv run pytest
+uv run pytest                    # 전체 테스트
+uv run pytest tests/test_ai_env.py  # 단일 파일
+uv run pytest -k test_config     # 특정 테스트만
 
 # 커버리지 포함 테스트
 uv run pytest --cov
+uv run pytest --cov --cov-report=html  # HTML 리포트
 
 # 린트
 uv run ruff check .
+uv run ruff check . --fix        # 자동 수정
 
 # 타입 체크
 uv run mypy src/
@@ -58,8 +63,15 @@ uv run ruff format .
 - SecretsManager의 환경변수 치환
 
 **cli.py** (`src/ai_env/cli.py`)
-- Click 기반 CLI, 명령어 그룹: `secrets`, `config`, `generate`, `sync`, `status`
+- Click 기반 CLI, 명령어 그룹: `secrets`, `config`, `generate`, `sync`, `status`, `setup`
 - Rich로 터미널 UI(테이블, 색상) 구현
+
+**sync.py** (`src/ai_env/core/sync.py`)
+- `sync_claude_global_config()`: Claude Code 글로벌 설정 동기화
+- `.claude/global/` → `~/.claude/` 동기화 (CLAUDE.md, settings.json.template)
+- `.claude/commands/` → `~/.claude/commands/` (.md 파일만)
+- `.claude/skills/` → `~/.claude/skills/` (서브디렉토리 전체)
+- `settings.json.template`에서 환경변수 치환 후 `settings.json` 생성
 
 ### 설정 흐름
 
@@ -86,22 +98,31 @@ uv run ruff format .
 
 ### 환경변수 치환
 
-`mcp_servers.yaml`의 템플릿에서 `${VAR}` 문법 사용 가능. Generator는:
-1. SecretsManager에서 변수 조회(`.env` 확인 후 `os.environ` 확인)
-2. `args`에서 치환하거나 `env_keys`에 직접 사용
-3. SSE 서버는 `url_env` 키에서 읽기
+`${VAR}` 문법으로 환경변수 치환 가능:
+- `mcp_servers.yaml`: MCP 서버 설정의 `args`에서 사용
+- `.claude/global/settings.json.template`: Claude Code 설정에서 사용
+
+Generator/Sync 동작:
+1. SecretsManager에서 변수 조회 (`.env` 확인 후 `os.environ` 확인)
+2. MCP 설정: `args`에서 치환하거나 `env_keys`로 직접 전달
+3. SSE 서버: `url_env` 키에서 URL 환경변수명 읽기
+4. settings.json: 템플릿에서 치환 후 생성
 
 ## 프로젝트 구조 규칙
 
 - `config/`: YAML 설정 템플릿 (git에 커밋)
 - `generated/`: 생성된 설정들 (gitignore)
 - `.env`: 시크릿 파일 (gitignore)
-- `src/ai_env/`: Python 패키지
-  - `core/`: 설정 및 시크릿 관리
-  - `mcp/`: MCP 설정 생성
-  - `providers/`: AI 프로바이더별 로직 (향후)
-  - `integrations/`: 외부 서비스 연동 (향후)
-  - `sync/`: 백업/복원 로직 (향후)
+- `src/ai_env/`: AI 환경 관리 메인 패키지
+  - `core/`: 설정, 시크릿, 동기화 관리 (config.py, secrets.py, sync.py)
+  - `mcp/`: MCP 설정 생성 (generator.py)
+- `src/ai_assistant/`: AI 어시스턴트 유틸리티 모음
+  - `notion_to_obsidian/`: Notion 내보내기를 Obsidian vault로 변환
+- `.claude/`: Claude Code 설정 소스 (동기화 대상)
+  - `global/`: 글로벌 설정 (CLAUDE.md, settings.json.template)
+  - `commands/`: 슬래시 커맨드
+  - `skills/`: 커스텀 스킬
+- `tests/`: pytest 테스트
 
 ## 주요 개발 시나리오
 
@@ -133,6 +154,34 @@ uv run ai-env generate shell
 # 미리보기로 동기화
 uv run ai-env sync --dry-run
 ```
+
+## 추가 도구
+
+### Notion to Obsidian 변환기
+
+`src/ai_assistant/notion_to_obsidian/`: Notion 내보내기를 Obsidian vault로 변환하는 독립 도구
+
+**사용법**:
+```bash
+# 기본 변환
+python -m ai_assistant.notion_to_obsidian.cli /path/to/notion/export /path/to/obsidian/vault
+
+# 미리보기 (파일 쓰지 않음)
+python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --dry-run
+
+# 폴더 구조 평탄화 (모든 노트를 루트에)
+python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --flatten
+
+# 첨부파일 제외
+python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --no-attachments
+```
+
+**주요 기능**:
+- Notion 내보내기 마크다운을 Obsidian 호환 형식으로 변환
+- ID가 포함된 파일/폴더 이름을 정리 (예: `Page abc123.md` → `Page.md`)
+- 내부 링크를 Obsidian 위키링크로 변환 (`[[Page]]`)
+- 이미지/PDF 등 첨부파일 복사
+- 폴더 구조 유지 또는 평탄화 옵션
 
 ## 중요 사항
 

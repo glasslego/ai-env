@@ -18,6 +18,11 @@ from ..core import (
 class MCPConfigGenerator:
     """MCP 설정 파일 생성기"""
 
+    # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
+    ENV_KEY_MAPPING = {
+        "GITHUB_GLASSLEGO_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
+    }
+
     def __init__(self, secrets: SecretsManager):
         self.secrets = secrets
         self.mcp_config = load_mcp_config()
@@ -26,6 +31,19 @@ class MCPConfigGenerator:
     def _substitute_env(self, value: str) -> str:
         """환경변수 치환"""
         return self.secrets.substitute(value)
+
+    def _map_env_key(self, key: str) -> str:
+        """환경변수 키를 타겟별 키로 매핑
+
+        일부 MCP 서버는 다른 키 이름을 요구함 (예: GitHub MCP)
+
+        Args:
+            key: 원본 환경변수 키
+
+        Returns:
+            매핑된 환경변수 키
+        """
+        return self.ENV_KEY_MAPPING.get(key, key)
 
     def _build_server_config(
         self, name: str, server: MCPServerConfig, target: str
@@ -57,7 +75,8 @@ class MCPConfigGenerator:
                 for key in server.env_keys:
                     value = self.secrets.get(key, "")
                     if value:
-                        env[key] = value
+                        mapped_key = self._map_env_key(key)
+                        env[mapped_key] = value
                 if env:
                     config["env"] = env
 
@@ -105,6 +124,7 @@ class MCPConfigGenerator:
                 url = self.secrets.get(server.url_env, "") if server.url_env else ""
                 if url:
                     lines.append(f"[mcp_servers.{name}]")
+                    lines.append('type = "sse"')
                     lines.append(f'url = "{url}"')
                     lines.append("")
             else:
@@ -118,7 +138,8 @@ class MCPConfigGenerator:
                     lines.append(f"[mcp_servers.{name}.env]")
                     for key in server.env_keys:
                         value = self.secrets.get(key, "")
-                        lines.append(f'{key} = "{value}"')
+                        mapped_key = self._map_env_key(key)
+                        lines.append(f'{mapped_key} = "{value}"')
                 lines.append("")
 
         return "\n".join(lines)
@@ -144,78 +165,118 @@ class MCPConfigGenerator:
     def _save_json_config(
         self, name: str, path_str: str, content: dict[str, Any], dry_run: bool
     ) -> Path:
-        """JSON 설정 파일 저장 (공통 로직)"""
+        """JSON 설정 파일 저장 (공통 로직)
+
+        Args:
+            name: 설정 이름
+            path_str: 저장 경로 문자열
+            content: 저장할 JSON 데이터
+            dry_run: True면 실제 저장하지 않음
+
+        Returns:
+            저장 경로
+
+        Raises:
+            OSError: 파일 쓰기 오류
+            PermissionError: 권한 오류
+        """
         path = expand_path(path_str)
         if not dry_run:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w") as f:
-                json.dump(content, f, indent=2)
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "w") as f:
+                    json.dump(content, f, indent=2)
+            except PermissionError as e:
+                raise PermissionError(f"Permission denied writing {name} to {path}") from e
+            except OSError as e:
+                raise OSError(f"Failed to write {name} to {path}: {e}") from e
         return path
 
     def _save_text_config(self, name: str, path_str: str, content: str, dry_run: bool) -> Path:
-        """텍스트 설정 파일 저장 (공통 로직)"""
+        """텍스트 설정 파일 저장 (공통 로직)
+
+        Args:
+            name: 설정 이름
+            path_str: 저장 경로 문자열
+            content: 저장할 텍스트 데이터
+            dry_run: True면 실제 저장하지 않음
+
+        Returns:
+            저장 경로
+
+        Raises:
+            OSError: 파일 쓰기 오류
+            PermissionError: 권한 오류
+        """
         path = expand_path(path_str)
         if not dry_run:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w") as f:
-                f.write(content)
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "w") as f:
+                    f.write(content)
+            except PermissionError as e:
+                raise PermissionError(f"Permission denied writing {name} to {path}") from e
+            except OSError as e:
+                raise OSError(f"Failed to write {name} to {path}: {e}") from e
         return path
 
     def save_all(self, dry_run: bool = False) -> dict[str, Path]:
-        """모든 설정 파일 저장"""
+        """모든 설정 파일 저장
+
+        Args:
+            dry_run: True면 실제 저장하지 않고 경로만 반환
+
+        Returns:
+            {설정이름: 저장경로} 딕셔너리
+        """
+        # 설정 목록: (이름, 경로, 생성함수, 타입)
+        configs: list[tuple[str, str, Any, str]] = [
+            # Desktop 앱들
+            (
+                "claude_desktop",
+                self.settings.outputs.claude_desktop,
+                self.generate_claude_desktop(),
+                "json",
+            ),
+            (
+                "chatgpt_desktop",
+                self.settings.outputs.chatgpt_desktop,
+                self.generate_chatgpt_desktop(),
+                "json",
+            ),
+            ("antigravity", self.settings.outputs.antigravity, self.generate_antigravity(), "json"),
+            # CLI 도구들 (글로벌)
+            (
+                "claude_global",
+                self.settings.outputs.claude_global,
+                self.generate_claude_local(),
+                "json",
+            ),
+            ("codex_global", self.settings.outputs.codex_global, self.generate_codex(), "text"),
+            ("gemini_global", self.settings.outputs.gemini_global, self.generate_gemini(), "json"),
+            # 로컬 프로젝트 설정
+            (
+                "claude_local",
+                self.settings.outputs.claude_local,
+                self.generate_claude_local(),
+                "json",
+            ),
+            ("codex_local", self.settings.outputs.codex_local, self.generate_codex(), "text"),
+            ("gemini_local", self.settings.outputs.gemini_local, self.generate_gemini(), "json"),
+            # 기타
+            (
+                "shell_exports",
+                self.settings.outputs.shell_exports,
+                self.secrets.export_to_shell(),
+                "text",
+            ),
+        ]
+
         results = {}
-
-        # === Desktop 앱들 ===
-        results["claude_desktop"] = self._save_json_config(
-            "claude_desktop",
-            self.settings.outputs.claude_desktop,
-            self.generate_claude_desktop(),
-            dry_run,
-        )
-        results["chatgpt_desktop"] = self._save_json_config(
-            "chatgpt_desktop",
-            self.settings.outputs.chatgpt_desktop,
-            self.generate_chatgpt_desktop(),
-            dry_run,
-        )
-        results["antigravity"] = self._save_json_config(
-            "antigravity", self.settings.outputs.antigravity, self.generate_antigravity(), dry_run
-        )
-
-        # === CLI 도구들 (글로벌) ===
-        results["claude_global"] = self._save_json_config(
-            "claude_global",
-            self.settings.outputs.claude_global,
-            self.generate_claude_local(),
-            dry_run,
-        )
-        results["codex_global"] = self._save_text_config(
-            "codex_global", self.settings.outputs.codex_global, self.generate_codex(), dry_run
-        )
-        results["gemini_global"] = self._save_json_config(
-            "gemini_global", self.settings.outputs.gemini_global, self.generate_gemini(), dry_run
-        )
-
-        # === 로컬 프로젝트 설정 ===
-        results["claude_local"] = self._save_json_config(
-            "claude_local",
-            self.settings.outputs.claude_local,
-            self.generate_claude_local(),
-            dry_run,
-        )
-        results["codex_local"] = self._save_text_config(
-            "codex_local", self.settings.outputs.codex_local, self.generate_codex(), dry_run
-        )
-        results["gemini_local"] = self._save_json_config(
-            "gemini_local", self.settings.outputs.gemini_local, self.generate_gemini(), dry_run
-        )
-
-        # === 기타 ===
-        results["shell_exports"] = self._save_text_config(
-            "shell_exports",
-            self.settings.outputs.shell_exports,
-            self.secrets.export_to_shell(),
-            dry_run,
-        )
+        for name, path, content, file_type in configs:
+            if file_type == "json":
+                results[name] = self._save_json_config(name, path, content, dry_run)
+            else:  # text
+                results[name] = self._save_text_config(name, path, content, dry_run)
 
         return results

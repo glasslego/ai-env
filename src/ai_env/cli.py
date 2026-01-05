@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 import click
@@ -15,9 +14,29 @@ from .core import (
     load_mcp_config,
     load_settings,
 )
+from .core.sync import sync_claude_global_config
 from .mcp import MCPConfigGenerator
 
 console = Console()
+
+
+def _create_table(title: str, columns: list[tuple[str, str]], rows: list[tuple[str, ...]]) -> Table:
+    """테이블 생성 헬퍼 함수
+
+    Args:
+        title: 테이블 제목
+        columns: 컬럼 정의 리스트 [(이름, 스타일), ...]
+        rows: 행 데이터 리스트 [(값1, 값2, ...), ...]
+
+    Returns:
+        생성된 Rich Table 객체
+    """
+    table = Table(title=title)
+    for col_name, style in columns:
+        table.add_column(col_name, style=style)
+    for row in rows:
+        table.add_row(*row)
+    return table
 
 
 def get_project_root() -> Path:
@@ -114,15 +133,14 @@ def secrets(show: bool) -> None:
         console.print("  [dim]$ vi .env[/dim]")
         return
 
-    table = Table(title=f"Environment Variables ({sm.env_file})")
-    table.add_column("Key", style="cyan")
-    table.add_column("Value", style="green")
-
     data = sm.list() if show else sm.list_masked()
-    for key, value in sorted(data.items()):
-        if not key.startswith("#"):
-            table.add_row(key, value)
+    rows = [(key, value) for key, value in sorted(data.items()) if not key.startswith("#")]
 
+    table = _create_table(
+        title=f"Environment Variables ({sm.env_file})",
+        columns=[("Key", "cyan"), ("Value", "green")],
+        rows=rows,
+    )
     console.print(table)
     console.print(f"\n[dim]💡 Edit {sm.env_file} to modify environment variables[/dim]")
 
@@ -225,104 +243,6 @@ def generate_shell(output: str | None) -> None:
         console.print(content)
 
 
-def _sync_file_or_dir(src: Path, dst: Path, dry_run: bool = False) -> tuple[str, int]:
-    """
-    파일이나 디렉토리 동기화 (공통 로직)
-
-    Returns:
-        (description, count) - 설명과 항목 수
-    """
-    if not src.exists():
-        return "", 0
-
-    if src.is_file():
-        # 단일 파일 복사
-        if not dry_run:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-        return src.name, 1
-
-    elif src.is_dir():
-        # 디렉토리 복사
-        if not dry_run:
-            dst.mkdir(parents=True, exist_ok=True)
-
-        # .md 파일만 복사 (commands/ 용)
-        if src.name == "commands":
-            md_files = list(src.glob("*.md"))
-            if not dry_run:
-                for md_file in md_files:
-                    shutil.copy2(md_file, dst / md_file.name)
-            return f"{src.name}/ ({len(md_files)} files)", len(md_files)
-
-        # 디렉토리 전체 복사 (skills/ 용)
-        else:
-            subdirs = [d for d in src.iterdir() if d.is_dir() and not d.name.startswith(".")]
-            if not dry_run:
-                for subdir in subdirs:
-                    dst_subdir = dst / subdir.name
-                    if dst_subdir.exists():
-                        shutil.rmtree(dst_subdir)
-                    shutil.copytree(subdir, dst_subdir)
-            return f"{src.name}/ ({len(subdirs)} items)", len(subdirs)
-
-    return "", 0
-
-
-def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
-    """
-    글로벌 Claude Code 설정 동기화
-    ai-env/.claude → ~/.claude
-    (CLAUDE.md, commands/, skills/, settings.json)
-    """
-    project_root = get_project_root()
-    source_dir = project_root / ".claude"
-    global_dir = source_dir / "global"  # CLAUDE.md와 settings.json.template 위치
-    target_dir = Path.home() / ".claude"
-
-    results: dict[str, str] = {}
-
-    if not source_dir.exists():
-        console.print(f"[yellow]Warning: Source directory not found: {source_dir}[/yellow]")
-        return results
-
-    # 1. CLAUDE.md 동기화 (global/에서)
-    desc, _ = _sync_file_or_dir(global_dir / "CLAUDE.md", target_dir / "CLAUDE.md", dry_run)
-    if desc:
-        results[desc] = str(target_dir / "CLAUDE.md")
-
-    # 2. settings.json 생성 (환경변수 치환, global/에서)
-    settings_template = global_dir / "settings.json.template"
-    settings_dst = target_dir / "settings.json"
-    if settings_template.exists():
-        sm = get_secrets_manager()
-        with open(settings_template) as f:
-            content = f.read()
-
-        # 환경변수 치환
-        env_vars = sm.list()
-        for key, value in env_vars.items():
-            if value:  # 빈 값은 치환하지 않음
-                content = content.replace(f"${{{key}}}", value)
-
-        if not dry_run:
-            with open(settings_dst, "w") as f:
-                f.write(content)
-        results["settings.json"] = str(settings_dst)
-
-    # 3. commands/ 동기화 (.claude/commands → ~/.claude/commands)
-    desc, _ = _sync_file_or_dir(source_dir / "commands", target_dir / "commands", dry_run)
-    if desc:
-        results[desc] = str(target_dir / "commands")
-
-    # 4. skills/ 동기화 (.claude/skills → ~/.claude/skills)
-    desc, _ = _sync_file_or_dir(source_dir / "skills", target_dir / "skills", dry_run)
-    if desc:
-        results[desc] = str(target_dir / "skills")
-
-    return results
-
-
 # === Sync 명령어 ===
 @main.command()
 @click.option("--dry-run", is_flag=True, help="실제 저장하지 않고 미리보기")
@@ -395,14 +315,14 @@ def sync(dry_run: bool, claude_only: bool, mcp_only: bool) -> None:
             console.print("\n[bold green]✓ Claude global config sync complete![/bold green]")
         return
 
-    # MCP 설정 동기화
-    console.print("\n[bold cyan]🔌 MCP Configurations[/bold cyan]")
+    # MCP 설정 동기화 (모든 AI 도구 포함)
+    console.print("\n[bold cyan]🔌 AI Tools Configuration[/bold cyan]")
     generator = MCPConfigGenerator(sm)
 
     try:
         results: dict[str, Path] = generator.save_all(dry_run=dry_run)
 
-        for name in results:
+        for name in sorted(results.keys()):
             path: Path = results[name]
             console.print(f"  [green]✓[/green] {action} {name}")
             console.print(f"    → {str(path)}")
@@ -431,44 +351,39 @@ def status() -> None:
     console.print(f"[dim]Project root: {project_root}[/dim]\n")
 
     # Provider 상태
-    table = Table(title="AI Providers")
-    table.add_column("Provider", style="cyan")
-    table.add_column("Env Key", style="yellow")
-    table.add_column("Status", style="green")
-
+    provider_rows = []
     for name, provider in settings.providers.items():
         if provider.enabled:
             value = sm.get(provider.env_key)
             status = "[green]✓ Configured[/green]" if value else "[red]✗ Missing[/red]"
-            table.add_row(name, provider.env_key, status)
+            provider_rows.append((name, provider.env_key, status))
 
+    table = _create_table(
+        title="AI Providers",
+        columns=[("Provider", "cyan"), ("Env Key", "yellow"), ("Status", "green")],
+        rows=provider_rows,
+    )
     console.print(table)
 
     # MCP 서버 상태
     mcp_config = load_mcp_config()
-
-    console.print()
-    table2 = Table(title="MCP Servers")
-    table2.add_column("Server", style="cyan")
-    table2.add_column("Type", style="yellow")
-    table2.add_column("Targets")
-
+    mcp_rows = []
     for name, server in mcp_config.mcp_servers.items():
         if server.enabled:
             targets = ", ".join(server.targets[:3])
             if len(server.targets) > 3:
                 targets += f" (+{len(server.targets) - 3})"
-            table2.add_row(name, server.type, targets)
+            mcp_rows.append((name, server.type, targets))
 
+    console.print()
+    table2 = _create_table(
+        title="MCP Servers",
+        columns=[("Server", "cyan"), ("Type", "yellow"), ("Targets", "")],
+        rows=mcp_rows,
+    )
     console.print(table2)
 
     # 글로벌 Claude 설정 상태
-    console.print()
-    table3 = Table(title="Claude Global Config (ai-env → ~/.claude)")
-    table3.add_column("Item", style="cyan")
-    table3.add_column("Source (ai-env)", style="yellow")
-    table3.add_column("Target (~/.claude)", style="green")
-
     source_dir = project_root / ".claude"
     global_dir = source_dir / "global"
     target_dir = Path.home() / ".claude"
@@ -480,12 +395,10 @@ def status() -> None:
         ("skills/", source_dir / "skills", target_dir / "skills"),
     ]
 
+    claude_rows = []
     for name, src, dst in items:
-        src_exists = src.exists()
-        dst_exists = dst.exists()
-
         # 소스 상태
-        if src_exists:
+        if src.exists():
             if src.is_dir():
                 count = len([f for f in src.iterdir() if not f.name.startswith(".")])
                 src_status = f"[green]✓ ({count})[/green]"
@@ -495,7 +408,7 @@ def status() -> None:
             src_status = "[red]✗[/red]"
 
         # 타겟 상태
-        if dst_exists:
+        if dst.exists():
             if dst.is_dir():
                 count = len([f for f in dst.iterdir() if not f.name.startswith(".")])
                 dst_status = f"[green]✓ ({count})[/green]"
@@ -504,8 +417,14 @@ def status() -> None:
         else:
             dst_status = "[yellow]○ (not synced)[/yellow]"
 
-        table3.add_row(name, src_status, dst_status)
+        claude_rows.append((name, src_status, dst_status))
 
+    console.print()
+    table3 = _create_table(
+        title="Claude Global Config (ai-env → ~/.claude)",
+        columns=[("Item", "cyan"), ("Source (ai-env)", "yellow"), ("Target (~/.claude)", "green")],
+        rows=claude_rows,
+    )
     console.print(table3)
 
     console.print("\n[dim]💡 Run 'ai-env sync' to synchronize all configurations[/dim]")
