@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import click
@@ -10,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .core import (
+    get_project_root,
     get_secrets_manager,
     load_mcp_config,
     load_settings,
@@ -20,7 +22,9 @@ from .mcp import MCPConfigGenerator
 console = Console()
 
 
-def _create_table(title: str, columns: list[tuple[str, str]], rows: list[tuple[str, ...]]) -> Table:
+def _create_table(
+    title: str, columns: list[tuple[str, str]], rows: Sequence[tuple[str, ...]]
+) -> Table:
     """테이블 생성 헬퍼 함수
 
     Args:
@@ -37,11 +41,6 @@ def _create_table(title: str, columns: list[tuple[str, str]], rows: list[tuple[s
     for row in rows:
         table.add_row(*row)
     return table
-
-
-def get_project_root() -> Path:
-    """프로젝트 루트 디렉토리 반환"""
-    return Path(__file__).parent.parent.parent
 
 
 @click.group()
@@ -84,7 +83,6 @@ def setup() -> None:
             "CONFLUENCE_URL",
             "CONFLUENCE_PERSONAL_TOKEN",
         ],
-        "Notion": ["NOTION_API_TOKEN"],
     }
 
     for category, vars_list in required_vars.items():

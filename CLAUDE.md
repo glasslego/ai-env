@@ -87,14 +87,20 @@ uv run ruff format .
 
 ### MCP 서버 타겟
 
-시스템이 지원하는 "타겟"들 (각기 다른 AI 도구):
-- `claude_desktop`: 글로벌 Claude Desktop 앱
-- `claude_local`: 프로젝트별 Claude Code 설정
-- `antigravity`: Gemini의 MCP 클라이언트
-- `codex`: OpenAI Codex CLI
-- `gemini`: Google Gemini CLI
+`config/mcp_servers.yaml`의 각 MCP 서버는 `targets` 리스트로 배포 대상을 명시합니다.
 
-`config/mcp_servers.yaml`의 각 MCP 서버는 `targets` 리스트로 지원 타겟을 명시합니다.
+**타겟 → 출력 경로:**
+| 타겟 | 출력 경로 | 설명 |
+|------|----------|------|
+| `claude_desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` | Claude Desktop 앱 (stdio만 지원) |
+| `chatgpt_desktop` | `~/Library/Application Support/ChatGPT/config.json` | ChatGPT Desktop 앱 |
+| `antigravity` | `~/.gemini/antigravity/mcp_config.json` | Gemini Antigravity |
+| `claude_local` | `./.claude/settings.glocal.json` | 프로젝트용 템플릿 (glocal) |
+| `claude_global` | `~/.claude/settings.json` | 글로벌 Claude Code |
+| `codex` | `~/.codex/config.toml`, `./.codex/config.toml` | Codex CLI (글로벌/로컬) |
+| `gemini` | `~/.gemini/settings.json`, `./.gemini/settings.local.json` | Gemini CLI (글로벌/로컬) |
+
+**참고**: SSE 타입 서버는 Claude Desktop/ChatGPT Desktop에서 지원하지 않음 (stdio만 지원)
 
 ### 환경변수 치환
 
@@ -107,6 +113,10 @@ Generator/Sync 동작:
 2. MCP 설정: `args`에서 치환하거나 `env_keys`로 직접 전달
 3. SSE 서버: `url_env` 키에서 URL 환경변수명 읽기
 4. settings.json: 템플릿에서 치환 후 생성
+
+**환경변수 키 매핑** (`generator.py`의 `ENV_KEY_MAPPING`):
+일부 MCP 서버는 다른 키 이름을 요구함:
+- `GITHUB_GLASSLEGO_TOKEN` → `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub MCP)
 
 ## 프로젝트 구조 규칙
 
@@ -122,7 +132,20 @@ Generator/Sync 동작:
   - `global/`: 글로벌 설정 (CLAUDE.md, settings.json.template)
   - `commands/`: 슬래시 커맨드
   - `skills/`: 커스텀 스킬
+  - `settings.glocal.json`: 다른 프로젝트용 템플릿 (git 추적)
+  - `settings.local.json`: 이 프로젝트 전용 (gitignore, 수동 관리)
 - `tests/`: pytest 테스트
+
+### glocal vs local 설정
+
+```
+.claude/
+├── settings.glocal.json  ← sync로 생성, git 추적, 다른 프로젝트용 템플릿
+└── settings.local.json   ← 수동 관리, gitignore, 이 프로젝트 전용 permissions
+```
+
+- **glocal**: "global template for local" - MCP 설정 + 기본 permissions
+- **local**: 프로젝트별 커스텀 permissions (sync가 덮어쓰지 않음)
 
 ## 주요 개발 시나리오
 
@@ -140,19 +163,25 @@ Generator/Sync 동작:
 2. 필요시 `MCPConfigGenerator`에 생성 메서드 구현
 3. 필요시 `cli.py`에 새 명령어 추가
 
-### 설정 생성 테스트
+### 설정 생성/동기화
 
 ```bash
-# 파일 쓰지 않고 미리보기
-uv run ai-env generate all --dry-run
+# 미리보기 (파일 쓰지 않음)
+uv run ai-env sync --dry-run
 
-# 특정 타겟만 생성
+# 전체 동기화 (Claude 글로벌 + 모든 MCP 설정)
+uv run ai-env sync
+
+# Claude 글로벌 설정만 동기화 (CLAUDE.md, commands/, skills/, settings.json)
+uv run ai-env sync --claude-only
+
+# MCP 설정만 동기화 (Claude Desktop, Gemini, Codex 등)
+uv run ai-env sync --mcp-only
+
+# 특정 타겟만 생성 (stdout 출력)
 uv run ai-env generate claude-desktop
 uv run ai-env generate antigravity
 uv run ai-env generate shell
-
-# 미리보기로 동기화
-uv run ai-env sync --dry-run
 ```
 
 ## 추가 도구
@@ -161,27 +190,14 @@ uv run ai-env sync --dry-run
 
 `src/ai_assistant/notion_to_obsidian/`: Notion 내보내기를 Obsidian vault로 변환하는 독립 도구
 
-**사용법**:
 ```bash
-# 기본 변환
+# 기본 사용법
 python -m ai_assistant.notion_to_obsidian.cli /path/to/notion/export /path/to/obsidian/vault
 
-# 미리보기 (파일 쓰지 않음)
-python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --dry-run
-
-# 폴더 구조 평탄화 (모든 노트를 루트에)
-python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --flatten
-
-# 첨부파일 제외
-python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --no-attachments
+# 옵션: --dry-run (미리보기), --flatten (평탄화), --no-attachments (첨부파일 제외)
 ```
 
-**주요 기능**:
-- Notion 내보내기 마크다운을 Obsidian 호환 형식으로 변환
-- ID가 포함된 파일/폴더 이름을 정리 (예: `Page abc123.md` → `Page.md`)
-- 내부 링크를 Obsidian 위키링크로 변환 (`[[Page]]`)
-- 이미지/PDF 등 첨부파일 복사
-- 폴더 구조 유지 또는 평탄화 옵션
+주요 기능: Notion ID 제거, 위키링크 변환, 첨부파일 복사
 
 ## 중요 사항
 

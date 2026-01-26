@@ -162,15 +162,15 @@ class MCPConfigGenerator:
         """ChatGPT Desktop용 config 생성 (Claude Desktop과 동일한 포맷)"""
         return self.generate_claude_desktop()
 
-    def _save_json_config(
-        self, name: str, path_str: str, content: dict[str, Any], dry_run: bool
+    def _save_config(
+        self, name: str, path_str: str, content: dict[str, Any] | str, dry_run: bool
     ) -> Path:
-        """JSON 설정 파일 저장 (공통 로직)
+        """설정 파일 저장 (JSON 또는 텍스트)
 
         Args:
             name: 설정 이름
             path_str: 저장 경로 문자열
-            content: 저장할 JSON 데이터
+            content: 저장할 데이터 (dict/list면 JSON, str이면 텍스트)
             dry_run: True면 실제 저장하지 않음
 
         Returns:
@@ -185,35 +185,10 @@ class MCPConfigGenerator:
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with open(path, "w") as f:
-                    json.dump(content, f, indent=2)
-            except PermissionError as e:
-                raise PermissionError(f"Permission denied writing {name} to {path}") from e
-            except OSError as e:
-                raise OSError(f"Failed to write {name} to {path}: {e}") from e
-        return path
-
-    def _save_text_config(self, name: str, path_str: str, content: str, dry_run: bool) -> Path:
-        """텍스트 설정 파일 저장 (공통 로직)
-
-        Args:
-            name: 설정 이름
-            path_str: 저장 경로 문자열
-            content: 저장할 텍스트 데이터
-            dry_run: True면 실제 저장하지 않음
-
-        Returns:
-            저장 경로
-
-        Raises:
-            OSError: 파일 쓰기 오류
-            PermissionError: 권한 오류
-        """
-        path = expand_path(path_str)
-        if not dry_run:
-            try:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                with open(path, "w") as f:
-                    f.write(content)
+                    if isinstance(content, dict | list):
+                        json.dump(content, f, indent=2)
+                    else:
+                        f.write(content)
             except PermissionError as e:
                 raise PermissionError(f"Permission denied writing {name} to {path}") from e
             except OSError as e:
@@ -229,54 +204,33 @@ class MCPConfigGenerator:
         Returns:
             {설정이름: 저장경로} 딕셔너리
         """
-        # 설정 목록: (이름, 경로, 생성함수, 타입)
-        configs: list[tuple[str, str, Any, str]] = [
+        # 설정 목록: (이름, 경로, 콘텐츠)
+        # dict/list는 JSON으로, str은 텍스트로 자동 저장
+        configs: list[tuple[str, str, Any]] = [
             # Desktop 앱들
             (
                 "claude_desktop",
                 self.settings.outputs.claude_desktop,
                 self.generate_claude_desktop(),
-                "json",
             ),
             (
                 "chatgpt_desktop",
                 self.settings.outputs.chatgpt_desktop,
                 self.generate_chatgpt_desktop(),
-                "json",
             ),
-            ("antigravity", self.settings.outputs.antigravity, self.generate_antigravity(), "json"),
+            ("antigravity", self.settings.outputs.antigravity, self.generate_antigravity()),
             # CLI 도구들 (글로벌)
-            (
-                "claude_global",
-                self.settings.outputs.claude_global,
-                self.generate_claude_local(),
-                "json",
-            ),
-            ("codex_global", self.settings.outputs.codex_global, self.generate_codex(), "text"),
-            ("gemini_global", self.settings.outputs.gemini_global, self.generate_gemini(), "json"),
+            ("claude_global", self.settings.outputs.claude_global, self.generate_claude_local()),
+            ("codex_global", self.settings.outputs.codex_global, self.generate_codex()),
+            ("gemini_global", self.settings.outputs.gemini_global, self.generate_gemini()),
             # 로컬 프로젝트 설정
-            (
-                "claude_local",
-                self.settings.outputs.claude_local,
-                self.generate_claude_local(),
-                "json",
-            ),
-            ("codex_local", self.settings.outputs.codex_local, self.generate_codex(), "text"),
-            ("gemini_local", self.settings.outputs.gemini_local, self.generate_gemini(), "json"),
+            ("claude_local", self.settings.outputs.claude_local, self.generate_claude_local()),
+            ("codex_local", self.settings.outputs.codex_local, self.generate_codex()),
+            ("gemini_local", self.settings.outputs.gemini_local, self.generate_gemini()),
             # 기타
-            (
-                "shell_exports",
-                self.settings.outputs.shell_exports,
-                self.secrets.export_to_shell(),
-                "text",
-            ),
+            ("shell_exports", self.settings.outputs.shell_exports, self.secrets.export_to_shell()),
         ]
 
-        results = {}
-        for name, path, content, file_type in configs:
-            if file_type == "json":
-                results[name] = self._save_json_config(name, path, content, dry_run)
-            else:  # text
-                results[name] = self._save_text_config(name, path, content, dry_run)
-
-        return results
+        return {
+            name: self._save_config(name, path, content, dry_run) for name, path, content in configs
+        }
