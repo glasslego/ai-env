@@ -45,10 +45,11 @@ generated/
 
 # 로컬 프로젝트별 AI 설정 (실제 설정값 포함)
 .claude/settings.local.json
+.claude/settings.glocal.json
 .codex/config.toml
 .gemini/settings.local.json
 
-# 디렉토리 구조는 유지하되 README만 커밋
+# 디렉토리 구조 유지
 !.claude/
 !.codex/
 !.gemini/

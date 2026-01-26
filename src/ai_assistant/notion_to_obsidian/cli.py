@@ -37,13 +37,13 @@ def main() -> int:
 Examples:
   # Basic conversion
   python -m ai_assistant.notion_to_obsidian.cli /path/to/notion/export /path/to/obsidian/vault
-  
+
   # Dry run (preview without writing)
   python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --dry-run
-  
+
   # Flatten folder structure (all notes in root)
   python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault --flatten
-  
+
   # Verbose output
   python -m ai_assistant.notion_to_obsidian.cli /path/to/export /path/to/vault -v
         """,

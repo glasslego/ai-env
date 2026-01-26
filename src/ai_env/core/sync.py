@@ -158,13 +158,7 @@ def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
     if settings_template.exists():
         sm = get_secrets_manager()
         with open(settings_template) as f:
-            content = f.read()
-
-        # 환경변수 치환
-        env_vars = sm.list()
-        for key, value in env_vars.items():
-            if value:  # 빈 값은 치환하지 않음
-                content = content.replace(f"${{{key}}}", value)
+            content = sm.substitute(f.read())
 
         if not dry_run:
             settings_dst.parent.mkdir(parents=True, exist_ok=True)

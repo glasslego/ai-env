@@ -10,8 +10,7 @@ class NotionCleaner:
 
     # Notion ID pattern: 32자리 hex (8-4-4-4-12 또는 연속)
     NOTION_ID_PATTERN = re.compile(
-        r"[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}|"
-        r"[a-f0-9]{32}"
+        r"[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}|" r"[a-f0-9]{32}"
     )
 
     # URL encoded Korean + Notion ID in links
@@ -69,17 +68,13 @@ class NotionCleaner:
         # Extract Created
         created_match = self.METADATA_PATTERNS["created"].search(content)
         if created_match:
-            self.extracted_created = self._parse_notion_date(
-                created_match.group(1).strip()
-            )
+            self.extracted_created = self._parse_notion_date(created_match.group(1).strip())
             content = content.replace(created_match.group(0), "")
 
         # Extract Updated
         updated_match = self.METADATA_PATTERNS["updated"].search(content)
         if updated_match:
-            self.extracted_updated = self._parse_notion_date(
-                updated_match.group(1).strip()
-            )
+            self.extracted_updated = self._parse_notion_date(updated_match.group(1).strip())
             content = content.replace(updated_match.group(0), "")
 
         return content
@@ -104,7 +99,6 @@ class NotionCleaner:
         """Clean Notion-style links to Obsidian wiki links."""
 
         def replace_link(match: re.Match) -> str:
-            text = match.group(1)
             url = match.group(2)
 
             # Skip image links
@@ -143,7 +137,9 @@ class NotionCleaner:
     def _clean_images(self, content: str) -> str:
         """Clean image paths for Obsidian."""
         # ![alt](encoded_path.png) -> ![[filename.png]]
-        img_pattern = re.compile(r"!\[([^\]]*)\]\(([^)]+\.(png|jpg|jpeg|gif|webp|svg))\)", re.IGNORECASE)
+        img_pattern = re.compile(
+            r"!\[([^\]]*)\]\(([^)]+\.(png|jpg|jpeg|gif|webp|svg))\)", re.IGNORECASE
+        )
 
         def replace_image(match: re.Match) -> str:
             alt = match.group(1)

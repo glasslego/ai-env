@@ -1,23 +1,20 @@
 """Tests for ai-env CLI."""
 
 import os
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
+from ai_env.cli import main
 from click.testing import CliRunner
 
-from ai_env.cli import main, setup, secrets, generate_all, sync, status
-from ai_env.core import load_settings
 
-
-@pytest.fixture
+@pytest.fixture()
 def runner():
     """Click CLI runner fixture."""
     return CliRunner()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Mock settings."""
     with patch("ai_env.cli.load_settings") as mock:
@@ -25,18 +22,18 @@ def mock_settings():
         settings.version = "0.1.0"
         settings.default_agent = "claude"
         settings.env_file = ".env"
-        
+
         # Mock providers
         provider = MagicMock()
         provider.enabled = True
         provider.env_key = "CLAUDE_API_KEY"
         settings.providers = {"claude": provider}
-        
+
         mock.return_value = settings
         yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_secrets_manager():
     """Mock secrets manager."""
     with patch("ai_env.cli.get_secrets_manager") as mock:
@@ -46,7 +43,7 @@ def mock_secrets_manager():
         yield mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mcp_config():
     """Mock MCP config."""
     with patch("ai_env.cli.load_mcp_config") as mock:
@@ -73,13 +70,13 @@ def test_secrets_list_command(runner, mock_secrets_manager):
 
 def test_generate_all_command(runner, mock_secrets_manager):
     """Test generate all command (dry run)."""
-    with patch("ai_env.cli.MCPConfigGenerator") as MockGenerator:
+    with patch("ai_env.cli.MCPConfigGenerator") as mock_generator:
         # Valid execution
         result = runner.invoke(main, ["generate", "all", "--dry-run"])
-        
+
         assert result.exit_code == 0, f"Command failed with output: {result.output}"
-        
+
         # Verify MCPConfigGenerator usage
-        MockGenerator.assert_called_once()
-        instance = MockGenerator.return_value
+        mock_generator.assert_called_once()
+        instance = mock_generator.return_value
         instance.save_all.assert_called_once_with(dry_run=True)

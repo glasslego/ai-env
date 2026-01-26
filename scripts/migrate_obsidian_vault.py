@@ -4,10 +4,10 @@
 기존 Obsidian Vault와 Notion Import 폴더를 새로운 구조로 재정리합니다.
 """
 
-import shutil
 import logging
-from pathlib import Path
+import shutil
 from datetime import datetime
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,7 +48,6 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "02_work_CDE",
                 "action": "rename",
             },
-            
             # === 03_work (기타 업무) ===
             {
                 "src": self.notion_import / "01__카카오_업무정리" / "#_커머스AI",
@@ -75,7 +74,6 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "03_work" / "지난업무",
                 "action": "move",
             },
-            
             # === 10_tech (기술) ===
             {
                 "src": self.notion_import / "02_데이터기술",
@@ -107,7 +105,6 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "10_tech" / "기타",
                 "action": "move",
             },
-            
             # === 20_study (스터디) ===
             {
                 "src": self.notion_import / "04_스터디" / "1_수학 & 통계 & 분석",
@@ -174,7 +171,6 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "20_study" / "kaggle",
                 "action": "move",
             },
-            
             # === 30_career (커리어) ===
             {
                 "src": self.notion_import / "기술관련" / "면접 준비",
@@ -191,7 +187,6 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "30_career" / "coding-test" / "algorithm",
                 "action": "move",
             },
-            
             # === 40_개인 ===
             {
                 "src": self.notion_import / "남종개인" / "2) 남정잡다",
@@ -213,7 +208,6 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "40_개인" / "여행",
                 "action": "move",
             },
-            
             # === 41_재테크 ===
             {
                 "src": self.notion_import / "재테크",
@@ -225,28 +219,24 @@ class ObsidianVaultMigrator:
                 "dst": self.vault_path / "41_재테크" / "노션백업",
                 "action": "move",
             },
-            
             # === 42_독서노트 ===
             {
                 "src": self.notion_import / "독서노트",
                 "dst": self.vault_path / "42_독서노트",
                 "action": "move",
             },
-            
             # === 50_blog ===
             {
                 "src": self.vault_path / "티스토리용",
                 "dst": self.vault_path / "50_blog",
                 "action": "rename",
             },
-            
             # === attachments ===
             {
                 "src": self.notion_import / "attachments",
                 "dst": self.vault_path / "attachments",
                 "action": "merge",
             },
-            
             # === 기타 정리 ===
             {
                 "src": self.vault_path / "할일정리",
@@ -263,7 +253,7 @@ class ObsidianVaultMigrator:
     def migrate(self) -> dict:
         """마이그레이션 실행."""
         logger.info(f"{'[DRY RUN] ' if self.dry_run else ''}마이그레이션 시작: {self.vault_path}")
-        
+
         # 백업 생성 (dry_run이 아닐 때만)
         if not self.dry_run:
             self._create_backup_marker()
@@ -274,10 +264,12 @@ class ObsidianVaultMigrator:
                 self._process_mapping(mapping)
             except Exception as e:
                 logger.error(f"Error processing {mapping['src']}: {e}")
-                self.stats["errors"].append({
-                    "src": str(mapping["src"]),
-                    "error": str(e),
-                })
+                self.stats["errors"].append(
+                    {
+                        "src": str(mapping["src"]),
+                        "error": str(e),
+                    }
+                )
 
         # 루트에 남은 파일들 정리
         self._cleanup_root_files()
@@ -290,7 +282,9 @@ class ObsidianVaultMigrator:
 
     def _create_backup_marker(self) -> None:
         """백업 마커 파일 생성."""
-        marker_file = self.vault_path / f".migration_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        marker_file = (
+            self.vault_path / f".migration_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
         marker_file.write_text(f"Migration started at {datetime.now().isoformat()}\n")
         logger.info(f"백업 마커 생성: {marker_file.name}")
 
@@ -358,8 +352,10 @@ class ObsidianVaultMigrator:
             ("Untitled.md", self.vault_path / "00_inbox"),
             ("Welcome.md", self.vault_path / "00_inbox"),
             ("chap3 hdfs.md", self.vault_path / "10_tech" / "data-engineering"),
-            ("flink 에서 만든 테이블 --> 스냅샷 테이블 만들때 timestamp 이슈.md", 
-             self.vault_path / "10_tech" / "data-engineering"),
+            (
+                "flink 에서 만든 테이블 --> 스냅샷 테이블 만들때 timestamp 이슈.md",
+                self.vault_path / "10_tech" / "data-engineering",
+            ),
         ]
 
         for filename, target_dir in root_files:
@@ -422,10 +418,7 @@ class ObsidianVaultMigrator:
                 self._remove_empty_recursive(item)
 
         # .obsidian, .DS_Store 무시하고 비어있는지 확인
-        remaining = [
-            f for f in path.iterdir() 
-            if f.name not in [".DS_Store", ".obsidian"]
-        ]
+        remaining = [f for f in path.iterdir() if f.name not in [".DS_Store", ".obsidian"]]
 
         if not remaining:
             logger.info(f"빈 폴더 제거: {path}")
@@ -446,9 +439,7 @@ class ObsidianVaultMigrator:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Obsidian Vault 폴더 구조 마이그레이션"
-    )
+    parser = argparse.ArgumentParser(description="Obsidian Vault 폴더 구조 마이그레이션")
     parser.add_argument(
         "--vault",
         type=Path,

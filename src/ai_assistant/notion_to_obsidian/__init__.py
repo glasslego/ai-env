@@ -1,7 +1,7 @@
 """Notion to Obsidian converter module."""
 
-from .converter import NotionToObsidianConverter
 from .cleaner import NotionCleaner
+from .converter import NotionToObsidianConverter
 from .models import NotionPage, ObsidianNote
 
 __all__ = [

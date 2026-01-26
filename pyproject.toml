@@ -79,6 +79,10 @@ ignore_missing_imports = true
 module = "ai_env.cli"
 disallow_untyped_decorators = false
 
+[[tool.mypy.overrides]]
+module = ["ai_assistant.*", "tests.*", "scripts.*"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

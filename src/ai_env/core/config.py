@@ -32,8 +32,8 @@ class OutputsConfig(BaseModel):
     codex_global: str = "~/.codex/config.toml"
     gemini_global: str = "~/.gemini/settings.json"
 
-    # 로컬 프로젝트 설정
-    claude_local: str = "./.claude/settings.local.json"
+    # 로컬 프로젝트 설정 (glocal = global template for local)
+    claude_local: str = "./.claude/settings.glocal.json"
     codex_local: str = "./.codex/config.toml"
     gemini_local: str = "./.gemini/settings.local.json"
 

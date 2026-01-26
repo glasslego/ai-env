@@ -43,8 +43,8 @@ outputs:
   codex_global: ~/.codex/config.toml
   gemini_global: ~/.gemini/settings.json
 
-  # 로컬 프로젝트 설정 (이 프로젝트 자체용)
-  claude_local: ./.claude/settings.local.json
+  # 로컬 프로젝트 설정 (glocal = 다른 프로젝트용 템플릿)
+  claude_local: ./.claude/settings.glocal.json
   codex_local: ./.codex/config.toml
   gemini_local: ./.gemini/settings.local.json
 

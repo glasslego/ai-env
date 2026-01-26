@@ -78,7 +78,7 @@ class ObsidianNote:
         """Generate safe filename for Obsidian."""
         # 파일명에 사용 불가한 문자 제거
         safe_title = self.title
-        for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '#']:
+        for char in ["/", "\\", ":", "*", "?", '"', "<", ">", "|", "#"]:
             safe_title = safe_title.replace(char, "_")
         return f"{safe_title}.md"
 
