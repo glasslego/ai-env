@@ -8,6 +8,7 @@
       "mcp__brave-search",
       "mcp__context7",
       "mcp__kkoto-mcp",
+      "mcp__mem0",
       "mcp__cdp-mcp-server",
       "mcp__sequential-thinking",
       "Bash(git:*)",
@@ -85,6 +86,13 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "mem0": {
+      "command": "npx",
+      "args": ["-y", "@mem0/mcp"],
+      "env": {
+        "MEM0_API_KEY": "${MEM0_API_KEY}"
+      }
     },
     "sequential-thinking": {
       "command": "npx",

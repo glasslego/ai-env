@@ -160,8 +160,8 @@ class MCPConfigGenerator:
         return {"security": {"auth": {"selectedType": "oauth-personal"}}, "mcpServers": servers}
 
     def generate_chatgpt_desktop(self) -> dict[str, Any]:
-        """ChatGPT Desktop용 config 생성 (Claude Desktop과 동일한 포맷)"""
-        return self.generate_claude_desktop()
+        """ChatGPT Desktop용 config 생성"""
+        return {"mcpServers": self._generate_mcp_servers_for_target("chatgpt_desktop")}
 
     def _save_config(
         self, name: str, path_str: str, content: dict[str, Any] | str, dry_run: bool

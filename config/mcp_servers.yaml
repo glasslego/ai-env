@@ -20,6 +20,7 @@ mcp_servers:
       - GITHUB_GLASSLEGO_TOKEN
     targets:
       - claude_desktop
+      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -44,6 +45,7 @@ mcp_servers:
       - GITHUB_KAKAO_TOKEN
     targets:
       - claude_desktop
+      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -73,6 +75,7 @@ mcp_servers:
       - CONFLUENCE_PERSONAL_TOKEN
     targets:
       - claude_desktop
+      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -88,6 +91,7 @@ mcp_servers:
       - "@executeautomation/playwright-mcp-server"
     targets:
       - claude_desktop
+      - chatgpt_desktop
       - claude_local
       - codex
       - gemini
@@ -103,6 +107,7 @@ mcp_servers:
       - BRAVE_API_KEY
     targets:
       - claude_desktop
+      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -117,6 +122,24 @@ mcp_servers:
       - "@upstash/context7-mcp@latest"
     targets:
       - claude_desktop
+      - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  mem0:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@mem0/mcp"
+    env_keys:
+      - MEM0_API_KEY
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -130,6 +153,7 @@ mcp_servers:
       - -y
       - "@modelcontextprotocol/server-sequential-thinking"
     targets:
+      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
