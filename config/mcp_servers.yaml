@@ -92,6 +92,22 @@ mcp_servers:
       - codex
       - gemini
 
+  brave-search:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-brave-search"
+    env_keys:
+      - BRAVE_API_KEY
+    targets:
+      - claude_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
   context7:
     enabled: true
     type: stdio

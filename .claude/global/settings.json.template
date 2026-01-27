@@ -5,6 +5,7 @@
       "mcp__github",
       "mcp__github-kakao",
       "mcp__playwright",
+      "mcp__brave-search",
       "mcp__context7",
       "mcp__kkoto-mcp",
       "mcp__cdp-mcp-server",
@@ -73,6 +74,13 @@
     "playwright": {
       "command": "npx",
       "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
     },
     "context7": {
       "command": "npx",
