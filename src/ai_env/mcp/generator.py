@@ -221,7 +221,8 @@ class MCPConfigGenerator:
             ),
             ("antigravity", self.settings.outputs.antigravity, self.generate_antigravity()),
             # CLI 도구들 (글로벌)
-            ("claude_global", self.settings.outputs.claude_global, self.generate_claude_local()),
+            # claude_global은 sync_claude_global_config()에서 template 기반으로 생성
+            # (permissions 포함), 여기서 덮어쓰지 않음
             ("codex_global", self.settings.outputs.codex_global, self.generate_codex()),
             ("gemini_global", self.settings.outputs.gemini_global, self.generate_gemini()),
             # 로컬 프로젝트 설정

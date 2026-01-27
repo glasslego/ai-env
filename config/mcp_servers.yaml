@@ -159,7 +159,18 @@ mcp_servers:
       - codex
       - gemini
 
-  # === SSE 기반 서버 (Kakao 내부) ===
+  # === SSE 기반 서버 ===
+  browseract:
+    enabled: true
+    type: sse
+    url_env: BROWSERACT_MCP_URL
+    targets:
+      - antigravity
+      - claude_local
+      - gemini
+      - codex
+
+  # Kakao 내부
   kkoto-mcp:
     enabled: true
     type: sse
