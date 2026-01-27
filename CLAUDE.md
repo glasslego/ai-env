@@ -16,9 +16,9 @@ uv sync
 uv sync --all-extras
 pre-commit install  # Git 훅 설정
 
-# CLI 실행 (두 가지 방법 - ai-env 또는 축약형 aie)
+# CLI 실행
 uv run ai-env --help
-uv run aie status  # 축약형
+uv run ai-env status
 
 # 테스트 실행
 uv run pytest                    # 전체 테스트
@@ -190,4 +190,4 @@ uv run ai-env generate shell
 - 모든 경로 확장(~, 환경변수)은 config.py의 `expand_path()`로 처리
 - SecretsManager는 안전한 시크릿 표시를 위해 `list_masked()` 제공
 - CLI는 Rich Console 사용 - `print()` 대신 `console.print()` 사용
-- 두 CLI 진입점 모두 작동: `ai-env` 및 `aie`(축약형)
+- CLI 진입점: `uv run ai-env`

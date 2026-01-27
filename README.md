@@ -24,7 +24,7 @@ ai-env secrets --show       # 값 표시
 ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
 ```
 
-> 모든 명령어는 `uv run` 접두사 필요. 축약형 `aie`도 사용 가능.
+> 모든 명령어는 `uv run` 접두사 필요.
 
 ## 동작 원리
 

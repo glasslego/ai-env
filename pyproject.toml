@@ -41,7 +41,6 @@ dev = [
 
 [project.scripts]
 ai-env = "ai_env.cli:main"
-aie = "ai_env.cli:main"
 
 [build-system]
 requires = ["hatchling"]
