@@ -92,6 +92,20 @@ mcp_servers:
       - codex
       - gemini
 
+  context7:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@upstash/context7-mcp@latest"
+    targets:
+      - claude_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
   sequential-thinking:
     enabled: true
     type: stdio
