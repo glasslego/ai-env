@@ -161,7 +161,7 @@ mcp_servers:
 
   # === SSE 기반 서버 ===
   browseract:
-    enabled: true
+    enabled: false
     type: sse
     url_env: BROWSERACT_MCP_URL
     targets:
