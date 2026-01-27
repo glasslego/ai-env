@@ -3,7 +3,9 @@
     "allow": [
       "mcp__jira-wiki-mcp",
       "mcp__github",
+      "mcp__github-kakao",
       "mcp__playwright",
+      "mcp__context7",
       "mcp__kkoto-mcp",
       "mcp__cdp-mcp-server",
       "mcp__sequential-thinking",
@@ -13,18 +15,12 @@
       "Bash(python:*)",
       "Bash(python3:*)",
       "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
       "Bash(mv:*)",
-      "Bash(rm:*)",
       "Bash(pre-commit:*)",
-      "Bash(black:*)",
-      "Bash(isort:*)",
       "Bash(ruff:*)"
     ],
     "deny": [],
@@ -36,11 +32,25 @@
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "-e", "GITHUB_GLASSLEGO_TOKEN",
-        "ghcr.io/github/github-mcp-server"
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server",
+        "stdio"
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_GLASSLEGO_TOKEN}"
+      }
+    },
+    "github-kakao": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e", "GITHUB_HOST=https://github.daumkakao.com",
+        "ghcr.io/github/github-mcp-server",
+        "stdio"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_KAKAO_TOKEN}"
       }
     },
     "jira-wiki-mcp": {
@@ -63,6 +73,10 @@
     "playwright": {
       "command": "npx",
       "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
     },
     "sequential-thinking": {
       "command": "npx",
