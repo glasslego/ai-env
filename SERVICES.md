@@ -21,15 +21,6 @@ ai-env에서 관리하는 모든 MCP 서버와 연동 서비스 목록입니다.
   - `CONFLUENCE_PERSONAL_TOKEN`
 - **용도**: 이슈 관리, 문서 검색/작성
 
-## Notion
-
-### notion
-- **대상**: Notion Workspace
-- **환경변수**: `NOTION_API_TOKEN`
-- **용도**: 페이지/데이터베이스 관리, 회의록 작성
-- **가이드**: `NOTION_SETUP.md`
-- **주의**: Integration에 명시적으로 페이지 공유 필요
-
 ## 개발 도구
 
 ### playwright
@@ -62,7 +53,6 @@ ai-env에서 관리하는 모든 MCP 서버와 연동 서비스 목록입니다.
 |--------|---------|-----------|----------|
 | **github** | ✅ Claude<br>✅ ChatGPT<br>✅ Antigravity | ✅ | ✅ |
 | **jira-wiki-mcp** | ✅ Claude<br>✅ ChatGPT<br>✅ Antigravity | ✅ | ✅ |
-| **notion** | ✅ Claude<br>✅ ChatGPT<br>✅ Antigravity | ✅ | ✅ |
 | **playwright** | ✅ Claude | ✅ Codex<br>✅ Gemini | ✅ |
 | **sequential-thinking** | ✅ Antigravity | - | ✅ |
 | **kkoto-mcp** | ✅ Antigravity | ✅ Gemini | ✅ |
@@ -99,9 +89,6 @@ JIRA_PERSONAL_TOKEN=...
 CONFLUENCE_URL=https://wiki.daumkakao.com
 CONFLUENCE_PERSONAL_TOKEN=...
 
-# Notion
-NOTION_API_TOKEN=ntn_...
-
 # Kakao Internal (SSE)
 KKOTO_MCP_URL=http://...
 CDP_MCP_URL=http://...
@@ -131,8 +118,8 @@ uv run ai-env secrets --show
 `config/mcp_servers.yaml`에서:
 ```yaml
 mcp_servers:
-  notion:
-    enabled: false  # Notion 비활성화
+  some-server:
+    enabled: false  # 비활성화
 ```
 
 재동기화:
@@ -142,5 +129,4 @@ uv run ai-env sync
 
 ## 서비스별 가이드
 
-- **Notion 연동**: `NOTION_SETUP.md`
 - **전체 설정**: `SETUP.md`

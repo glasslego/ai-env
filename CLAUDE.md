@@ -117,6 +117,7 @@ Generator/Sync 동작:
 **환경변수 키 매핑** (`generator.py`의 `ENV_KEY_MAPPING`):
 일부 MCP 서버는 다른 키 이름을 요구함:
 - `GITHUB_GLASSLEGO_TOKEN` → `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub MCP)
+- `GITHUB_KAKAO_TOKEN` → `GITHUB_PERSONAL_ACCESS_TOKEN` (GitHub Kakao MCP)
 
 ## 프로젝트 구조 규칙
 
@@ -126,8 +127,6 @@ Generator/Sync 동작:
 - `src/ai_env/`: AI 환경 관리 메인 패키지
   - `core/`: 설정, 시크릿, 동기화 관리 (config.py, secrets.py, sync.py)
   - `mcp/`: MCP 설정 생성 (generator.py)
-- `src/ai_assistant/`: AI 어시스턴트 유틸리티 모음
-  - `notion_to_obsidian/`: Notion 내보내기를 Obsidian vault로 변환
 - `.claude/`: Claude Code 설정 소스 (동기화 대상)
   - `global/`: 글로벌 설정 (CLAUDE.md, settings.json.template)
   - `commands/`: 슬래시 커맨드
@@ -183,21 +182,6 @@ uv run ai-env generate claude-desktop
 uv run ai-env generate antigravity
 uv run ai-env generate shell
 ```
-
-## 추가 도구
-
-### Notion to Obsidian 변환기
-
-`src/ai_assistant/notion_to_obsidian/`: Notion 내보내기를 Obsidian vault로 변환하는 독립 도구
-
-```bash
-# 기본 사용법
-python -m ai_assistant.notion_to_obsidian.cli /path/to/notion/export /path/to/obsidian/vault
-
-# 옵션: --dry-run (미리보기), --flatten (평탄화), --no-attachments (첨부파일 제외)
-```
-
-주요 기능: Notion ID 제거, 위키링크 변환, 첨부파일 복사
 
 ## 중요 사항
 

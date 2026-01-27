@@ -21,6 +21,7 @@ class MCPConfigGenerator:
     # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
     ENV_KEY_MAPPING = {
         "GITHUB_GLASSLEGO_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "GITHUB_KAKAO_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
     }
 
     def __init__(self, secrets: SecretsManager):

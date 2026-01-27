@@ -14,9 +14,6 @@ class ProviderConfig(BaseModel):
 
     enabled: bool = True
     env_key: str = ""
-    config_dir: str = ""
-    auth_type: str = "api_key"
-    uses_gemini_auth: bool = False
 
 
 class OutputsConfig(BaseModel):
@@ -49,7 +46,6 @@ class Settings(BaseModel):
     env_file: str = ".env"
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
-    sync_targets: list[str] = Field(default_factory=list)
 
 
 class MCPServerConfig(BaseModel):

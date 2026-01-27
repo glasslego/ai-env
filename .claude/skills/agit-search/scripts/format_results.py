@@ -37,7 +37,7 @@ def _format_timestamp(timestamp: Any) -> str:
     if not timestamp:
         return "N/A"
     try:
-        if isinstance(timestamp, (int, float)):
+        if isinstance(timestamp, int | float):
             dt = datetime.fromtimestamp(timestamp / 1000)
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         return str(timestamp)

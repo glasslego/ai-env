@@ -647,7 +647,6 @@ class WikiClient:
             print(f"[DRY-RUN] Would move page {page_id} to {position} {target_page_id}")
             return {"id": page_id, "_dry_run": True}
 
-        data = {"position": position, "targetId": target_page_id}
         response = self._client.put(f"/rest/api/content/{page_id}/move/{position}/{target_page_id}")
         response.raise_for_status()
         return response.json()

@@ -336,7 +336,7 @@ class TestDraftGeneratorIntegration:
         assert len(draft_data) > 0
 
         # 각 component에 services 키가 있어야 함
-        for component_name, component_data in draft_data.items():
+        for _component_name, component_data in draft_data.items():
             assert "services" in component_data
             assert isinstance(component_data["services"], dict)
 

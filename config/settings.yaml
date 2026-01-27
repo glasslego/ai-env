@@ -13,23 +13,17 @@ providers:
   claude:
     enabled: true
     env_key: ANTHROPIC_API_KEY
-    config_dir: ~/.claude
 
   codex:
     enabled: true
     env_key: OPENAI_API_KEY
-    config_dir: ~/.codex
 
   gemini:
     enabled: true
     env_key: GOOGLE_API_KEY
-    config_dir: ~/.gemini
-    auth_type: oauth
 
   antigravity:
     enabled: true
-    config_dir: ~/.gemini/antigravity
-    uses_gemini_auth: true
 
 # === 출력 경로 (글로벌 설정) ===
 outputs:
@@ -50,25 +44,3 @@ outputs:
 
   # 기타
   shell_exports: ./generated/shell_exports.sh
-
-# === 글로벌 Claude 설정 (CLAUDE.md, commands, skills) ===
-claude_global_config:
-  # ai-env에서 관리하는 글로벌 설정 소스
-  source_dir: ./.claude/global
-
-  # 동기화 대상 디렉토리
-  target_dir: ~/.claude
-
-  # 동기화할 항목들
-  sync_items:
-    - CLAUDE.md           # 시스템 와이드 규칙
-    - commands/           # 슬래시 명령어
-    - skills/             # 서브에이전트 스킬
-
-# === 동기화 대상 (글로벌 설정에 반영) ===
-sync_targets:
-  - claude_desktop
-  - antigravity
-  - claude_global
-  - claude_global_config   # 글로벌 CLAUDE.md, commands, skills
-  - shell_exports
