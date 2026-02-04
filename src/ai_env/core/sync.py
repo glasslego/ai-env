@@ -131,11 +131,75 @@ def _sync_file_or_dir(src: Path, dst: Path, dry_run: bool = False) -> tuple[str,
         return _sync_directory(src, dst, dry_run)
 
 
+def _collect_skill_sources(project_root: Path) -> list[Path]:
+    """스킬 소스 디렉토리 수집 (personal + team)
+
+    ai-env/.claude/skills/ 의 서브디렉토리와
+    cde-skills 심링크 내 SKILL.md를 가진 서브디렉토리를 수집한다.
+
+    Args:
+        project_root: ai-env 프로젝트 루트
+
+    Returns:
+        스킬 서브디렉토리 경로 리스트
+    """
+    sources: list[Path] = []
+
+    # 1. personal skills: ai-env/.claude/skills/*/
+    personal_dir = project_root / ".claude" / "skills"
+    if personal_dir.exists():
+        for d in sorted(personal_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith("."):
+                sources.append(d)
+
+    # 2. team skills: cde-skills 심링크 내 SKILL.md가 있는 디렉토리
+    #    cde-skills가 flat 구조(scripts/, references/)일 수도 있고
+    #    skill 구조(skill-name/SKILL.md)일 수도 있음
+    cde_skills_link = project_root / "cde-skills"
+    if cde_skills_link.exists():
+        # 심링크 resolve해서 실제 경로 사용
+        cde_skills_dir = cde_skills_link.resolve()
+        for d in sorted(cde_skills_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith("."):
+                # SKILL.md가 있는 디렉토리만 스킬로 인식
+                if (d / "SKILL.md").exists():
+                    sources.append(d)
+
+    return sources
+
+
+def _sync_skills_merged(project_root: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
+    """personal + team 스킬을 합쳐서 동기화
+
+    Args:
+        project_root: ai-env 프로젝트 루트
+        dst: 목적지 디렉토리 (~/.claude/skills)
+        dry_run: True면 실제 복사하지 않음
+
+    Returns:
+        (설명, 복사된 스킬 수)
+    """
+    skill_dirs = _collect_skill_sources(project_root)
+
+    if not dry_run:
+        dst.mkdir(parents=True, exist_ok=True)
+        for skill_dir in skill_dirs:
+            dst_subdir = dst / skill_dir.name
+            if dst_subdir.exists():
+                shutil.rmtree(dst_subdir)
+            shutil.copytree(skill_dir, dst_subdir)
+
+    return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
+
+
 def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
     """
     글로벌 Claude Code 설정 동기화
     ai-env/.claude → ~/.claude
     (CLAUDE.md, commands/, skills/, settings.json)
+
+    skills는 ai-env/.claude/skills/ (personal)과
+    ai-env/cde-skills/ (team, symlink)를 합쳐서 동기화한다.
     """
     project_root = get_project_root()
     source_dir = project_root / ".claude"
@@ -171,8 +235,8 @@ def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
     if desc:
         results[desc] = str(target_dir / "commands")
 
-    # 4. skills/ 동기화 (.claude/skills → ~/.claude/skills)
-    desc, _ = _sync_file_or_dir(source_dir / "skills", target_dir / "skills", dry_run)
+    # 4. skills/ 동기화 (personal + team 합쳐서 → ~/.claude/skills)
+    desc, _ = _sync_skills_merged(project_root, target_dir / "skills", dry_run)
     if desc:
         results[desc] = str(target_dir / "skills")
 
