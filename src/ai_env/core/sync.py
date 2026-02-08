@@ -152,18 +152,32 @@ def _collect_skill_sources(project_root: Path) -> list[Path]:
             if d.is_dir() and not d.name.startswith("."):
                 sources.append(d)
 
-    # 2. team skills: cde-skills 심링크 내 SKILL.md가 있는 디렉토리
-    #    cde-skills가 flat 구조(scripts/, references/)일 수도 있고
-    #    skill 구조(skill-name/SKILL.md)일 수도 있음
-    cde_skills_link = project_root / "cde-skills"
-    if cde_skills_link.exists():
+    # 2. team skills: cde-*skills 심링크들 (cde-skills, cde-ranking-skills 등)
+    #    각 심링크는 다음 구조 중 하나:
+    #    - flat 구조: skill-name/SKILL.md (루트에 스킬 디렉토리)
+    #    - nested 구조: .claude/skills/skill-name/SKILL.md
+    for item in sorted(project_root.iterdir()):
+        if not item.name.startswith("cde-") or not item.name.endswith("skills"):
+            continue
+        if not item.exists():  # broken symlink
+            continue
+
         # 심링크 resolve해서 실제 경로 사용
-        cde_skills_dir = cde_skills_link.resolve()
-        for d in sorted(cde_skills_dir.iterdir()):
-            if d.is_dir() and not d.name.startswith("."):
-                # SKILL.md가 있는 디렉토리만 스킬로 인식
-                if (d / "SKILL.md").exists():
-                    sources.append(d)
+        cde_skills_dir = item.resolve()
+
+        # nested 구조 먼저 확인 (.claude/skills/)
+        nested_skills = cde_skills_dir / ".claude" / "skills"
+        if nested_skills.exists():
+            for d in sorted(nested_skills.iterdir()):
+                if d.is_dir() and not d.name.startswith("."):
+                    if (d / "SKILL.md").exists():
+                        sources.append(d)
+        else:
+            # flat 구조: 루트에 skill-name/SKILL.md
+            for d in sorted(cde_skills_dir.iterdir()):
+                if d.is_dir() and not d.name.startswith("."):
+                    if (d / "SKILL.md").exists():
+                        sources.append(d)
 
     return sources
 

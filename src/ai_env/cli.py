@@ -210,6 +210,22 @@ def generate_claude_desktop(output: str | None) -> None:
         console.print_json(json.dumps(config))
 
 
+@generate.command("chatgpt-desktop")
+@click.option("--output", "-o", help="출력 경로")
+def generate_chatgpt_desktop(output: str | None) -> None:
+    """ChatGPT Desktop 설정 생성"""
+    sm = get_secrets_manager()
+    generator = MCPConfigGenerator(sm)
+    config = generator.generate_chatgpt_desktop()
+
+    if output:
+        with open(output, "w") as f:
+            json.dump(config, f, indent=2)
+        console.print(f"[green]✓ Saved to {output}[/green]")
+    else:
+        console.print_json(json.dumps(config))
+
+
 @generate.command("antigravity")
 @click.option("--output", "-o", help="출력 경로")
 def generate_antigravity(output: str | None) -> None:
@@ -253,7 +269,10 @@ def sync(dry_run: bool, claude_only: bool, mcp_only: bool) -> None:
     동기화 대상:
     - Claude Code: ~/.claude (CLAUDE.md, commands/, skills/, settings.json)
     - Claude Desktop: ~/Library/Application Support/Claude/
+    - ChatGPT Desktop: ~/Library/Application Support/ChatGPT/
     - Antigravity: ~/.gemini/antigravity/
+    - Gemini CLI: ~/.gemini/
+    - Codex CLI: ~/.codex/
     - Shell exports: ./generated/shell_exports.sh
     """
     console.print("[bold]🔄 Syncing AI environment configurations...[/bold]\n")

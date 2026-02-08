@@ -70,7 +70,7 @@ uv run ruff format .
 - `sync_claude_global_config()`: Claude Code 글로벌 설정 동기화
 - `.claude/global/` → `~/.claude/` 동기화 (CLAUDE.md, settings.json.template)
 - `.claude/commands/` → `~/.claude/commands/` (.md 파일만)
-- `.claude/skills/` → `~/.claude/skills/` (서브디렉토리 전체)
+- skills 동기화: personal(`.claude/skills/`) + team(`cde-*skills/` 심링크) 병합 → `~/.claude/skills/`
 - `settings.json.template`에서 환경변수 치환 후 `settings.json` 생성
 
 ### 설정 흐름
@@ -130,9 +130,10 @@ Generator/Sync 동작:
 - `.claude/`: Claude Code 설정 소스 (동기화 대상)
   - `global/`: 글로벌 설정 (CLAUDE.md, settings.json.template)
   - `commands/`: 슬래시 커맨드
-  - `skills/`: 커스텀 스킬
+  - `skills/`: 개인 스킬 (personal)
   - `settings.glocal.json`: 다른 프로젝트용 템플릿 (git 추적)
   - `settings.local.json`: 이 프로젝트 전용 (gitignore, 수동 관리)
+- `cde-*skills` 심링크: 팀 공유 스킬 (team) - `cde-skills`, `cde-ranking-skills` 등
 - `tests/`: pytest 테스트
 
 ### glocal vs local 설정
@@ -145,6 +146,21 @@ Generator/Sync 동작:
 
 - **glocal**: "global template for local" - MCP 설정 + 기본 permissions
 - **local**: 프로젝트별 커스텀 permissions (sync가 덮어쓰지 않음)
+
+### skills 동기화 구조
+
+`ai-env sync`는 personal + team 스킬을 합쳐서 `~/.claude/skills/`에 동기화:
+
+```
+personal: .claude/skills/*/             ← 이 저장소의 개인 스킬
+team:     cde-*skills/ (symlink) →      ← 팀 공유 스킬 저장소 심링크
+          ├── .claude/skills/*/SKILL.md   (nested 구조 우선)
+          └── */SKILL.md                  (flat 구조 폴백)
+                    ↓
+          ~/.claude/skills/             ← 최종 병합 결과
+```
+
+팀 스킬 심링크는 `cde-`로 시작하고 `skills`로 끝나는 이름 패턴을 따름.
 
 ## 주요 개발 시나리오
 
