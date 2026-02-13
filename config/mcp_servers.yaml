@@ -92,6 +92,23 @@ mcp_servers:
     targets:
       - claude_desktop
       - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  desktop-commander:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: npx
+    args:
+      - -y
+      - "@wonderwhy-er/desktop-commander"
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - antigravity
       - claude_local
       - codex
       - gemini
@@ -110,6 +127,7 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
+      - codex
       - gemini
 
   context7:
@@ -124,6 +142,7 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
+      - codex
       - gemini
 
   mem0:
@@ -151,6 +170,7 @@ mcp_servers:
       - -y
       - "@modelcontextprotocol/server-sequential-thinking"
     targets:
+      - claude_desktop
       - chatgpt_desktop
       - antigravity
       - claude_local

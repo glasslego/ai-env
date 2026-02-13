@@ -393,13 +393,15 @@ def status() -> None:
 
     # MCP 서버 상태
     mcp_config = load_mcp_config()
+    enabled_mcp_servers = {
+        name: server for name, server in mcp_config.mcp_servers.items() if server.enabled
+    }
     mcp_rows = []
-    for name, server in mcp_config.mcp_servers.items():
-        if server.enabled:
-            targets = ", ".join(server.targets[:3])
-            if len(server.targets) > 3:
-                targets += f" (+{len(server.targets) - 3})"
-            mcp_rows.append((name, server.type, targets))
+    for name, server in enabled_mcp_servers.items():
+        targets = ", ".join(server.targets[:3])
+        if len(server.targets) > 3:
+            targets += f" (+{len(server.targets) - 3})"
+        mcp_rows.append((name, server.type, targets))
 
     console.print()
     table2 = _create_table(
@@ -408,6 +410,42 @@ def status() -> None:
         rows=mcp_rows,
     )
     console.print(table2)
+
+    target_order = [
+        "claude_desktop",
+        "chatgpt_desktop",
+        "antigravity",
+        "claude_local",
+        "codex",
+        "gemini",
+    ]
+    target_rows = []
+    for target in target_order:
+        server_count = sum(1 for server in enabled_mcp_servers.values() if target in server.targets)
+        target_rows.append((target, str(server_count)))
+
+    console.print()
+    table_target = _create_table(
+        title="MCP Target Coverage",
+        columns=[("Target", "cyan"), ("Enabled Servers", "green")],
+        rows=target_rows,
+    )
+    console.print(table_target)
+
+    full_coverage_servers = [
+        name
+        for name, server in enabled_mcp_servers.items()
+        if all(target in server.targets for target in target_order)
+    ]
+    if full_coverage_servers:
+        full_coverage_servers.sort()
+        display_names = ", ".join(full_coverage_servers[:6])
+        if len(full_coverage_servers) > 6:
+            display_names += f", ... (+{len(full_coverage_servers) - 6})"
+        console.print(
+            f"[green]✓[/green] All-client MCP servers ({len(full_coverage_servers)}): "
+            f"{display_names}"
+        )
 
     # 글로벌 Claude 설정 상태
     source_dir = project_root / ".claude"

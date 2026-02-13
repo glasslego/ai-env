@@ -80,6 +80,32 @@ ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | Codex CLI | `~/.codex/config.toml` |
 | Shell exports | `generated/shell_exports.sh` (환경변수 + vibe 함수) |
 
+## 추천 MCP 목록
+
+기본적으로 아래 MCP를 "공통 생산성 세트"로 사용합니다.
+
+| MCP 서버 | 용도 | 기본 상태 |
+|---------|------|-----------|
+| `desktop-commander` | 로컬 파일/프로세스 작업 자동화 | enabled |
+| `playwright` | 브라우저 자동화, E2E/스크래핑 | enabled |
+| `brave-search` | 웹 검색 | enabled |
+| `context7` | 라이브러리 공식 문서 조회 | enabled |
+| `sequential-thinking` | 단계적 추론/계획 | enabled |
+
+참고:
+- `github`, `github-kakao`, `jira-wiki-mcp`, `mem0`, `kkoto-mcp`, `cdp-mcp-server`는 환경/네트워크 특성상 Codex에서 startup 실패가 잦아 기본적으로 Codex 타겟에서 제외되어 있습니다.
+- Claude Desktop/ChatGPT Desktop은 `stdio` 타입 MCP만 권장됩니다.
+
+## MCP 타겟 매트릭스 (기본 공통 세트)
+
+| MCP 서버 | Claude Desktop | ChatGPT Desktop | Claude Code | Codex | Gemini | Antigravity |
+|---------|----------------|-----------------|-------------|-------|--------|-------------|
+| `desktop-commander` | Y | Y | Y | Y | Y | Y |
+| `playwright` | Y | Y | Y | Y | Y | Y |
+| `brave-search` | Y | Y | Y | Y | Y | Y |
+| `context7` | Y | Y | Y | Y | Y | Y |
+| `sequential-thinking` | Y | Y | Y | Y | Y | Y |
+
 ## vibe 함수 (Agent Fallback)
 
 `ai-env sync` 시 `shell_exports.sh`에 자동 생성되는 쉘 함수입니다.
