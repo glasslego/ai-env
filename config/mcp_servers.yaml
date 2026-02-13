@@ -7,6 +7,7 @@ mcp_servers:
   github:
     enabled: true
     type: stdio
+    startup_timeout_sec: 45
     command: docker
     args:
       - run
@@ -30,6 +31,7 @@ mcp_servers:
   github-kakao:
     enabled: true
     type: stdio
+    startup_timeout_sec: 45
     command: docker
     args:
       - run
@@ -54,6 +56,7 @@ mcp_servers:
   jira-wiki-mcp:
     enabled: true
     type: stdio
+    startup_timeout_sec: 60
     command: docker
     args:
       - run
@@ -131,6 +134,7 @@ mcp_servers:
   mem0:
     enabled: true
     type: stdio
+    startup_timeout_sec: 30
     command: npx
     args:
       - -y
@@ -174,6 +178,7 @@ mcp_servers:
   kkoto-mcp:
     enabled: true
     type: sse
+    startup_timeout_sec: 30
     url_env: KKOTO_MCP_URL
     targets:
       - antigravity
@@ -184,6 +189,7 @@ mcp_servers:
   cdp-mcp-server:
     enabled: true
     type: sse
+    startup_timeout_sec: 30
     url_env: CDP_MCP_URL
     targets:
       - antigravity

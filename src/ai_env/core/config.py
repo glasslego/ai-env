@@ -47,6 +47,7 @@ class Settings(BaseModel):
     version: str = "1.0"
     default_agent: str = "claude"
     env_file: str = ".env"
+    agent_priority: list[str] = Field(default_factory=lambda: ["claude", "codex"])
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
 
@@ -61,6 +62,7 @@ class MCPServerConfig(BaseModel):
     env_keys: list[str] = Field(default_factory=list)
     url_env: str | None = None  # SSE 서버용
     targets: list[str] = Field(default_factory=list)
+    startup_timeout_sec: int | None = None  # Codex MCP startup timeout (seconds)
 
 
 class MCPConfig(BaseModel):

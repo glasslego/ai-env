@@ -18,6 +18,8 @@ from ..core import (
 class MCPConfigGenerator:
     """MCP 설정 파일 생성기"""
 
+    CODEX_DEFAULT_STARTUP_TIMEOUT_SEC = 30
+
     # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
     ENV_KEY_MAPPING = {
         "GITHUB_GLASSLEGO_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -61,11 +63,11 @@ class MCPConfigGenerator:
             url = self.secrets.get(server.url_env, "") if server.url_env else ""
             if not url:
                 return None
-            return {"type": "sse", "url": url}
+            config: dict[str, Any] = {"type": "sse", "url": url}
 
         else:
             # STDIO 서버 (Docker, npx 등)
-            config: dict[str, Any] = {
+            config = {
                 "command": server.command,
                 "args": [self._substitute_env(arg) for arg in server.args],
             }
@@ -81,7 +83,16 @@ class MCPConfigGenerator:
                 if env:
                     config["env"] = env
 
-            return config
+        # Codex는 서버 기동 타임아웃을 server-level로 설정 가능
+        if target == "codex":
+            timeout = (
+                server.startup_timeout_sec
+                if server.startup_timeout_sec is not None
+                else self.CODEX_DEFAULT_STARTUP_TIMEOUT_SEC
+            )
+            config["startup_timeout_sec"] = timeout
+
+        return config
 
     def _generate_mcp_servers_for_target(self, target: str) -> dict[str, Any]:
         """특정 타겟용 MCP 서버 설정 생성 (공통 로직)"""
@@ -111,9 +122,18 @@ class MCPConfigGenerator:
         """Codex용 config.toml 생성"""
         lines = [
             'trust_level = "trusted"',
+            'approval_policy = "never"',
+            'sandbox_mode = "danger-full-access"',
             "",
             "[features]",
             "rmcp_client = true",
+            "",
+            "[rules]",
+            (
+                'prefix_rules = [{ decision = "forbidden", '
+                'justification = "Blocked by ai-env policy: rm -rf is forbidden.", '
+                'pattern = [{ token = "rm" }, { token = "-rf" }] }]'
+            ),
             "",
         ]
 
@@ -124,10 +144,14 @@ class MCPConfigGenerator:
             if config.get("type") == "sse":
                 lines.append('type = "sse"')
                 lines.append(f'url = "{config["url"]}"')
+                if "startup_timeout_sec" in config:
+                    lines.append(f'startup_timeout_sec = {config["startup_timeout_sec"]}')
             else:
                 lines.append(f'command = "{config["command"]}"')
                 args_str = ", ".join(f'"{a}"' for a in config["args"])
                 lines.append(f"args = [{args_str}]")
+                if "startup_timeout_sec" in config:
+                    lines.append(f'startup_timeout_sec = {config["startup_timeout_sec"]}')
 
                 if "env" in config:
                     lines.append("")
@@ -153,6 +177,90 @@ class MCPConfigGenerator:
     def generate_chatgpt_desktop(self) -> dict[str, Any]:
         """ChatGPT Desktop용 config 생성"""
         return {"mcpServers": self._generate_mcp_servers_for_target("chatgpt_desktop")}
+
+    def generate_shell_functions(self) -> str:
+        """에이전트 우선순위 기반 vibe 쉘 함수 생성
+
+        settings.yaml의 agent_priority 순서대로 AI 에이전트를 시도하는
+        'vibe' 쉘 함수를 생성합니다. 앞 순위 에이전트가 비정상 종료(세션 한도 등)하면
+        다음 에이전트로 자동 전환됩니다.
+
+        Returns:
+            bash 함수 문자열
+        """
+        agents = self.settings.agent_priority
+        if not agents:
+            return ""
+
+        agents_str = " ".join(f'"{a}"' for a in agents)
+        priority_display = " → ".join(agents)
+
+        return f"""\
+# === AI Agent Fallback (vibe coding) ===
+# Priority: {priority_display}
+# Usage: vibe [prompt]  - 우선순위대로 에이전트 시도, 실패 시 자동 전환
+#        vibe -2        - 2순위 에이전트부터 시작 (예: codex)
+#        vibe -l        - 에이전트 우선순위 목록 출력
+vibe() {{
+    local agents=({agents_str})
+    local start_idx=0
+    local prompt=""
+
+    # 옵션 파싱
+    case "$1" in
+        -l|--list)
+            printf '\\033[36mAgent priority:\\033[0m\\n'
+            for i in "${{!agents[@]}}"; do
+                printf '  %d. %s\\n' "$((i+1))" "${{agents[$i]}}"
+            done
+            return 0
+            ;;
+        -[0-9])
+            start_idx=$((${{1#-}} - 1))
+            shift
+            ;;
+    esac
+    prompt="$*"
+
+    local tried=0
+    for ((i=start_idx; i<${{#agents[@]}}; i++)); do
+        local agent="${{agents[$i]}}"
+
+        # Claude Code는 중첩 세션 불가
+        if [[ "$agent" == "claude" && -n "${{CLAUDECODE:-}}" ]]; then
+            printf '\\033[33m⏭ %s: 이미 Claude Code 세션 내부 (건너뜀)\\033[0m\\n' "$agent"
+            continue
+        fi
+
+        if ! command -v "$agent" &>/dev/null; then
+            printf '\\033[33m⏭ %s: 설치되지 않음 (건너뜀)\\033[0m\\n' "$agent"
+            continue
+        fi
+
+        tried=$((tried + 1))
+        printf '\\033[36m🚀 Starting %s...\\033[0m\\n' "$agent"
+
+        if [[ -n "$prompt" ]]; then
+            "$agent" "$prompt"
+        else
+            "$agent"
+        fi
+        local exit_code=$?
+
+        if [[ $exit_code -eq 0 ]]; then
+            return 0
+        fi
+
+        printf '\\n\\033[33m⚠ %s 종료 (code: %d). 다음 에이전트로 전환...\\033[0m\\n\\n' "$agent" "$exit_code"
+    done
+
+    if [[ $tried -eq 0 ]]; then
+        printf '\\033[31m❌ 사용 가능한 AI 에이전트가 없습니다\\033[0m\\n'
+    else
+        printf '\\033[31m❌ 모든 AI 에이전트 소진\\033[0m\\n'
+    fi
+    return 1
+}}"""
 
     def _save_config(
         self, name: str, path_str: str, content: dict[str, Any] | str, dry_run: bool
@@ -220,8 +328,12 @@ class MCPConfigGenerator:
             ("claude_local", self.settings.outputs.claude_local, self.generate_claude_local()),
             ("codex_local", self.settings.outputs.codex_local, self.generate_codex()),
             ("gemini_local", self.settings.outputs.gemini_local, self.generate_gemini()),
-            # 기타
-            ("shell_exports", self.settings.outputs.shell_exports, self.secrets.export_to_shell()),
+            # 기타 (shell exports + vibe 함수)
+            (
+                "shell_exports",
+                self.settings.outputs.shell_exports,
+                self.secrets.export_to_shell() + "\n\n" + self.generate_shell_functions(),
+            ),
         ]
 
         return {
