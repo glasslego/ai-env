@@ -24,7 +24,6 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
-      - codex
       - gemini
 
   # GitHub Kakao Enterprise
@@ -50,7 +49,6 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
-      - codex
       - gemini
 
   jira-wiki-mcp:
@@ -81,7 +79,6 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
-      - codex
       - gemini
 
   # === NPX 기반 서버 ===
@@ -113,7 +110,6 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
-      - codex
       - gemini
 
   context7:
@@ -128,7 +124,6 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
-      - codex
       - gemini
 
   mem0:
@@ -146,7 +141,6 @@ mcp_servers:
       - chatgpt_desktop
       - antigravity
       - claude_local
-      - codex
       - gemini
 
   sequential-thinking:
@@ -184,7 +178,6 @@ mcp_servers:
       - antigravity
       - claude_local
       - gemini
-      - codex
 
   cdp-mcp-server:
     enabled: true
@@ -195,4 +188,3 @@ mcp_servers:
       - antigravity
       - claude_local
       - gemini
-      - codex

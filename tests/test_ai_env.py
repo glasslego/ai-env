@@ -233,7 +233,15 @@ class TestGenerateCodexConfig:
 
         assert 'approval_policy = "never"' in result
         assert 'sandbox_mode = "danger-full-access"' in result
-        assert "[rules]" in result
-        assert 'decision = "forbidden"' in result
-        assert '{ token = "rm" }' in result
-        assert '{ token = "-rf" }' in result
+        assert "[permissions]" in result
+        assert "[permissions.env]" in result
+        assert 'allow = ["Read(*)"' in result
+        assert '"Bash(*)"' in result
+        assert '"mcp__*"' in result
+        assert '"mcp__ide__getDiagnostics"' in result
+        assert '"Bash(rm -rf /)"' in result
+        assert '"Bash(rm -rf /*)"' in result
+        assert '"Bash(git push * --force)"' in result
+        assert '"Bash(DROP DATABASE*)"' in result
+        assert 'teammateMode = "tmux"' in result
+        assert 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1"' in result

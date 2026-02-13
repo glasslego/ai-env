@@ -76,6 +76,20 @@ team:     cde-*skills/ (symlink) → SKILL.md를 가진 서브디렉토리만
 
 `--skills-include`/`--skills-exclude` 옵션으로 팀 스킬 디렉토리를 선택적으로 동기화 가능.
 
+### Agent Fallback (vibe 함수)
+
+`ai-env sync` 시 `shell_exports.sh`에 `vibe` 쉘 함수가 자동 생성됨.
+`config/settings.yaml`의 `agent_priority` 순서대로 AI 에이전트를 시도하고, 앞 에이전트가 비정상 종료 시 다음으로 자동 전환.
+
+```bash
+vibe               # Claude Code 시작 → 한도 도달 시 Codex로 자동 전환
+vibe "로그인 만들어줘"  # 프롬프트와 함께 시작
+vibe -2            # 2순위(codex)부터 바로 시작
+vibe -l            # 에이전트 우선순위 목록 확인
+```
+
+우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `ai-env sync`.
+
 ## 주요 규칙
 
 - `.env`는 절대 커밋하지 않음

@@ -32,7 +32,7 @@ ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
 ## 동작 원리
 
 ```
-.env (토큰)  +  config/mcp_servers.yaml (서버 정의)
+.env (토큰)  +  config/mcp_servers.yaml (서버 정의)  +  config/settings.yaml
                          │
                    ai-env sync
                          │
@@ -40,6 +40,7 @@ ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
         ▼                ▼                ▼
   Claude Desktop    Gemini/Codex     ~/.claude/
   ChatGPT Desktop   Antigravity    (commands, skills)
+                                   shell_exports.sh (vibe 함수)
 ```
 
 `.env`의 토큰과 `config/mcp_servers.yaml`의 서버 정의를 조합해서 각 AI 도구별 설정 파일을 자동 생성합니다.
@@ -77,6 +78,21 @@ ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | Antigravity | `~/.gemini/antigravity/mcp_config.json` |
 | Gemini CLI | `~/.gemini/settings.json` |
 | Codex CLI | `~/.codex/config.toml` |
+| Shell exports | `generated/shell_exports.sh` (환경변수 + vibe 함수) |
+
+## vibe 함수 (Agent Fallback)
+
+`ai-env sync` 시 `shell_exports.sh`에 자동 생성되는 쉘 함수입니다.
+`config/settings.yaml`의 `agent_priority` 순서대로 AI 에이전트를 시도하고, 앞 에이전트가 세션 한도/에러로 종료되면 다음으로 자동 전환합니다.
+
+```bash
+vibe               # claude 시작 → 한도 도달 시 codex로 전환
+vibe "기능 만들어줘"  # 프롬프트와 함께 시작
+vibe -2            # 2순위(codex)부터 바로 시작
+vibe -l            # 에이전트 우선순위 목록 출력
+```
+
+우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `ai-env sync`.
 
 ## MCP 서버 추가
 

@@ -25,6 +25,13 @@ providers:
   antigravity:
     enabled: true
 
+# === Agent 우선순위 (바이브코딩 fallback) ===
+# vibe 함수가 이 순서대로 에이전트를 시도
+# 앞의 에이전트가 세션 한도/에러로 종료되면 다음 에이전트로 자동 전환
+agent_priority:
+  - claude
+  - codex
+
 # === 출력 경로 (글로벌 설정) ===
 outputs:
   # Desktop 앱들

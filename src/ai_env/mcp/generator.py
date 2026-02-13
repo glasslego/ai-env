@@ -19,6 +19,37 @@ class MCPConfigGenerator:
     """MCP 설정 파일 생성기"""
 
     CODEX_DEFAULT_STARTUP_TIMEOUT_SEC = 30
+    CODEX_PERMISSION_ALLOW = [
+        "Read(*)",
+        "Edit(**)",
+        "Bash(git:*)",
+        "Bash(npm:*)",
+        "Bash(*)",
+        "WebFetch(*)",
+        "mcp__*",
+        "WebSearch",
+        "mcp__ide__getDiagnostics",
+    ]
+    CODEX_PERMISSION_DENY = [
+        "Bash(sudo:*)",
+        "Bash(rm -rf /)",
+        "Bash(rm -rf /*)",
+        "Bash(rm -rf ~)",
+        "Bash(rm -rf ~/*)",
+        "Bash(mkfs*)",
+        "Bash(dd if=*of=/dev/*)",
+        "Bash(chmod -R 777 /)",
+        "Bash(chown -R * /)",
+        "Bash(shutdown*)",
+        "Bash(reboot*)",
+        "Bash(init 0*)",
+        "Bash(git push * --force)",
+        "Bash(git clean -fdx /)",
+        "Bash(DROP DATABASE*)",
+        "Bash(DROP TABLE*)",
+    ]
+    CODEX_PERMISSION_ENV = {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}
+    CODEX_TEAMMATE_MODE = "tmux"
 
     # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
     ENV_KEY_MAPPING = {
@@ -120,20 +151,23 @@ class MCPConfigGenerator:
 
     def generate_codex(self) -> str:
         """Codex용 config.toml 생성"""
+        allow_str = ", ".join(f'"{item}"' for item in self.CODEX_PERMISSION_ALLOW)
+        deny_str = ", ".join(f'"{item}"' for item in self.CODEX_PERMISSION_DENY)
         lines = [
             'trust_level = "trusted"',
             'approval_policy = "never"',
             'sandbox_mode = "danger-full-access"',
             "",
+            "[permissions]",
+            f"allow = [{allow_str}]",
+            f"deny = [{deny_str}]",
+            f'teammateMode = "{self.CODEX_TEAMMATE_MODE}"',
+            "",
+            "[permissions.env]",
+            *[f'{key} = "{value}"' for key, value in self.CODEX_PERMISSION_ENV.items()],
+            "",
             "[features]",
             "rmcp_client = true",
-            "",
-            "[rules]",
-            (
-                'prefix_rules = [{ decision = "forbidden", '
-                'justification = "Blocked by ai-env policy: rm -rf is forbidden.", '
-                'pattern = [{ token = "rm" }, { token = "-rf" }] }]'
-            ),
             "",
         ]
 
