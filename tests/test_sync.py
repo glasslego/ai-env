@@ -152,3 +152,73 @@ def test_sync_skills_merged(tmp_path):
     assert count == 2
     assert (dst / "mcp-config" / "SKILL.md").exists()
     assert (dst / "trino-analyst" / "SKILL.md").exists()
+
+
+def _setup_multi_team_skills(tmp_path):
+    """테스트용 multi-team skills 환경 생성 헬퍼."""
+    project_root = tmp_path / "ai-env"
+    skills_dir = project_root / ".claude" / "skills"
+
+    # personal skill
+    (skills_dir / "my-skill").mkdir(parents=True)
+    (skills_dir / "my-skill" / "SKILL.md").write_text("# my skill")
+
+    # cde-skills (team 1)
+    cde1 = tmp_path / "cde-skills-repo"
+    cde1.mkdir()
+    (cde1 / "es-query").mkdir()
+    (cde1 / "es-query" / "SKILL.md").write_text("# ES query")
+
+    # cde-ranking-skills (team 2)
+    cde2 = tmp_path / "cde-ranking-repo"
+    cde2.mkdir()
+    (cde2 / "ranking-lookup").mkdir()
+    (cde2 / "ranking-lookup" / "SKILL.md").write_text("# ranking")
+    (cde2 / "score-drilldown").mkdir()
+    (cde2 / "score-drilldown" / "SKILL.md").write_text("# score")
+
+    # symlinks
+    (project_root / "cde-skills").symlink_to(cde1)
+    (project_root / "cde-ranking-skills").symlink_to(cde2)
+
+    return project_root
+
+
+def test_collect_skills_include(tmp_path):
+    """--skills-include로 특정 팀 스킬만 포함."""
+    project_root = _setup_multi_team_skills(tmp_path)
+
+    sources = _collect_skill_sources(project_root, skills_include=["cde-skills"])
+    names = [s.name for s in sources]
+
+    assert "my-skill" in names  # personal은 항상 포함
+    assert "es-query" in names  # cde-skills 포함
+    assert "ranking-lookup" not in names  # cde-ranking-skills 제외
+    assert "score-drilldown" not in names
+
+
+def test_collect_skills_exclude(tmp_path):
+    """--skills-exclude로 특정 팀 스킬 제외."""
+    project_root = _setup_multi_team_skills(tmp_path)
+
+    sources = _collect_skill_sources(project_root, skills_exclude=["cde-ranking-skills"])
+    names = [s.name for s in sources]
+
+    assert "my-skill" in names  # personal은 항상 포함
+    assert "es-query" in names  # cde-skills 포함
+    assert "ranking-lookup" not in names  # cde-ranking-skills 제외
+    assert "score-drilldown" not in names
+
+
+def test_collect_skills_no_filter(tmp_path):
+    """필터 없으면 전체 포함."""
+    project_root = _setup_multi_team_skills(tmp_path)
+
+    sources = _collect_skill_sources(project_root)
+    names = [s.name for s in sources]
+
+    assert len(names) == 4  # 1 personal + 1 cde-skills + 2 cde-ranking-skills
+    assert "my-skill" in names
+    assert "es-query" in names
+    assert "ranking-lookup" in names
+    assert "score-drilldown" in names

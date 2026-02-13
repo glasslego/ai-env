@@ -131,7 +131,11 @@ def _sync_file_or_dir(src: Path, dst: Path, dry_run: bool = False) -> tuple[str,
         return _sync_directory(src, dst, dry_run)
 
 
-def _collect_skill_sources(project_root: Path) -> list[Path]:
+def _collect_skill_sources(
+    project_root: Path,
+    skills_include: list[str] | None = None,
+    skills_exclude: list[str] | None = None,
+) -> list[Path]:
     """스킬 소스 디렉토리 수집 (personal + team)
 
     ai-env/.claude/skills/ 의 서브디렉토리와
@@ -139,13 +143,17 @@ def _collect_skill_sources(project_root: Path) -> list[Path]:
 
     Args:
         project_root: ai-env 프로젝트 루트
+        skills_include: 포함할 팀 스킬 디렉토리 이름 (예: ["cde-skills"])
+            지정 시 이 목록에 있는 디렉토리만 포함. None이면 전체 포함.
+        skills_exclude: 제외할 팀 스킬 디렉토리 이름 (예: ["cde-ranking-skills"])
+            지정 시 이 목록에 있는 디렉토리를 제외.
 
     Returns:
         스킬 서브디렉토리 경로 리스트
     """
     sources: list[Path] = []
 
-    # 1. personal skills: ai-env/.claude/skills/*/
+    # 1. personal skills: ai-env/.claude/skills/*/ (항상 포함)
     personal_dir = project_root / ".claude" / "skills"
     if personal_dir.exists():
         for d in sorted(personal_dir.iterdir()):
@@ -160,6 +168,12 @@ def _collect_skill_sources(project_root: Path) -> list[Path]:
         if not item.name.startswith("cde-") or not item.name.endswith("skills"):
             continue
         if not item.exists():  # broken symlink
+            continue
+
+        # include/exclude 필터 적용
+        if skills_include is not None and item.name not in skills_include:
+            continue
+        if skills_exclude is not None and item.name in skills_exclude:
             continue
 
         # 심링크 resolve해서 실제 경로 사용
@@ -182,18 +196,26 @@ def _collect_skill_sources(project_root: Path) -> list[Path]:
     return sources
 
 
-def _sync_skills_merged(project_root: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
+def _sync_skills_merged(
+    project_root: Path,
+    dst: Path,
+    dry_run: bool,
+    skills_include: list[str] | None = None,
+    skills_exclude: list[str] | None = None,
+) -> tuple[str, int]:
     """personal + team 스킬을 합쳐서 동기화
 
     Args:
         project_root: ai-env 프로젝트 루트
         dst: 목적지 디렉토리 (~/.claude/skills)
         dry_run: True면 실제 복사하지 않음
+        skills_include: 포함할 팀 스킬 디렉토리 이름
+        skills_exclude: 제외할 팀 스킬 디렉토리 이름
 
     Returns:
         (설명, 복사된 스킬 수)
     """
-    skill_dirs = _collect_skill_sources(project_root)
+    skill_dirs = _collect_skill_sources(project_root, skills_include, skills_exclude)
 
     if not dry_run:
         dst.mkdir(parents=True, exist_ok=True)
@@ -206,7 +228,11 @@ def _sync_skills_merged(project_root: Path, dst: Path, dry_run: bool) -> tuple[s
     return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
 
 
-def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
+def sync_claude_global_config(
+    dry_run: bool = False,
+    skills_include: list[str] | None = None,
+    skills_exclude: list[str] | None = None,
+) -> dict[str, str]:
     """
     글로벌 Claude Code 설정 동기화
     ai-env/.claude → ~/.claude
@@ -214,6 +240,11 @@ def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
 
     skills는 ai-env/.claude/skills/ (personal)과
     ai-env/cde-skills/ (team, symlink)를 합쳐서 동기화한다.
+
+    Args:
+        dry_run: True면 실제 복사하지 않음
+        skills_include: 포함할 팀 스킬 디렉토리 이름 (예: ["cde-skills"])
+        skills_exclude: 제외할 팀 스킬 디렉토리 이름 (예: ["cde-ranking-skills"])
     """
     project_root = get_project_root()
     source_dir = project_root / ".claude"
@@ -250,7 +281,9 @@ def sync_claude_global_config(dry_run: bool = False) -> dict[str, str]:
         results[desc] = str(target_dir / "commands")
 
     # 4. skills/ 동기화 (personal + team 합쳐서 → ~/.claude/skills)
-    desc, _ = _sync_skills_merged(project_root, target_dir / "skills", dry_run)
+    desc, _ = _sync_skills_merged(
+        project_root, target_dir / "skills", dry_run, skills_include, skills_exclude
+    )
     if desc:
         results[desc] = str(target_dir / "skills")
 

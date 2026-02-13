@@ -117,45 +117,36 @@ class MCPConfigGenerator:
             "",
         ]
 
-        for name, server in self.mcp_config.mcp_servers.items():
-            if not server.enabled or "codex" not in server.targets:
-                continue
+        servers = self._generate_mcp_servers_for_target("codex")
+        for name, config in servers.items():
+            lines.append(f"[mcp_servers.{name}]")
 
-            if server.type == "sse":
-                url = self.secrets.get(server.url_env, "") if server.url_env else ""
-                if url:
-                    lines.append(f"[mcp_servers.{name}]")
-                    lines.append('type = "sse"')
-                    lines.append(f'url = "{url}"')
-                    lines.append("")
+            if config.get("type") == "sse":
+                lines.append('type = "sse"')
+                lines.append(f'url = "{config["url"]}"')
             else:
-                lines.append(f"[mcp_servers.{name}]")
-                lines.append(f'command = "{server.command}"')
-                args_str = ", ".join(f'"{self._substitute_env(a)}"' for a in server.args)
+                lines.append(f'command = "{config["command"]}"')
+                args_str = ", ".join(f'"{a}"' for a in config["args"])
                 lines.append(f"args = [{args_str}]")
 
-                if server.env_keys:
+                if "env" in config:
                     lines.append("")
                     lines.append(f"[mcp_servers.{name}.env]")
-                    for key in server.env_keys:
-                        value = self.secrets.get(key, "")
-                        mapped_key = self._map_env_key(key)
-                        lines.append(f'{mapped_key} = "{value}"')
-                lines.append("")
+                    for key, value in config["env"].items():
+                        lines.append(f'{key} = "{value}"')
+
+            lines.append("")
 
         return "\n".join(lines)
 
     def generate_gemini(self) -> dict[str, Any]:
-        """Gemini CLI용 settings.local.json 생성"""
-        servers = {}
-        for name, server in self.mcp_config.mcp_servers.items():
-            config = self._build_server_config(name, server, "gemini")
-            if config:
-                # Gemini는 type 필드 없이 url만
-                if server.type == "sse":
-                    servers[name] = {"url": config.get("url")}
-                else:
-                    servers[name] = config
+        """Gemini CLI용 settings.json 생성"""
+        servers = self._generate_mcp_servers_for_target("gemini")
+
+        # Gemini CLI: SSE 서버는 type 필드 없이 url만 사용
+        for name, config in servers.items():
+            if config.get("type") == "sse":
+                servers[name] = {"url": config["url"]}
 
         return {"security": {"auth": {"selectedType": "oauth-personal"}}, "mcpServers": servers}
 

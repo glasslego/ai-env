@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TypeVar
 
 import yaml
 from pydantic import BaseModel, Field
+
+_T = TypeVar("_T", bound=BaseModel)
 
 
 class ProviderConfig(BaseModel):
@@ -71,6 +74,35 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent.parent.parent
 
 
+def _load_yaml_model(model_cls: type[_T], config_path: Path, label: str) -> _T:
+    """YAML 파일을 Pydantic 모델로 로드하는 공통 함수
+
+    Args:
+        model_cls: Pydantic 모델 클래스
+        config_path: YAML 파일 경로
+        label: 에러 메시지용 라벨
+
+    Returns:
+        로드된 모델 인스턴스
+
+    Raises:
+        ValueError: YAML 파싱 오류 또는 검증 실패 시
+    """
+    if not config_path.exists():
+        return model_cls()
+
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+        if data is None:
+            return model_cls()
+        return model_cls(**data)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Failed to parse YAML file {config_path}: {e}") from e
+    except Exception as e:
+        raise ValueError(f"Failed to load {label} from {config_path}: {e}") from e
+
+
 def load_settings(config_path: Path | None = None) -> Settings:
     """설정 파일 로드
 
@@ -85,23 +117,7 @@ def load_settings(config_path: Path | None = None) -> Settings:
     """
     if config_path is None:
         config_path = get_project_root() / "config" / "settings.yaml"
-
-    if not config_path.exists():
-        return Settings()
-
-    try:
-        with open(config_path) as f:
-            data = yaml.safe_load(f)
-
-        if data is None:
-            return Settings()
-
-        return Settings(**data)
-
-    except yaml.YAMLError as e:
-        raise ValueError(f"Failed to parse YAML file {config_path}: {e}") from e
-    except Exception as e:
-        raise ValueError(f"Failed to load settings from {config_path}: {e}") from e
+    return _load_yaml_model(Settings, config_path, "settings")
 
 
 def load_mcp_config(config_path: Path | None = None) -> MCPConfig:
@@ -118,23 +134,7 @@ def load_mcp_config(config_path: Path | None = None) -> MCPConfig:
     """
     if config_path is None:
         config_path = get_project_root() / "config" / "mcp_servers.yaml"
-
-    if not config_path.exists():
-        return MCPConfig()
-
-    try:
-        with open(config_path) as f:
-            data = yaml.safe_load(f)
-
-        if data is None:
-            return MCPConfig()
-
-        return MCPConfig(**data)
-
-    except yaml.YAMLError as e:
-        raise ValueError(f"Failed to parse YAML file {config_path}: {e}") from e
-    except Exception as e:
-        raise ValueError(f"Failed to load MCP config from {config_path}: {e}") from e
+    return _load_yaml_model(MCPConfig, config_path, "MCP config")
 
 
 def expand_path(path: str) -> Path:

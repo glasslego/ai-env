@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -194,67 +195,55 @@ def generate_all(dry_run: bool) -> None:
         console.print(f"[green]✓ {action}[/green] {name}: {path}")
 
 
+def _output_content(content: dict[str, Any] | str, output: str | None) -> None:
+    """생성된 설정을 출력하거나 파일로 저장하는 공통 함수
+
+    Args:
+        content: 출력할 내용 (dict면 JSON, str이면 텍스트)
+        output: 저장 경로 (None이면 stdout 출력)
+    """
+    if output:
+        with open(output, "w") as f:
+            if isinstance(content, dict):
+                json.dump(content, f, indent=2)
+            else:
+                f.write(content)
+        console.print(f"[green]✓ Saved to {output}[/green]")
+    elif isinstance(content, dict):
+        console.print_json(json.dumps(content))
+    else:
+        console.print(content)
+
+
 @generate.command("claude-desktop")
 @click.option("--output", "-o", help="출력 경로")
 def generate_claude_desktop(output: str | None) -> None:
     """Claude Desktop 설정 생성"""
-    sm = get_secrets_manager()
-    generator = MCPConfigGenerator(sm)
-    config = generator.generate_claude_desktop()
-
-    if output:
-        with open(output, "w") as f:
-            json.dump(config, f, indent=2)
-        console.print(f"[green]✓ Saved to {output}[/green]")
-    else:
-        console.print_json(json.dumps(config))
+    generator = MCPConfigGenerator(get_secrets_manager())
+    _output_content(generator.generate_claude_desktop(), output)
 
 
 @generate.command("chatgpt-desktop")
 @click.option("--output", "-o", help="출력 경로")
 def generate_chatgpt_desktop(output: str | None) -> None:
     """ChatGPT Desktop 설정 생성"""
-    sm = get_secrets_manager()
-    generator = MCPConfigGenerator(sm)
-    config = generator.generate_chatgpt_desktop()
-
-    if output:
-        with open(output, "w") as f:
-            json.dump(config, f, indent=2)
-        console.print(f"[green]✓ Saved to {output}[/green]")
-    else:
-        console.print_json(json.dumps(config))
+    generator = MCPConfigGenerator(get_secrets_manager())
+    _output_content(generator.generate_chatgpt_desktop(), output)
 
 
 @generate.command("antigravity")
 @click.option("--output", "-o", help="출력 경로")
 def generate_antigravity(output: str | None) -> None:
     """Antigravity 설정 생성"""
-    sm = get_secrets_manager()
-    generator = MCPConfigGenerator(sm)
-    config = generator.generate_antigravity()
-
-    if output:
-        with open(output, "w") as f:
-            json.dump(config, f, indent=2)
-        console.print(f"[green]✓ Saved to {output}[/green]")
-    else:
-        console.print_json(json.dumps(config))
+    generator = MCPConfigGenerator(get_secrets_manager())
+    _output_content(generator.generate_antigravity(), output)
 
 
 @generate.command("shell")
 @click.option("--output", "-o", help="출력 경로")
 def generate_shell(output: str | None) -> None:
     """Shell export 스크립트 생성"""
-    sm = get_secrets_manager()
-    content = sm.export_to_shell()
-
-    if output:
-        with open(output, "w") as f:
-            f.write(content)
-        console.print(f"[green]✓ Saved to {output}[/green]")
-    else:
-        console.print(content)
+    _output_content(get_secrets_manager().export_to_shell(), output)
 
 
 # === Sync 명령어 ===
@@ -262,7 +251,23 @@ def generate_shell(output: str | None) -> None:
 @click.option("--dry-run", is_flag=True, help="실제 저장하지 않고 미리보기")
 @click.option("--claude-only", is_flag=True, help="Claude 글로벌 설정만 동기화")
 @click.option("--mcp-only", is_flag=True, help="MCP 설정만 동기화")
-def sync(dry_run: bool, claude_only: bool, mcp_only: bool) -> None:
+@click.option(
+    "--skills-include",
+    multiple=True,
+    help="포함할 팀 스킬 디렉토리 (예: --skills-include cde-skills). 여러 번 사용 가능.",
+)
+@click.option(
+    "--skills-exclude",
+    multiple=True,
+    help="제외할 팀 스킬 디렉토리 (예: --skills-exclude cde-ranking-skills). 여러 번 사용 가능.",
+)
+def sync(
+    dry_run: bool,
+    claude_only: bool,
+    mcp_only: bool,
+    skills_include: tuple[str, ...],
+    skills_exclude: tuple[str, ...],
+) -> None:
     """
     설정 파일 동기화 (ai-env → 각 대상)
 
@@ -318,7 +323,11 @@ def sync(dry_run: bool, claude_only: bool, mcp_only: bool) -> None:
         # Claude 글로벌 설정 동기화
         console.print("[bold cyan]📁 Claude Code Global Config[/bold cyan]")
         console.print("[dim]   ai-env/.claude → ~/.claude[/dim]")
-        claude_results = sync_claude_global_config(dry_run=dry_run)
+        claude_results = sync_claude_global_config(
+            dry_run=dry_run,
+            skills_include=list(skills_include) or None,
+            skills_exclude=list(skills_exclude) or None,
+        )
 
         if not claude_results:
             console.print("  [yellow]○ No files to sync (source directory empty)[/yellow]")
