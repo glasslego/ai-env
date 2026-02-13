@@ -254,7 +254,7 @@ def generate_shell(output: str | None) -> None:
 @click.option(
     "--skills-include",
     multiple=True,
-    help="포함할 팀 스킬 디렉토리 (예: --skills-include cde-skills). 여러 번 사용 가능.",
+    help="추가할 팀 스킬 디렉토리 (기본은 megan-skills만 동기화, 예: --skills-include cde-skills). 여러 번 사용 가능.",
 )
 @click.option(
     "--skills-exclude",
@@ -414,11 +414,15 @@ def status() -> None:
     global_dir = source_dir / "global"
     target_dir = Path.home() / ".claude"
 
+    personal_skills_src = project_root / "megan-skills" / "skills"
+    if not personal_skills_src.exists():
+        personal_skills_src = source_dir / "skills"
+
     items = [
         ("CLAUDE.md", global_dir / "CLAUDE.md", target_dir / "CLAUDE.md"),
         ("settings.json", global_dir / "settings.json.template", target_dir / "settings.json"),
         ("commands/", source_dir / "commands", target_dir / "commands"),
-        ("skills/", source_dir / "skills", target_dir / "skills"),
+        ("skills/", personal_skills_src, target_dir / "skills"),
     ]
 
     claude_rows = []

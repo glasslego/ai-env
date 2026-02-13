@@ -19,6 +19,9 @@ ai-env sync                 # 전체 동기화
 ai-env sync --dry-run       # 미리보기
 ai-env sync --claude-only   # Claude 설정만
 ai-env sync --mcp-only      # MCP 설정만
+ai-env sync --claude-only --skills-include cde-skills
+ai-env sync --claude-only --skills-include cde-ranking-skills
+ai-env sync --claude-only --skills-exclude cde-ranking-skills
 ai-env secrets              # 환경변수 목록
 ai-env secrets --show       # 값 표시
 ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
@@ -40,6 +43,29 @@ ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
 ```
 
 `.env`의 토큰과 `config/mcp_servers.yaml`의 서버 정의를 조합해서 각 AI 도구별 설정 파일을 자동 생성합니다.
+
+## 스킬 동기화 정책
+
+- 개인 스킬 기본 소스: `megan-skills/skills/`
+- fallback 소스: `.claude/skills/` (`megan-skills/skills/`가 없을 때)
+- 동기화 대상: `~/.claude/skills/`
+- 기본 `sync` 동작: 개인 스킬만 동기화
+- 팀 스킬(`cde-skills`, `cde-ranking-skills`)은 옵션으로만 포함
+  - `--skills-include <dir>`: 지정한 팀 스킬만 추가
+  - `--skills-exclude <dir>`: 팀 스킬에서 지정 항목 제외
+
+예시:
+
+```bash
+# 개인 스킬만
+ai-env sync --claude-only
+
+# 개인 + cde-skills
+ai-env sync --claude-only --skills-include cde-skills
+
+# 개인 + (모든 팀 - cde-ranking-skills)
+ai-env sync --claude-only --skills-exclude cde-ranking-skills
+```
 
 ## 동기화 대상
 

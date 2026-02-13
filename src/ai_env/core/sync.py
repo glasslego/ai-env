@@ -138,32 +138,42 @@ def _collect_skill_sources(
 ) -> list[Path]:
     """스킬 소스 디렉토리 수집 (personal + team)
 
-    ai-env/.claude/skills/ 의 서브디렉토리와
-    cde-skills 심링크 내 SKILL.md를 가진 서브디렉토리를 수집한다.
+    기본 personal 소스는 ai-env/megan-skills/skills/ 이며,
+    없으면 ai-env/.claude/skills/ 를 fallback으로 사용한다.
+    team 스킬(cde-*skills)은 명시적으로 include/exclude 옵션을 준 경우에만 수집한다.
 
     Args:
         project_root: ai-env 프로젝트 루트
         skills_include: 포함할 팀 스킬 디렉토리 이름 (예: ["cde-skills"])
-            지정 시 이 목록에 있는 디렉토리만 포함. None이면 전체 포함.
+            지정 시 이 목록에 있는 디렉토리만 포함.
         skills_exclude: 제외할 팀 스킬 디렉토리 이름 (예: ["cde-ranking-skills"])
-            지정 시 이 목록에 있는 디렉토리를 제외.
+            skills_include 없이 지정하면 team 전체에서 제외 필터로 동작.
 
     Returns:
         스킬 서브디렉토리 경로 리스트
     """
     sources: list[Path] = []
 
-    # 1. personal skills: ai-env/.claude/skills/*/ (항상 포함)
-    personal_dir = project_root / ".claude" / "skills"
-    if personal_dir.exists():
+    # 1. personal skills (항상 포함)
+    #    우선순위: megan-skills/skills -> .claude/skills (fallback)
+    megan_personal_dir = project_root / "megan-skills" / "skills"
+    claude_personal_dir = project_root / ".claude" / "skills"
+    personal_dir = megan_personal_dir if megan_personal_dir.is_dir() else claude_personal_dir
+
+    if personal_dir.is_dir():
         for d in sorted(personal_dir.iterdir()):
             if d.is_dir() and not d.name.startswith("."):
                 sources.append(d)
 
+    # 옵션이 없으면 기본은 personal만 동기화
+    if skills_include is None and skills_exclude is None:
+        return sources
+
     # 2. team skills: cde-*skills 심링크들 (cde-skills, cde-ranking-skills 등)
     #    각 심링크는 다음 구조 중 하나:
-    #    - flat 구조: skill-name/SKILL.md (루트에 스킬 디렉토리)
     #    - nested 구조: .claude/skills/skill-name/SKILL.md
+    #    - skills subdir 구조: skills/skill-name/SKILL.md
+    #    - flat 구조: skill-name/SKILL.md (루트에 스킬 디렉토리)
     for item in sorted(project_root.iterdir()):
         if not item.name.startswith("cde-") or not item.name.endswith("skills"):
             continue
@@ -179,19 +189,24 @@ def _collect_skill_sources(
         # 심링크 resolve해서 실제 경로 사용
         cde_skills_dir = item.resolve()
 
-        # nested 구조 먼저 확인 (.claude/skills/)
+        # 스킬 디렉토리 탐색 (3가지 구조 지원)
+        #   1) nested: .claude/skills/skill-name/SKILL.md
+        #   2) skills subdir: skills/skill-name/SKILL.md
+        #   3) flat: skill-name/SKILL.md (루트에 직접)
         nested_skills = cde_skills_dir / ".claude" / "skills"
-        if nested_skills.exists():
-            for d in sorted(nested_skills.iterdir()):
-                if d.is_dir() and not d.name.startswith("."):
-                    if (d / "SKILL.md").exists():
-                        sources.append(d)
+        skills_subdir = cde_skills_dir / "skills"
+
+        if nested_skills.is_dir():
+            scan_dir = nested_skills
+        elif skills_subdir.is_dir():
+            scan_dir = skills_subdir
         else:
-            # flat 구조: 루트에 skill-name/SKILL.md
-            for d in sorted(cde_skills_dir.iterdir()):
-                if d.is_dir() and not d.name.startswith("."):
-                    if (d / "SKILL.md").exists():
-                        sources.append(d)
+            scan_dir = cde_skills_dir
+
+        for d in sorted(scan_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith(".") and not d.name.startswith("_"):
+                if (d / "SKILL.md").exists():
+                    sources.append(d)
 
     return sources
 
@@ -238,8 +253,9 @@ def sync_claude_global_config(
     ai-env/.claude → ~/.claude
     (CLAUDE.md, commands/, skills/, settings.json)
 
-    skills는 ai-env/.claude/skills/ (personal)과
-    ai-env/cde-skills/ (team, symlink)를 합쳐서 동기화한다.
+    skills는 ai-env/megan-skills/skills/ (personal, 우선) 또는
+    ai-env/.claude/skills/ (fallback)를 동기화한다.
+    team 스킬(cde-*skills)은 옵션으로 지정했을 때만 함께 동기화한다.
 
     Args:
         dry_run: True면 실제 복사하지 않음
