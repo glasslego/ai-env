@@ -20,15 +20,16 @@ uv run ruff check . && uv run ruff format . # 린트·포맷
 ## 아키텍처
 
 ```
-config/settings.yaml + mcp_servers.yaml   ← 설정 소스 (YAML)
+config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 .env                                      ← 시크릿 (gitignore)
          ↓ (ai-env sync)
 ├─ Claude Desktop  (claude_desktop_config.json)
 ├─ ChatGPT Desktop (config.json)
 ├─ Antigravity     (mcp_config.json)
-├─ Claude Code     (settings.json, glocal.json)
-├─ Codex CLI       (config.toml)
-├─ Gemini CLI      (settings.json)
+├─ Claude Code Global (~/.claude/settings.json, CLAUDE.md, commands/, skills/)
+├─ Claude Local    (.claude/settings.glocal.json)
+├─ Codex CLI       (~/.codex/config.toml, .codex/config.toml)
+├─ Gemini CLI      (~/.gemini/settings.json, .gemini/settings.local.json)
 └─ Shell exports   (shell_exports.sh)
 ```
 
@@ -55,9 +56,10 @@ src/ai_env/       메인 패키지 (core/, mcp/)
 .claude/
 ├── global/       글로벌 설정 소스 (CLAUDE.md, settings.json.template)
 ├── commands/     슬래시 커맨드
-├── skills/       개인 스킬 (personal)
-├── settings.glocal.json  다른 프로젝트용 MCP 템플릿 (git 추적)
-└── settings.local.json   이 프로젝트 전용 (gitignore)
+├── settings.glocal.json  로컬 Claude 템플릿 (sync 생성, gitignore)
+└── settings.local.json   프로젝트별 로컬 설정 (gitignore)
+megan-skills/     개인 스킬 저장소
+└── skills/       개인 스킬 (기본 동기화 소스)
 cde-*skills/      팀 스킬 심링크 (cde-skills, cde-ranking-skills 등)
 tests/            pytest 테스트
 generated/        생성된 설정 (gitignore)
@@ -65,11 +67,13 @@ generated/        생성된 설정 (gitignore)
 
 ### Skills 동기화
 
-`ai-env sync`는 personal + team 스킬을 합쳐서 `~/.claude/skills/`에 동기화:
+`ai-env sync`는 기본적으로 personal 스킬만 `~/.claude/skills/`에 동기화한다.
+team 스킬은 `--skills-include` 또는 `--skills-exclude` 옵션을 줄 때만 합쳐서 동기화한다.
 
 ```
-personal: .claude/skills/*/
-team:     cde-*skills/ (symlink) → SKILL.md를 가진 서브디렉토리만
+personal(우선): megan-skills/skills/*/
+personal(fallback): .claude/skills/*/
+team(option): cde-*skills/ (symlink) → SKILL.md를 가진 서브디렉토리만
                 ↓ 병합
           ~/.claude/skills/
 ```

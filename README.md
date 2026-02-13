@@ -14,20 +14,22 @@ uv run ai-env sync     # 전체 동기화
 ## 주요 명령어
 
 ```bash
-ai-env status               # 전체 상태 확인
-ai-env sync                 # 전체 동기화
-ai-env sync --dry-run       # 미리보기
-ai-env sync --claude-only   # Claude 설정만
-ai-env sync --mcp-only      # MCP 설정만
-ai-env sync --claude-only --skills-include cde-skills
-ai-env sync --claude-only --skills-include cde-ranking-skills
-ai-env sync --claude-only --skills-exclude cde-ranking-skills
-ai-env secrets              # 환경변수 목록
-ai-env secrets --show       # 값 표시
-ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
+uv run ai-env setup                                 # 초기 설정 점검 가이드
+uv run ai-env status                                # 전체 상태 확인
+uv run ai-env sync                                  # 전체 동기화
+uv run ai-env sync --dry-run                        # 미리보기
+uv run ai-env sync --claude-only                    # Claude 설정만
+uv run ai-env sync --mcp-only                       # MCP 설정만
+uv run ai-env sync --claude-only --skills-include cde-skills
+uv run ai-env sync --claude-only --skills-include cde-ranking-skills
+uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
+uv run ai-env secrets                               # 환경변수 목록
+uv run ai-env secrets --show                        # 값 표시
+uv run ai-env config show                           # settings/mcp 설정 확인
+uv run ai-env generate claude-desktop               # 특정 타겟 생성 (stdout)
 ```
 
-> 모든 명령어는 `uv run` 접두사 필요.
+> 프로젝트 내에서 실행 시 `uv run` 접두사를 사용합니다.
 
 ## 동작 원리
 
@@ -59,13 +61,13 @@ ai-env generate claude-desktop  # 특정 타겟 생성 (stdout)
 
 ```bash
 # 개인 스킬만
-ai-env sync --claude-only
+uv run ai-env sync --claude-only
 
 # 개인 + cde-skills
-ai-env sync --claude-only --skills-include cde-skills
+uv run ai-env sync --claude-only --skills-include cde-skills
 
 # 개인 + (모든 팀 - cde-ranking-skills)
-ai-env sync --claude-only --skills-exclude cde-ranking-skills
+uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
 ```
 
 ## 동기화 대상
@@ -76,8 +78,11 @@ ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | ChatGPT Desktop | `~/Library/Application Support/ChatGPT/config.json` |
 | Claude Code (글로벌) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/` |
 | Antigravity | `~/.gemini/antigravity/mcp_config.json` |
-| Gemini CLI | `~/.gemini/settings.json` |
-| Codex CLI | `~/.codex/config.toml` |
+| Codex CLI (글로벌) | `~/.codex/config.toml` |
+| Gemini CLI (글로벌) | `~/.gemini/settings.json` |
+| Claude Local (프로젝트) | `.claude/settings.glocal.json` |
+| Codex Local (프로젝트) | `.codex/config.toml` |
+| Gemini Local (프로젝트) | `.gemini/settings.local.json` |
 | Shell exports | `generated/shell_exports.sh` (환경변수 + vibe 함수) |
 
 ## 추천 MCP 목록
@@ -118,11 +123,11 @@ vibe -2            # 2순위(codex)부터 바로 시작
 vibe -l            # 에이전트 우선순위 목록 출력
 ```
 
-우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `ai-env sync`.
+우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `uv run ai-env sync`.
 
 ## MCP 서버 추가
 
-`config/mcp_servers.yaml`에 항목을 추가하고 `ai-env sync`를 실행합니다.
+`config/mcp_servers.yaml`에 항목을 추가하고 `uv run ai-env sync`를 실행합니다.
 
 ```yaml
 my-server:
