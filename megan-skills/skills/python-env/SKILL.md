@@ -196,20 +196,9 @@ uv run mypy src/
 
 사용자가 명시하지 않으면 `[dependency-groups]` 방식 사용 (uv 네이티브).
 
-### 권장 라이브러리 매핑
+### 권장 라이브러리
 
-사용자의 글로벌 CLAUDE.md 설정 참조:
-
-| 용도 | 권장 라이브러리 |
-|------|----------------|
-| JSON | `orjson` 또는 `msgspec` |
-| Logging | `loguru` |
-| Caching | `diskcache` |
-| ORM | `sqlalchemy>=2.0` |
-| HTTP | `httpx` |
-| CLI | `click` 또는 `typer` |
-| Config | `pydantic-settings` |
-| DataFrame | `pandas` + `tabulate` |
+글로벌 CLAUDE.md의 "자주 쓰는 라이브러리" 섹션 참조.
 
 ## 참고
 
