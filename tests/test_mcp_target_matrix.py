@@ -20,6 +20,12 @@ def test_core_servers_cover_all_clients():
         "desktop-commander",
         "brave-search",
         "context7",
+        "fetch",
+        "filesystem",
+        "git",
+        "memory",
+        "supabase",
+        "browserbase",
         "sequential-thinking",
     ]
 

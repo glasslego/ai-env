@@ -95,6 +95,12 @@ uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | `playwright` | 브라우저 자동화, E2E/스크래핑 | enabled |
 | `brave-search` | 웹 검색 | enabled |
 | `context7` | 라이브러리 공식 문서 조회 | enabled |
+| `fetch` | URL 콘텐츠 수집/요약 | enabled |
+| `filesystem` | 로컬 파일시스템 탐색/편집 | enabled |
+| `git` | 로컬 Git 저장소 작업 | enabled |
+| `memory` | 작업 메모리(문맥) 저장/조회 | enabled |
+| `supabase` | Supabase MCP 원격 연결 | enabled |
+| `browserbase` | Browserbase MCP 원격 연결 | enabled |
 | `sequential-thinking` | 단계적 추론/계획 | enabled |
 
 참고:
@@ -109,7 +115,16 @@ uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | `playwright` | Y | Y | Y | Y | Y | Y |
 | `brave-search` | Y | Y | Y | Y | Y | Y |
 | `context7` | Y | Y | Y | Y | Y | Y |
+| `fetch` | Y | Y | Y | Y | Y | Y |
+| `filesystem` | Y | Y | Y | Y | Y | Y |
+| `git` | Y | Y | Y | Y | Y | Y |
+| `memory` | Y | Y | Y | Y | Y | Y |
+| `supabase` | Y | Y | Y | Y | Y | Y |
+| `browserbase` | Y | Y | Y | Y | Y | Y |
 | `sequential-thinking` | Y | Y | Y | Y | Y | Y |
+
+추가 환경변수:
+- `BROWSERBASE_MCP_URL` (browserbase remote URL)
 
 ## vibe 함수 (Agent Fallback)
 

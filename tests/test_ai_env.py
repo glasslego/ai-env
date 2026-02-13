@@ -204,6 +204,7 @@ exit 0
         env["TRACE_FILE"] = str(trace_file)
         env["COUNTER_FILE"] = str(counter_file)
         env["VIBE_CLAUDE_RETRY_MINUTES"] = "0"
+        env.pop("CLAUDECODE", None)  # 테스트에서 Claude 중첩 세션 감지 방지
 
         result = subprocess.run(
             ["bash", "-c", f"source {vibe_file} && vibe 'hello world'"],

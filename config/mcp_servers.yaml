@@ -176,6 +176,89 @@ mcp_servers:
       - codex
       - gemini
 
+  filesystem:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-filesystem"
+      - .
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  git:
+    enabled: true
+    type: stdio
+    command: uvx
+    args:
+      - mcp-server-git
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  memory:
+    enabled: true
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-memory"
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  # Supabase hosted MCP endpoint (remote)
+  supabase:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: npx
+    args:
+      - -y
+      - mcp-remote
+      - https://mcp.supabase.com/mcp
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
+  # Browserbase remote MCP endpoint (requires custom remote URL)
+  browserbase:
+    enabled: true
+    type: stdio
+    startup_timeout_sec: 60
+    command: npx
+    args:
+      - -y
+      - mcp-remote
+      - ${BROWSERBASE_MCP_URL}
+    env_keys:
+      - BROWSERBASE_MCP_URL
+    targets:
+      - claude_desktop
+      - chatgpt_desktop
+      - antigravity
+      - claude_local
+      - codex
+      - gemini
+
   sequential-thinking:
     enabled: true
     type: stdio
