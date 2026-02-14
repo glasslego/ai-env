@@ -46,7 +46,7 @@ sandbox_mode = "danger-full-access"
 # === 권한 (Permissions) ===
 [permissions]
 allow = ["Read(*)", "Edit(**)", "Bash(git:*)", "Bash(npm:*)", "Bash(*)", "WebFetch(*)", "mcp__*", "WebSearch", "mcp__ide__getDiagnostics"]
-deny = ["Bash(sudo:*)", "Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(rm -rf ~)", "Bash(rm -rf ~/*)", "Bash(mkfs*)", "Bash(dd if=*of=/dev/*)", "Bash(chmod -R 777 /)", "Bash(chown -R * /)", "Bash(shutdown*)", "Bash(reboot*)", "Bash(init 0*)", "Bash(git push * --force)", "Bash(git clean -fdx /)", "Bash(DROP DATABASE*)", "Bash(DROP TABLE*)"]
+deny = ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(rm -rf ~)", "Bash(rm -rf ~/*)"]
 teammateMode = "tmux"
 
 [permissions.env]
@@ -142,18 +142,12 @@ startup_timeout_sec = 30
 
 ### 4.3 Deny 리스트
 
-코드 내 `CODEX_PERMISSION_DENY` 클래스 상수로 정의. 시스템 파괴적 명령을 차단한다:
+코드 내 `CODEX_PERMISSION_DENY` 클래스 상수로 정의. 실수로 인한 대량 삭제 방지를 위해 `rm -rf` 계열만 차단한다:
 
 | 카테고리 | 차단 패턴 | 이유 |
 |----------|----------|------|
-| 권한 상승 | `Bash(sudo:*)` | root 권한 획득 방지 |
 | 파일 삭제 | `Bash(rm -rf /)`, `Bash(rm -rf /*)` | 루트 파일시스템 삭제 |
 | 홈 삭제 | `Bash(rm -rf ~)`, `Bash(rm -rf ~/*)` | 사용자 홈 전체 삭제 |
-| 디스크 파괴 | `Bash(mkfs*)`, `Bash(dd if=*of=/dev/*)` | 디스크 포맷/덮어쓰기 |
-| 권한 변경 | `Bash(chmod -R 777 /)`, `Bash(chown -R * /)` | 전체 파일시스템 권한 변경 |
-| 시스템 종료 | `Bash(shutdown*)`, `Bash(reboot*)`, `Bash(init 0*)` | 시스템 종료/재시작 |
-| Git 파괴 | `Bash(git push * --force)`, `Bash(git clean -fdx /)` | 강제 푸시, 전체 클린 |
-| DB 파괴 | `Bash(DROP DATABASE*)`, `Bash(DROP TABLE*)` | 데이터베이스/테이블 삭제 |
 
 ### 4.4 기본 정책
 
@@ -163,7 +157,7 @@ approval_policy = "never"      # 사용자 승인 없이 자동 실행
 sandbox_mode = "danger-full-access"  # 샌드박스 미적용 (전체 접근)
 ```
 
-이 설정은 개발자의 로컬 환경에서 최대 자율성을 부여하되, deny 리스트로 치명적 실수만 방지하는 철학을 반영한다.
+이 설정은 개발자의 로컬 환경(특히 `~/work/glasslego` 하위 개인 프로젝트)에서 최대 자율성을 부여하고, `rm -rf` 실수만 최소한으로 방지하는 철학을 반영한다.
 
 ## 5. Teammate Mode
 

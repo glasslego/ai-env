@@ -107,7 +107,6 @@ mcp_servers:
       - "@wonderwhy-er/desktop-commander"
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -156,8 +155,6 @@ mcp_servers:
     env_keys:
       - MEM0_API_KEY
     targets:
-      - claude_desktop
-      - chatgpt_desktop
       - antigravity
       - claude_local
       - gemini
@@ -232,8 +229,6 @@ mcp_servers:
       - mcp-remote
       - https://mcp.supabase.com/mcp
     targets:
-      - claude_desktop
-      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex
@@ -252,8 +247,6 @@ mcp_servers:
     env_keys:
       - BROWSERBASE_MCP_URL
     targets:
-      - claude_desktop
-      - chatgpt_desktop
       - antigravity
       - claude_local
       - codex

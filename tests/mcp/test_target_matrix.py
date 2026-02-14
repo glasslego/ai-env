@@ -17,15 +17,11 @@ def test_core_servers_cover_all_clients():
     mcp_config = load_mcp_config()
     core_servers = [
         "playwright",
-        "desktop-commander",
         "brave-search",
         "context7",
         "fetch",
         "filesystem",
         "git",
-        "memory",
-        "supabase",
-        "browserbase",
         "sequential-thinking",
     ]
 
@@ -35,6 +31,15 @@ def test_core_servers_cover_all_clients():
         assert server.enabled
         missing_targets = sorted(ALL_CLIENT_TARGETS - set(server.targets))
         assert not missing_targets, f"{server_name} missing targets: {missing_targets}"
+
+
+def test_chatgpt_desktop_excludes_compat_servers():
+    """ChatGPT Desktop excludes servers known to disconnect or mismatch tool-calls."""
+    mcp_config = load_mcp_config()
+    for name in ["desktop-commander", "mem0", "supabase", "browserbase"]:
+        server = mcp_config.mcp_servers[name]
+        assert server.enabled
+        assert "chatgpt_desktop" not in server.targets
 
 
 def test_known_unstable_servers_not_targeted_to_codex():

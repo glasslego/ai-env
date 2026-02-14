@@ -109,7 +109,12 @@ stdio + SSE 모두 지원.
 
 ```json
 {
-  "permissions": {"allow": [], "deny": [], "ask": [], "defaultMode": "acceptEdits"},
+  "permissions": {
+    "allow": ["Bash(*)", "WebSearch", "WebFetch", "mcp__*", "mcp__ide__getDiagnostics"],
+    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(rm -rf ~)", "Bash(rm -rf ~/*)"],
+    "ask": [],
+    "defaultMode": "acceptEdits"
+  },
   "mcpServers": {...}
 }
 ```
@@ -125,7 +130,7 @@ sandbox_mode = "danger-full-access"
 
 [permissions]
 allow = ["Read(*)", "Edit(**)", ...]
-deny = ["Bash(sudo:*)", "Bash(rm -rf /)", ...]
+deny = ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(rm -rf ~)", "Bash(rm -rf ~/*)"]
 teammateMode = "tmux"
 
 [permissions.env]

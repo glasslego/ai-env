@@ -1,32 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "mcp__jira-wiki-mcp",
-      "mcp__github",
-      "mcp__github-kakao",
-      "mcp__playwright",
-      "mcp__brave-search",
-      "mcp__context7",
-      "mcp__kkoto-mcp",
-      "mcp__mem0",
-      "mcp__browseract",
-      "mcp__cdp-mcp-server",
-      "mcp__sequential-thinking",
-      "Bash(git:*)",
-      "Bash(uv:*)",
-      "Bash(pytest:*)",
-      "Bash(python:*)",
-      "Bash(python3:*)",
-      "Bash(ls:*)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
-      "Bash(mkdir:*)",
-      "Bash(cp:*)",
-      "Bash(mv:*)",
-      "Bash(pre-commit:*)",
-      "Bash(ruff:*)"
+      "Bash(*)",
+      "WebSearch",
+      "WebFetch",
+      "mcp__*",
+      "mcp__ide__getDiagnostics"
     ],
-    "deny": [],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)"
+    ],
     "ask": [],
     "defaultMode": "acceptEdits"
   },
