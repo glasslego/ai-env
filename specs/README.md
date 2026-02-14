@@ -11,7 +11,7 @@
 | SPEC-002 | MCP Config Generator | implemented | 2025-12-22 | 2026-02-14 | [SPEC-002](SPEC-002-mcp-generator.md) |
 | SPEC-003 | Claude Global Sync & Skills Management | implemented | 2026-01-06 | 2026-02-14 | [SPEC-003](SPEC-003-sync-and-skills.md) |
 | SPEC-004 | CLI Interface | implemented | 2025-12-22 | 2026-02-14 | [SPEC-004](SPEC-004-cli-interface.md) |
-| SPEC-005 | Agent Fallback (vibe Function) | implemented | 2026-02-13 | 2026-02-14 | [SPEC-005](SPEC-005-agent-fallback.md) |
+| SPEC-005 | Agent Fallback (claude --fallback) | implemented | 2026-02-13 | 2026-02-14 | [SPEC-005](SPEC-005-agent-fallback.md) |
 | SPEC-006 | Codex CLI Integration (Permissions & Teammate Mode) | implemented | 2026-02-13 | 2026-02-14 | [SPEC-006](SPEC-006-codex-integration.md) |
 
 ## 상태 정의

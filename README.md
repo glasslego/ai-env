@@ -42,7 +42,7 @@ uv run ai-env generate claude-desktop               # 특정 타겟 생성 (stdo
         ▼                ▼                ▼
   Claude Desktop    Gemini/Codex     ~/.claude/
   ChatGPT Desktop   Antigravity    (commands, skills)
-                                   shell_exports.sh (vibe 함수)
+                                   shell_exports.sh (claude --fallback)
 ```
 
 `.env`의 토큰과 `config/mcp_servers.yaml`의 서버 정의를 조합해서 각 AI 도구별 설정 파일을 자동 생성합니다.
@@ -83,7 +83,7 @@ uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | Claude Local (프로젝트) | `.claude/settings.glocal.json` |
 | Codex Local (프로젝트) | `.codex/config.toml` |
 | Gemini Local (프로젝트) | `.gemini/settings.local.json` |
-| Shell exports | `generated/shell_exports.sh` (환경변수 + vibe 함수) |
+| Shell exports | `generated/shell_exports.sh` (환경변수 + claude --fallback 함수) |
 
 ## 추천 MCP 목록
 
@@ -126,16 +126,18 @@ uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
 추가 환경변수:
 - `BROWSERBASE_MCP_URL` (browserbase remote URL)
 
-## vibe 함수 (Agent Fallback)
+## claude --fallback (Agent Fallback)
 
-`ai-env sync` 시 `shell_exports.sh`에 자동 생성되는 쉘 함수입니다.
-`config/settings.yaml`의 `agent_priority` 순서대로 AI 에이전트를 시도하고, 앞 에이전트가 세션 한도/에러로 종료되면 다음으로 자동 전환합니다.
+`ai-env sync` 시 `shell_exports.sh`에 자동 생성되는 `claude()` 쉘 함수입니다.
+원본 `claude` 바이너리를 shadow하며, `--fallback` 없이 사용하면 원본으로 passthrough합니다.
+`--fallback` 모드에서는 `config/settings.yaml`의 `agent_priority` 순서대로 AI 에이전트를 시도하고, 앞 에이전트가 세션 한도/에러로 종료되면 다음으로 자동 전환합니다.
 
 ```bash
-vibe               # claude 시작 → 한도 도달 시 codex로 전환
-vibe "기능 만들어줘"  # 프롬프트와 함께 시작
-vibe -2            # 2순위(codex)부터 바로 시작
-vibe -l            # 에이전트 우선순위 목록 출력
+claude --fallback              # claude 시작 → 한도 도달 시 codex로 전환
+claude --fallback "기능 만들어줘"  # 프롬프트와 함께 시작
+claude --fallback -2           # 2순위(codex)부터 바로 시작
+claude --fallback -l           # 에이전트 우선순위 목록 출력
+claude                         # 일반 claude 실행 (passthrough)
 ```
 
 우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `uv run ai-env sync`.
