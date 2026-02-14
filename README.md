@@ -78,8 +78,8 @@ uv run ai-env sync --claude-only --skills-exclude cde-ranking-skills
 | ChatGPT Desktop | `~/Library/Application Support/ChatGPT/config.json` |
 | Claude Code (글로벌) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/` |
 | Antigravity | `~/.gemini/antigravity/mcp_config.json` |
-| Codex CLI (글로벌) | `~/.codex/config.toml` |
-| Gemini CLI (글로벌) | `~/.gemini/settings.json` |
+| Codex CLI (글로벌) | `~/.codex/config.toml`, `AGENTS.md` |
+| Gemini CLI (글로벌) | `~/.gemini/settings.json`, `GEMINI.md` |
 | Claude Local (프로젝트) | `.claude/settings.glocal.json` |
 | Codex Local (프로젝트) | `.codex/config.toml` |
 | Gemini Local (프로젝트) | `.gemini/settings.local.json` |

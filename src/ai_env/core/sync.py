@@ -304,3 +304,53 @@ def sync_claude_global_config(
         results[desc] = str(target_dir / "skills")
 
     return results
+
+
+def sync_codex_global_config(dry_run: bool = False) -> dict[str, str]:
+    """Codex CLI 글로벌 설정 동기화
+
+    ai-env/.claude/global/CLAUDE.md → ~/.codex/AGENTS.md
+
+    Args:
+        dry_run: True면 실제 복사하지 않음
+    """
+    project_root = get_project_root()
+    source = project_root / ".claude" / "global" / "CLAUDE.md"
+    target_dir = Path.home() / ".codex"
+
+    results: dict[str, str] = {}
+
+    if not source.exists():
+        return results
+
+    dst = target_dir / "AGENTS.md"
+    desc, _ = _sync_file(source, dst, dry_run)
+    if desc:
+        results["AGENTS.md"] = str(dst)
+
+    return results
+
+
+def sync_gemini_global_config(dry_run: bool = False) -> dict[str, str]:
+    """Gemini CLI 글로벌 설정 동기화
+
+    ai-env/.claude/global/CLAUDE.md → ~/.gemini/GEMINI.md
+
+    Args:
+        dry_run: True면 실제 복사하지 않음
+    """
+    project_root = get_project_root()
+    source = project_root / ".claude" / "global" / "CLAUDE.md"
+    target_dir = Path.home() / ".gemini"
+
+    results: dict[str, str] = {}
+
+    if not source.exists():
+        return results
+
+    dst = target_dir / "GEMINI.md"
+    desc, _ = _sync_file(source, dst, dry_run)
+    if desc:
+        results["GEMINI.md"] = str(dst)
+
+    return results

@@ -7,7 +7,11 @@ from pathlib import Path
 import click
 
 from ..core import get_project_root, get_secrets_manager, load_mcp_config
-from ..core.sync import sync_claude_global_config
+from ..core.sync import (
+    sync_claude_global_config,
+    sync_codex_global_config,
+    sync_gemini_global_config,
+)
 from ..mcp import MCPConfigGenerator
 from . import console, main
 
@@ -83,6 +87,28 @@ def sync(
             console.print("  [yellow]○ No files to sync (source directory empty)[/yellow]")
         else:
             for name, file_path in claude_results.items():
+                console.print(f"  [green]✓[/green] {action} {name}")
+                console.print(f"    → {file_path}")
+
+        # Codex CLI 글로벌 설정 동기화
+        console.print("\n[bold cyan]📁 Codex CLI Global Config[/bold cyan]")
+        console.print("[dim]   ai-env/.claude/global/CLAUDE.md → ~/.codex/AGENTS.md[/dim]")
+        codex_results = sync_codex_global_config(dry_run=dry_run)
+        if not codex_results:
+            console.print("  [yellow]○ No files to sync (source not found)[/yellow]")
+        else:
+            for name, file_path in codex_results.items():
+                console.print(f"  [green]✓[/green] {action} {name}")
+                console.print(f"    → {file_path}")
+
+        # Gemini CLI 글로벌 설정 동기화
+        console.print("\n[bold cyan]📁 Gemini CLI Global Config[/bold cyan]")
+        console.print("[dim]   ai-env/.claude/global/CLAUDE.md → ~/.gemini/GEMINI.md[/dim]")
+        gemini_results = sync_gemini_global_config(dry_run=dry_run)
+        if not gemini_results:
+            console.print("  [yellow]○ No files to sync (source not found)[/yellow]")
+        else:
+            for name, file_path in gemini_results.items():
                 console.print(f"  [green]✓[/green] {action} {name}")
                 console.print(f"    → {file_path}")
 

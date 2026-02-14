@@ -28,8 +28,8 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 ├─ Antigravity     (mcp_config.json)
 ├─ Claude Code Global (~/.claude/settings.json, CLAUDE.md, commands/, skills/)
 ├─ Claude Local    (.claude/settings.glocal.json)
-├─ Codex CLI       (~/.codex/config.toml, .codex/config.toml)
-├─ Gemini CLI      (~/.gemini/settings.json, .gemini/settings.local.json)
+├─ Codex CLI       (~/.codex/config.toml, AGENTS.md, .codex/config.toml)
+├─ Gemini CLI      (~/.gemini/settings.json, GEMINI.md, .gemini/settings.local.json)
 └─ Shell exports   (shell_exports.sh)
 ```
 
@@ -39,7 +39,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 |------|------|
 | `core/config.py` | Pydantic 모델, YAML 설정 로드 |
 | `core/secrets.py` | `.env` 환경변수 관리, `${VAR}` 치환 |
-| `core/sync.py` | Claude 글로벌 설정 동기화 (CLAUDE.md, commands/, skills/, settings.json) |
+| `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex, Gemini) |
 | `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE) |
 | `cli.py` | Click CLI + Rich UI |
 

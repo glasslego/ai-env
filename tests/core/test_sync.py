@@ -8,6 +8,8 @@ from ai_env.core.sync import (
     _sync_file_or_dir,
     _sync_skills_merged,
     sync_claude_global_config,
+    sync_codex_global_config,
+    sync_gemini_global_config,
 )
 
 
@@ -339,3 +341,111 @@ def test_collect_skills_no_filter_subdir_layout(tmp_path):
     assert "es-query" not in names
     assert "ranking-lookup" not in names
     assert "score-drilldown" not in names
+
+
+def test_sync_codex_global_config(tmp_path, mock_secrets_manager):
+    """CLAUDE.md → ~/.codex/AGENTS.md 동기화 확인."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    target_dir = tmp_path / "home" / ".codex"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config()
+
+    assert "AGENTS.md" in results
+    agents_md = target_dir / "AGENTS.md"
+    assert agents_md.exists()
+    assert agents_md.read_text() == "# Global Instructions"
+
+
+def test_sync_codex_global_config_dry_run(tmp_path, mock_secrets_manager):
+    """Codex dry_run 시 파일 미생성 확인."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    target_dir = tmp_path / "home" / ".codex"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config(dry_run=True)
+
+    assert "AGENTS.md" in results
+    assert not (target_dir / "AGENTS.md").exists()
+
+
+def test_sync_codex_no_source(tmp_path, mock_secrets_manager):
+    """소스 CLAUDE.md 없으면 빈 결과 반환."""
+    project_root = tmp_path / "ai-env"
+    project_root.mkdir(parents=True)
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config()
+
+    assert results == {}
+
+
+def test_sync_gemini_global_config(tmp_path, mock_secrets_manager):
+    """CLAUDE.md → ~/.gemini/GEMINI.md 동기화 확인."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    target_dir = tmp_path / "home" / ".gemini"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_gemini_global_config()
+
+    assert "GEMINI.md" in results
+    gemini_md = target_dir / "GEMINI.md"
+    assert gemini_md.exists()
+    assert gemini_md.read_text() == "# Global Instructions"
+
+
+def test_sync_gemini_global_config_dry_run(tmp_path, mock_secrets_manager):
+    """Gemini dry_run 시 파일 미생성 확인."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    target_dir = tmp_path / "home" / ".gemini"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_gemini_global_config(dry_run=True)
+
+    assert "GEMINI.md" in results
+    assert not (target_dir / "GEMINI.md").exists()
+
+
+def test_sync_gemini_no_source(tmp_path, mock_secrets_manager):
+    """소스 CLAUDE.md 없으면 빈 결과 반환."""
+    project_root = tmp_path / "ai-env"
+    project_root.mkdir(parents=True)
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_gemini_global_config()
+
+    assert results == {}
