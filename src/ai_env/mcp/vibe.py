@@ -272,13 +272,33 @@ claude() {{
             | command grep -qiE '/exit|/quit'
     }}
 
+    _parse_model_from_log() {{
+        # 세션 로그에서 Claude 시작 배너의 모델명 추출
+        # 예: "Opus 4.6 · Claude Max" → "opus", "Sonnet 4.6 · Claude Max" → "sonnet"
+        local log_file="$1"
+        local _model
+        _model=$(head -n 30 "$log_file" 2>/dev/null \
+            | _strip_ansi \
+            | command grep -oEi '(Opus|Sonnet|Haiku)[[:space:]]+[0-9]+' \
+            | head -1 \
+            | awk '{{print tolower($1)}}')
+        echo "${{_model:-}}"
+    }}
+
     _save_session_log() {{
         # 세션 로그를 영구 저장 디렉토리에 복사
+        # agent_name에 모델명이 없는 경우 (plain "claude") 로그에서 파싱해 추가
         local log_file="$1"
         local agent_name="$2"
         [[ -z "$_fb_log_dir" || ! -f "$log_file" ]] && return 0
         mkdir -p "$_fb_log_dir"
         [[ -z "$_fallback_session_id" ]] && _fallback_session_id=$(_get_claude_session_id)
+        # plain "claude" 엔트리: 로그에서 실제 모델명 추출해 파일명에 포함
+        if [[ "$agent_name" == "claude" ]]; then
+            local _model
+            _model=$(_parse_model_from_log "$log_file")
+            [[ -n "$_model" ]] && agent_name="claude-${{_model}}"
+        fi
         local perm_log="${{_fb_log_dir}}/${{_dir_prefix}}__${{_fallback_session_id}}_${{agent_name}}.log"
         command cp -f "$log_file" "$perm_log" < /dev/null 2>/dev/null
         printf '\\r\\033[36m📝 세션 로그: %s\\033[0m\\r\\n' "$perm_log"
@@ -605,13 +625,15 @@ claude() {{
 
             # 세션 로그 저장 (영구 디렉토리 설정 시)
             # agent:model 형식은 "agent-model"로 변환 (예: claude:sonnet → claude-sonnet)
+            # plain "claude" 엔트리는 로그에서 실제 모델명을 파싱해 파일명에 반영
             _save_session_log "$log_file" "${{agent//:/-}}"
 
             # 비-Claude 에이전트 영구 로그 경로 보존 (reverse handoff용)
             local _perm_log_path=""
             if [[ "$base_agent" != "claude" && -n "$_fb_log_dir" ]]; then
                 [[ -z "$_fallback_session_id" ]] && _fallback_session_id=$(_get_claude_session_id)
-                _perm_log_path="${{_fb_log_dir}}/${{_dir_prefix}}__${{_fallback_session_id}}_${{agent//:/-}}.log"
+                local _non_claude_name="${{agent//:/-}}"
+                _perm_log_path="${{_fb_log_dir}}/${{_dir_prefix}}__${{_fallback_session_id}}_${{_non_claude_name}}.log"
             fi
 
             # /exit 감지 (비-Claude 에이전트, 성공 종료 시)
