@@ -55,6 +55,7 @@ def generate_shell_functions(
 #        claude --fallback --to gemini [args..] - fallback 대상 지정 (쉼표 구분 가능: gemini,codex)
 #        claude --fallback -2 [args...]         - 2순위 에이전트부터 시작 (예: codex)
 #        claude --fallback --auto [args...]      - 모든 에이전트 자동 승인 모드 (권한 확인 건너뜀)
+#        claude --fallback --reset [args...]    - cooldown 초기화 후 Claude부터 시도
 #        claude --fallback -l                   - 에이전트 우선순위 목록 출력
 #        claude [args...]                       - 일반 claude 실행 (passthrough)
 # Model: "agent:model" 형식으로 모델 지정 가능 (예: claude:sonnet → claude --model sonnet)
@@ -390,6 +391,8 @@ claude() {{
                 fi
             done
         done < "$_cf"
+        # 만료된 cooldown 항목 정리 (파일에 유효한 것만 남김)
+        _save_cooldown_state
         if [[ $_loaded -eq 1 ]]; then
             printf '\\r\\033[36mℹ 이전 세션 cooldown 상태 복원됨\\033[0m\\r\\n'
         fi
@@ -436,6 +439,17 @@ claude() {{
                 # Claude에는 --dangerously-skip-permissions,
                 # Codex에는 --yolo로 매핑한다.
                 auto_mode=1
+                shift
+                ;;
+            --reset|--clear-cooldown)
+                # cooldown 상태 초기화: Claude 할당량이 초기화됐으나 cooldown이 남아있을 때
+                for ((j=0; j<${{#agents[@]}}; j++)); do
+                    entry_cooldown_epochs[$j]=0
+                done
+                if [[ -n "$_fb_log_dir" ]]; then
+                    rm -f "${{_fb_log_dir}}/.fallback_cooldown"
+                fi
+                printf '\\r\\033[36mℹ Cooldown 상태 초기화됨. Claude부터 시도합니다.\\033[0m\\r\\n'
                 shift
                 ;;
             -[0-9])
@@ -575,6 +589,18 @@ claude() {{
                 wait "$monitor_pid" 2>/dev/null || true
             fi
             [[ $_saved_monitor -eq 1 ]] && set -m
+
+            # Claude: /exit, /quit 명시적 종료 → rate-limit 감지 건너뛰고 클린 종료
+            # (rate-limit 메시지가 로그에 남아있어도 사용자 의도를 우선)
+            if [[ "$base_agent" == "claude" ]] && _user_explicitly_exited "$log_file"; then
+                entry_cooldown_epochs[$i]=0
+                _save_cooldown_state
+                _save_session_log "$log_file" "${{agent//:/-}}"
+                rm -f "$log_file" "$rate_limit_marker"
+                _release_handoff
+                printf '\\033[36m👋 세션 종료\\033[0m\\n'
+                return 0
+            fi
 
             # Rate-limit 감지:
             # 1) 실시간 모니터 marker 있으면 무조건 rate-limit

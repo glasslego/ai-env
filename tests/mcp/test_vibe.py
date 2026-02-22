@@ -6,6 +6,7 @@ import subprocess
 import time
 from unittest.mock import MagicMock, patch
 
+import pytest
 from ai_env.core.config import Settings
 from ai_env.mcp.generator import MCPConfigGenerator
 from ai_env.mcp.vibe import generate_shell_functions
@@ -2092,3 +2093,267 @@ class TestPersistentCooldown:
         assert "Handoff: Claude Code → Fallback Agent" in result
         # Fallback → Claude 방향
         assert "Handoff: $from_agent → Claude Code" in result
+
+
+class TestClaudeExitAndCooldownReset:
+    """Claude /exit 클린 종료 및 --reset cooldown 초기화 테스트"""
+
+    def _make_generator(
+        self, agent_priority: list[str], fallback_log_dir: str | None = None
+    ) -> MCPConfigGenerator:
+        secrets = MagicMock()
+        secrets.get.return_value = ""
+        with (
+            patch("ai_env.mcp.generator.load_mcp_config") as mock_mcp,
+            patch("ai_env.mcp.generator.load_settings") as mock_settings,
+        ):
+            mock_mcp.return_value = MagicMock(mcp_servers={})
+            settings = Settings(
+                agent_priority=agent_priority,
+                fallback_log_dir=fallback_log_dir,
+            )
+            mock_settings.return_value = settings
+            return MCPConfigGenerator(secrets)
+
+    def test_claude_exit_skips_rate_limit_detection(self, tmp_path):
+        """Claude에서 /exit 시 rate-limit 로그가 있어도 클린 종료."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        # Claude: rate-limit 메시지를 출력하지만 /exit도 출력
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "claude" >> "$TRACE_FILE"\n'
+            'echo "you have hit your limit"\n'
+            'echo "> /exit"\n'
+            'echo "Bye!"\n'
+            "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+
+        # Codex: 호출되면 안 됨
+        codex_script = bin_dir / "codex"
+        codex_script.write_text(
+            "#!/usr/bin/env bash\n" 'echo "codex" >> "$TRACE_FILE"\n' "exit 0\n"
+        )
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "60"
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback test"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        assert result.returncode == 0
+        lines = trace_file.read_text().splitlines()
+        # Claude만 실행, Codex는 호출되지 않아야 함
+        assert lines == ["claude"]
+        assert "세션 종료" in result.stdout or "세션 종료" in result.stderr
+
+    def test_claude_exit_clears_cooldown(self, tmp_path):
+        """Claude /exit 시 해당 엔트리의 cooldown이 0으로 초기화."""
+        log_dir = tmp_path / "log"
+        gen = self._make_generator(
+            ["claude", "codex"],
+            fallback_log_dir=str(log_dir),
+        )
+        shell_fn = gen.generate_shell_functions()
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+        log_dir.mkdir(parents=True)
+
+        # Claude: rate-limit 메시지 + /exit 출력 (cooldown 없이 바로 실행됨)
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "claude" >> "$TRACE_FILE"\n'
+            'echo "you have hit your limit"\n'
+            'echo "> /exit"\n'
+            "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text(
+            "#!/usr/bin/env bash\n" 'echo "codex" >> "$TRACE_FILE"\n' "exit 0\n"
+        )
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env["CLAUDE_FALLBACK_LOG_DIR"] = str(log_dir)
+        env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "60"
+        env.pop("CLAUDECODE", None)
+
+        subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback test"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        # Claude만 실행 (Codex로 fallback 하지 않음)
+        lines = trace_file.read_text().splitlines()
+        assert lines == ["claude"]
+
+        # cooldown 파일에 claude 항목이 없어야 함 (0으로 설정 → _save_cooldown_state에서 제외)
+        cooldown_file = log_dir / ".fallback_cooldown"
+        if cooldown_file.exists():
+            content = cooldown_file.read_text().strip()
+            assert "claude\t" not in content
+
+    def test_reset_option_clears_cooldown(self, tmp_path):
+        """--reset 옵션이 cooldown 상태를 초기화하고 Claude부터 시도."""
+        log_dir = tmp_path / "log"
+        gen = self._make_generator(
+            ["claude", "codex"],
+            fallback_log_dir=str(log_dir),
+        )
+        shell_fn = gen.generate_shell_functions()
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        # cooldown 파일 생성 (Claude가 1시간 동안 cooldown 상태)
+        log_dir.mkdir(parents=True)
+        future_epoch = int(time.time()) + 3600
+        cooldown_file = log_dir / ".fallback_cooldown"
+        cooldown_file.write_text(f"claude\t{future_epoch}\n")
+
+        # Claude: 정상 종료
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n" 'echo "claude" >> "$TRACE_FILE"\n' "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+
+        # Codex
+        codex_script = bin_dir / "codex"
+        codex_script.write_text(
+            "#!/usr/bin/env bash\n" 'echo "codex" >> "$TRACE_FILE"\n' "exit 0\n"
+        )
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env["CLAUDE_FALLBACK_LOG_DIR"] = str(log_dir)
+        env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "60"
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback --reset test"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        assert result.returncode == 0
+        lines = trace_file.read_text().splitlines()
+        # --reset으로 cooldown 초기화 → Claude부터 실행 (Codex 아님)
+        assert lines[0] == "claude"
+        # cooldown 파일에 claude 항목이 없어야 함 (정상 종료 → cooldown 0)
+        if cooldown_file.exists():
+            content = cooldown_file.read_text().strip()
+            assert "claude\t" not in content or content == ""
+
+    def test_reset_option_in_generated_code(self):
+        """--reset 옵션이 생성된 쉘 함수에 포함되는지 확인."""
+        result = generate_shell_functions(["claude", "codex"])
+        assert "--reset|--clear-cooldown)" in result
+        assert "Cooldown 상태 초기화" in result
+
+    def test_expired_cooldown_cleaned_on_load(self, tmp_path):
+        """세션 시작 시 만료된 cooldown 항목이 파일에서 자동 정리."""
+        log_dir = tmp_path / "log"
+        gen = self._make_generator(
+            ["claude", "claude:sonnet", "codex"],
+            fallback_log_dir=str(log_dir),
+        )
+        shell_fn = gen.generate_shell_functions()
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        log_dir.mkdir(parents=True)
+        past_epoch = int(time.time()) - 3600  # 1시간 전 만료
+        future_epoch = int(time.time()) + 3600  # 1시간 후 만료
+        cooldown_file = log_dir / ".fallback_cooldown"
+        cooldown_file.write_text(f"claude\t{past_epoch}\nclaude:sonnet\t{future_epoch}\n")
+
+        # Claude: 정상 종료 (cooldown 만료됨 → 실행 가능)
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n" 'echo "claude:$*" >> "$TRACE_FILE"\n' "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text("#!/usr/bin/env bash\nexit 0\n")
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env["CLAUDE_FALLBACK_LOG_DIR"] = str(log_dir)
+        env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "60"
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback test"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        assert result.returncode == 0
+        # claude(만료됨)가 먼저 실행됨 (건너뛰지 않음)
+        lines = trace_file.read_text().splitlines()
+        assert lines[0].startswith("claude:")
+
+        # cooldown 파일에 만료된 claude 항목이 정리되고 sonnet만 남아야 함
+        if cooldown_file.exists():
+            content = cooldown_file.read_text()
+            assert "claude:sonnet" in content
+            # claude (plain) 항목은 없어야 함 (만료 → 정리됨)
+            for line in content.strip().splitlines():
+                agent_part = line.split("\t")[0]
+                if agent_part == "claude":
+                    pytest.fail("Expired claude cooldown should have been cleaned")
