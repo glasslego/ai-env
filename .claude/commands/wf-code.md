@@ -22,6 +22,32 @@
 - spec의 구현 우선순위(MVP 로드맵)를 확인하여 모듈 순서를 결정
 - spec의 기술 스택 결정사항을 파악 (의존성 패키지 목록)
 
+## Step 2.5: 체크포인트 로드
+
+`{base_path}/01_시스템구성/_code-status.yaml` 파일이 존재하면 Read로 읽는다.
+
+```yaml
+# _code-status.yaml 형식
+last_updated: "2026-02-23"
+modules:
+  core:
+    status: done      # done | failed | pending
+    tests_passed: 12
+    tests_failed: 0
+  api:
+    status: failed
+    error: "3회 시도 후 test_auth_flow 실패"
+  scheduler:
+    status: pending
+```
+
+- **done** 모듈: Step 4에서 건너뛴다 (사용자에게 "core: 이전 완료, 건너뜀" 표시)
+- **failed** 모듈: 해당 모듈부터 재개한다
+- **pending** 모듈: 순서대로 실행한다
+- 파일이 없으면 모든 모듈을 pending으로 간주한다
+
+각 모듈의 Step 4-5 완료 시 이 파일을 Write로 갱신한다.
+
 ## Step 3: 프로젝트 초기화 (최초 실행 시)
 
 `code.target_repo` 경로에 프로젝트가 없으면 초기화한다.
@@ -88,9 +114,12 @@ cd {target_repo} && uv run pytest tests/test_{module.name}.py -v
 - 중복 제거, 네이밍 개선
 - 리팩토링 후 테스트 재실행으로 기능 보존 확인
 
-### 4-5. 모듈 완료
+### 4-5. 모듈 완료 + 체크포인트 저장
 
 - 해당 모듈 전체 테스트 통과 확인
+- `_code-status.yaml`에 해당 모듈 상태 기록:
+  - 성공 시: `status: done`, `tests_passed: N`
+  - 실패 시 (3회 반복 후): `status: failed`, `error: "실패 사유"`
 - 다음 모듈로 이동
 
 ## Step 5: 통합 테스트
@@ -126,7 +155,15 @@ uv run ruff format .
 - ruff: clean / {n} issues
 ```
 
-## Step 7: 완료 보고
+## Step 7: 워크플로우 상태 갱신
+
+```bash
+uv run ai-env pipeline workflow $ARGUMENTS
+```
+
+Phase가 "implementing"으로 업데이트되었는지 확인한다.
+
+## Step 8: 완료 보고
 
 사용자에게 보고:
 - **생성된 모듈** 목록 + 각 모듈 테스트 결과

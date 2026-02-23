@@ -11,8 +11,9 @@
 - Obsidian vault 경로 결정:
   - vault_root = `/Users/megan/Documents/Obsidian Vault`
   - base_path = `{vault_root}/{topic.obsidian_base}`
-  - ref_dir = `{base_path}/07_참고`
-- `ref_dir`이 없으면 Bash로 `mkdir -p "{ref_dir}"` 실행
+  - **신규 파일 저장**: `clip_dir = {base_path}/10_Research/Clippings` (표준 경로)
+  - **레거시 읽기 전용**: `{base_path}/07_참고` (기존 파일 참조만, 신규 저장 금지)
+- `clip_dir`이 없으면 Bash로 `mkdir -p "{clip_dir}"` 실행
 
 ## Step 2: Track A — 병렬 자동검색 (Agent-Teams)
 
@@ -40,7 +41,7 @@ Task 도구 호출:
 **임무**: 웹검색을 수행하고 결과를 마크다운 파일로 저장하라.
 
 **쿼리**: {query}
-**저장 경로**: {vault_root}/{topic.obsidian_base}/{output}
+**저장 경로**: {vault_root}/{topic.obsidian_base}/10_Research/Clippings/{output 파일명}
 **토픽 ID**: {topic.id}
 **날짜**: {오늘 YYYY-MM-DD}
 
@@ -106,8 +107,8 @@ cd ~/work/glasslego/ai-env && uv run ai-env pipeline dispatch {topic.id}
 
 `dispatch` 커맨드에서 자동 처리됨. API 키가 없으면 아래 프롬프트 파일이 생성된다:
 
-- Track B: `{ref_dir}/_gemini-prompts.md` — Gemini 웹에 복붙
-- Track C: `{ref_dir}/_gpt-prompts.md` — GPT 웹에 복붙
+- Track B: `{clip_dir}/_gemini-prompts.md` — Gemini 웹에 복붙
+- Track C: `{clip_dir}/_gpt-prompts.md` — GPT 웹에 복붙
 
 ## Step 4: 서브에이전트 완료 대기
 
@@ -117,7 +118,7 @@ Step 2에서 스폰한 Task들의 결과를 확인한다.
 
 ## Step 5: 진행 상황 체크리스트 생성
 
-`{ref_dir}/_research-status.md` 파일을 Write로 생성한다:
+`{clip_dir}/_research-status.md` 파일을 Write로 생성한다:
 
 ```markdown
 # 리서치 진행 상황: {topic.name}

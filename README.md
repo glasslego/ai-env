@@ -96,6 +96,32 @@ claude                         # 일반 실행 (passthrough)
 | `--dangerously-skip-permissions` | `--auto`와 동일 (wrapper가 소비) |
 | `-N` | N순위부터 시작 (예: `-2`) |
 
+- `/exit`으로 종료 시 다음 에이전트로 전환하지 않고 깨끗하게 종료
+- 새 세션 시작 시 항상 Claude(Opus)부터 시도 (이전 cooldown 무시)
+
+## 워크플로우 파이프라인
+
+리서치 → Brief → Spec → TDD 코드 → 리뷰의 6-Phase 자동화 파이프라인.
+
+```bash
+# 개별 Phase 실행
+claude "/wf-init topic_id"       # Phase 0: 워크스페이스 초기화
+claude "/wf-research topic_id"   # Phase 2: 3-Track 리서치
+claude "/wf-spec topic_id"       # Phase 3: Brief + Spec 생성
+claude "/wf-code topic_id"       # Phase 4: TDD 코드 생성
+claude "/wf-review topic_id"     # Phase 5: 스펙 정합성 리뷰
+
+# 전체 자동 실행
+claude "/wf-run topic_id"        # 현재 Phase부터 끝까지
+
+# 상태 확인
+ai-env pipeline workflow topic_id
+```
+
+- **체크포인트 재개**: 코드 생성 중 실패한 모듈부터 자동 재개
+- **Brief 압축**: 리서치를 30% 이하로 압축 후 교차 분석
+- **오류 격리**: 각 Phase 독립 재실행 가능
+
 ## MCP 서버 추가
 
 `config/mcp_servers.yaml`에 항목 추가 후 `ai-env sync`:

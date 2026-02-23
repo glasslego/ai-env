@@ -115,10 +115,35 @@ claude                         # 일반 claude 실행 (passthrough)
 
 우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `ai-env sync`.
 
-**영속 cooldown**: Rate-limit 감지 시 cooldown 상태가 `$CLAUDE_FALLBACK_LOG_DIR/.fallback_cooldown`에 저장되어 셸 재시작 후에도 유지됨.
-세션 로그에서 "resets Feb 23 at 9am" 등 리셋 시각을 파싱하여 정확한 cooldown 기간을 설정함.
+**세션 내 cooldown**: 같은 셸 세션 안에서 rate-limit 감지 시 해당 에이전트를 cooldown 처리하고 다음 에이전트로 전환.
+새 세션 시작 시에는 항상 Claude(Opus)부터 시도한다 (이전 cooldown 상태를 무시).
 
-**역방향 핸드오프**: Codex 등 non-Claude 에이전트 작업 완료 후 Claude cooldown이 해제되면 자동으로 Claude로 복귀하며, 핸드오프 컨텍스트를 전달함.
+**클린 종료**: Claude에서 `/exit`이나 `/quit`으로 종료하면 rate-limit 메시지가 로그에 있더라도 다음 에이전트로 전환하지 않고 깨끗하게 종료한다.
+
+**역방향 핸드오프**: 같은 세션 내에서 Codex 등 non-Claude 에이전트 작업 완료 후 Claude cooldown이 해제되면 자동으로 Claude로 복귀하며, 핸드오프 컨텍스트를 전달함.
+
+### 워크플로우 파이프라인 (wf-* 커맨드)
+
+6-Phase 워크플로우로 리서치 → Spec → 코드 생성까지 자동화한다.
+
+```
+Phase 1 (intake)       → /wf-init {topic_id}     : Obsidian 워크스페이스 스캐폴딩
+Phase 2 (research)     → /wf-research {topic_id}  : 3-Track 리서치 (A: 자동검색, B: Gemini, C: GPT)
+Phase 3 (spec)         → /wf-spec {topic_id}      : Brief 압축 → 4-Way 교차분석 → Plan/Spec + ADR
+Phase 4 (implementing) → /wf-code {topic_id}      : TDD 코드 생성 (체크포인트 재개 지원)
+Phase 5 (review)       → /wf-review {topic_id}    : 스펙 정합성 리뷰
+전체 자동 실행          → /wf-run {topic_id}       : 현재 Phase부터 끝까지 순차 실행
+```
+
+**상태 확인**: `ai-env pipeline workflow {topic_id}` — `_workflow-status.md`를 자동 재생성하고 현재 Phase 표시.
+
+**리서치 디렉토리**: 신규 파일은 `10_Research/Clippings/`에 저장. `07_참고/`는 레거시 읽기 전용.
+
+**Brief 단계**: wf-spec 실행 시 리서치를 30% 이하로 압축한 Brief를 먼저 생성. 기존 Brief가 있으면 재사용 확인.
+
+**코드 체크포인트**: wf-code 실행 시 `_code-status.yaml`에 모듈별 진행 상태(done/failed/pending) 기록. 실패 모듈부터 자동 재개.
+
+**오류 격리**: 각 Phase는 독립적으로 재실행 가능. 개별 Phase 실패 시 해당 Phase만 다시 실행.
 
 ### Deep Research Dispatch (pipeline dispatch)
 

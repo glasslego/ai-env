@@ -48,7 +48,33 @@ Manual:               2 files ✅
 수동 파일은 "Manual" 트랙으로 분류한다.
 파일이 많으면 Task 도구로 병렬 읽기해도 된다.
 
-## Step 4: 4-Way 교차 분석
+## Step 4: Brief 생성 (리서치 압축)
+
+리서치 파일 전체를 교차 분석하기 전에, **30% 이하로 압축한 중간 산출물**을 먼저 생성한다.
+Brief는 Spec 작성의 입력이 되며, 토큰 효율을 높인다.
+
+### 4-1. 기존 Brief 확인
+
+`{base_path}/10_Research/Briefs/BRIEF-{topic.id}.md` 파일이 있는지 확인한다.
+- **있으면**: 사용자에게 기존 Brief를 재사용할지 확인한다. 재사용 시 Step 5로 건너뛴다.
+- **없으면**: 아래 4-2를 수행한다.
+
+### 4-2. Brief 작성
+
+`config/templates/prompts/claude-brief.md` 프롬프트를 참고하여 Brief를 작성한다.
+
+Brief 작성 규칙:
+1. **합의 사항** (Consensus): 2개 이상 소스가 동의하는 내용
+2. **이견 사항** (Divergence): 소스 간 의견이 다른 내용 → 테이블로 비교, 판단 근거 명시
+3. **고유 인사이트** (Unique): 단일 소스의 유의미한 정보 → 출처 명시
+4. 각 항목에 `[출처: 파일명]` 태그 부착
+5. Brief 길이: Clippings 총량의 **30% 이하**로 압축
+6. TASK의 Research Questions에 대한 답변 매핑 포함
+
+**저장 경로**: `{base_path}/10_Research/Briefs/BRIEF-{topic.id}.md`
+`10_Research/Briefs/` 디렉토리가 없으면 생성한다.
+
+## Step 5: 4-Way 교차 분석
 
 리서치 결과를 종합할 때 **반드시** 다음 4가지 관점을 적용한다:
 
@@ -82,7 +108,7 @@ Gemini vs GPT 또는 Track 간에 **다르게 말하는 부분**을 명시적으
 - 일반적 서술만 있는 주장 → **중간**
 - 소스 간 상충하는 주장 → **낮음** (추가 검증 필요)
 
-## Step 5: Plan/Spec 문서 생성
+## Step 6: Plan/Spec 문서 생성
 
 토픽 YAML의 `plan.synthesis_prompt`를 **주요 지시**로 삼아 spec을 작성한다.
 synthesis_prompt에 명시된 항목 + 아래 교차 분석 섹션을 포함한다.
@@ -136,7 +162,7 @@ sources:
 (주요 기술적 결정을 번호 매겨 기록. 각 결정마다 근거 Track 명시)
 ```
 
-## Step 6: ADR 자동 생성
+## Step 7: ADR 자동 생성
 
 Step 4의 교차 분석에서 발견된 **주요 아키텍처/기술 결정**마다 ADR 파일을 생성한다.
 
@@ -146,7 +172,7 @@ Step 4의 교차 분석에서 발견된 **주요 아키텍처/기술 결정**마
 - ADR 템플릿: `config/templates/obsidian/ADR.md` 참고
 - 최소 항목: Context, Decision, Alternatives, Consequences
 
-## Step 7: 리서치 상태 업데이트
+## Step 8: 리서치 상태 업데이트
 
 ### 기존 상태 파일 업데이트
 `{ref_dir}/_research-status.md` 파일 끝에 추가한다:
@@ -171,7 +197,7 @@ claude --fallback "/wf-code {topic.id}"
 2. `_workflow-status.md` 갱신 (Phase 3 완료)
 3. SPEC 파일을 `20_Specs/SPEC-{topic.id}.md`에도 저장/링크
 
-## Step 8: 완료 보고
+## Step 9: 완료 보고
 
 사용자에게 보고:
 - **spec 문서 경로** + Executive Summary 발췌

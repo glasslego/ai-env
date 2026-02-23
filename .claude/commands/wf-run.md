@@ -57,10 +57,11 @@ uv run ai-env pipeline status $ARGUMENTS
 리서치 파일이 0건이면 Step 1의 intake 안내와 동일하게 중단.
 1건 이상이면 다음 Step으로 진행.
 
-### Step 3: Phase 3 — Spec 생성
+### Step 3: Phase 3 — Brief + Spec 생성
 
 **이 단계의 상세 절차는 `.claude/commands/wf-spec.md`에 정의되어 있다.**
 해당 파일을 Read 도구로 읽고, 그 안의 모든 단계를 빠짐없이 실행하라.
+(Brief 생성 → 교차 분석 → Spec 작성 → ADR 생성 순서)
 
 #### Gate Check (Spec 완료 확인)
 
@@ -134,6 +135,25 @@ uv run ai-env pipeline workflow $ARGUMENTS
 {Must Fix가 없으면}
 ✅ 모든 AC 충족! 워크플로우가 완료되었습니다.
 ```
+
+## 오류 격리 원칙
+
+- 각 Phase는 **독립적으로 재실행 가능**해야 한다
+- Phase 실패 시 해당 Phase만 다시 실행한다 (이전 Phase 결과는 보존):
+  - Spec 실패: `claude "/wf-spec {topic_id}"`
+  - Code 실패: `claude "/wf-code {topic_id}"` (체크포인트에서 재개)
+  - Review 실패: `claude "/wf-review {topic_id}"`
+- Phase 간 전환 시 반드시 `ai-env pipeline workflow`로 상태를 갱신하고 확인한다
+- 이전 Phase의 산출물이 손상된 경우에만 이전 Phase를 재실행한다
+
+## Phase 실행 체크리스트
+
+각 Phase 실행 전후로 확인:
+
+- [ ] Phase 시작 전: `ai-env pipeline workflow {topic_id}` → 현재 Phase 확인
+- [ ] Phase 실행: 해당 wf-* 커맨드의 모든 Step 수행
+- [ ] Phase 완료 후: `ai-env pipeline workflow {topic_id}` → Phase 진행 확인
+- [ ] Gate Check 통과 확인 후 다음 Phase로 진행
 
 ## 절대 금지
 

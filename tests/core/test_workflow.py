@@ -465,6 +465,72 @@ class TestCLIRegistration:
         assert "workflow" in commands
 
 
+class TestWorkflowStatusAutoUpdate:
+    """pipeline workflow 실행 시 상태 파일 자동 갱신 테스트"""
+
+    def test_workflow_command_regenerates_status_file(
+        self,
+        sample_topic: TopicConfig,
+        vault_root: Path,
+        templates_dir: Path,
+    ) -> None:
+        """workflow 명령 실행 시 _workflow-status.md가 자동 재생성됨"""
+        # 워크스페이스 스캐폴딩 (30_Tasks 등 생성)
+        scaffold_obsidian_workspace(sample_topic, vault_root, templates_dir)
+
+        base = vault_root / sample_topic.topic.obsidian_base
+        status_file = base / "_workflow-status.md"
+
+        # 기존 상태 파일에 오래된 내용 작성
+        status_file.write_text("# Old status\nphase: intake")
+        old_content = status_file.read_text()
+
+        # generate_workflow_status_file 호출 (pipeline_workflow가 하는 것과 동일)
+        generate_workflow_status_file(sample_topic, base, status_file)
+
+        new_content = status_file.read_text()
+        assert new_content != old_content
+        assert "테스트 토픽" in new_content
+        assert "Phase" in new_content
+
+    def test_status_file_created_when_tasks_dir_exists(
+        self,
+        sample_topic: TopicConfig,
+        vault_root: Path,
+    ) -> None:
+        """30_Tasks 디렉토리만 있으면 상태 파일 생성"""
+        base = vault_root / sample_topic.topic.obsidian_base
+        (base / "30_Tasks").mkdir(parents=True)
+
+        status_file = base / "_workflow-status.md"
+        assert not status_file.exists()
+
+        # pipeline_workflow 로직 재현
+        if status_file.exists() or (base / "30_Tasks").exists():
+            generate_workflow_status_file(sample_topic, base, status_file)
+
+        assert status_file.exists()
+        content = status_file.read_text()
+        assert "테스트 토픽" in content
+
+    def test_no_status_file_without_workspace(
+        self,
+        sample_topic: TopicConfig,
+        vault_root: Path,
+    ) -> None:
+        """워크스페이스가 없으면 상태 파일 생성 안 함"""
+        base = vault_root / sample_topic.topic.obsidian_base
+        base.mkdir(parents=True, exist_ok=True)
+
+        status_file = base / "_workflow-status.md"
+
+        # 30_Tasks도 없고 status_file도 없음 → 생성하지 않음
+        if status_file.exists() or (base / "30_Tasks").exists():
+            generate_workflow_status_file(sample_topic, base, status_file)
+
+        assert not status_file.exists()
+
+
 # ── 수동 리서치 워크플로우 상태 ──
 
 

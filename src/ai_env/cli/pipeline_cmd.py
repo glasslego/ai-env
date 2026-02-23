@@ -516,6 +516,11 @@ def pipeline_workflow(topic_id: str, vault: str) -> None:
     status = get_workflow_status(topic, obsidian_base)
     current_phase = status.get("phase") or "intake"
 
+    # 상태 파일 자동 재생성 (워크스페이스가 존재하는 경우)
+    status_file = obsidian_base / "_workflow-status.md"
+    if status_file.exists() or (obsidian_base / "30_Tasks").exists():
+        generate_workflow_status_file(topic, obsidian_base, status_file)
+
     console.print(f"\n[bold cyan]📊 워크플로우: {topic.topic.name}[/bold cyan]\n")
     console.print(f"  현재 Phase: [bold]{PHASE_NAMES.get(current_phase, current_phase)}[/bold]")
 

@@ -66,7 +66,7 @@ REVIEW 템플릿(`config/templates/obsidian/REVIEW.md`)을 참고하여
 
 Write 도구로 `40_Reviews/REV-$ARGUMENTS.md`에 저장한다.
 
-### Step 6: Follow-up 태스크 (필요시)
+### Step 6: Follow-up 태스크 + 워크플로우 상태 갱신
 
 Must Fix 항목이 있으면:
 - TASK 파일에 Follow-up 항목 추가
@@ -74,6 +74,11 @@ Must Fix 항목이 있으면:
 
 모든 AC가 충족되면:
 - 워크플로우 상태를 "done"으로 업데이트
+
+워크플로우 상태 갱신:
+```bash
+uv run ai-env pipeline workflow $ARGUMENTS
+```
 
 ### Step 7: 결과 보고
 
