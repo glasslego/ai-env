@@ -55,7 +55,6 @@ def generate_shell_functions(
 #        claude --fallback --to gemini [args..] - fallback 대상 지정 (쉼표 구분 가능: gemini,codex)
 #        claude --fallback -2 [args...]         - 2순위 에이전트부터 시작 (예: codex)
 #        claude --fallback --auto [args...]      - 모든 에이전트 자동 승인 모드 (권한 확인 건너뜀)
-#        claude --fallback --reset [args...]    - cooldown 초기화 후 Claude부터 시도
 #        claude --fallback -l                   - 에이전트 우선순위 목록 출력
 #        claude [args...]                       - 일반 claude 실행 (passthrough)
 # Model: "agent:model" 형식으로 모델 지정 가능 (예: claude:sonnet → claude --model sonnet)
@@ -441,17 +440,6 @@ claude() {{
                 auto_mode=1
                 shift
                 ;;
-            --reset|--clear-cooldown)
-                # cooldown 상태 초기화: Claude 할당량이 초기화됐으나 cooldown이 남아있을 때
-                for ((j=0; j<${{#agents[@]}}; j++)); do
-                    entry_cooldown_epochs[$j]=0
-                done
-                if [[ -n "$_fb_log_dir" ]]; then
-                    rm -f "${{_fb_log_dir}}/.fallback_cooldown"
-                fi
-                printf '\\r\\033[36mℹ Cooldown 상태 초기화됨. Claude부터 시도합니다.\\033[0m\\r\\n'
-                shift
-                ;;
             -[0-9])
                 start_idx=$((${{1#-}} - 1))
                 shift
@@ -465,8 +453,8 @@ claude() {{
     local handoff_file=""
     local _reverse_handoff=0  # 1이면 non-Claude → Claude 방향 핸드오프
 
-    # 이전 세션의 cooldown 상태 복원 (재시작 시 Claude 건너뛰기 판단)
-    _load_cooldown_state
+    # 매 세션 항상 Claude부터 시도 (이전 cooldown 무시)
+    # 세션 내 cooldown은 entry_cooldown_epochs 메모리로 관리
 
     while true; do
         local tried=0
