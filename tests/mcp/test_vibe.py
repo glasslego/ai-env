@@ -887,6 +887,61 @@ exit 0
         # 실시간 감지로 sleep 120 전에 종료되어야 함
         assert "claude-after-sleep" not in lines
 
+    def test_realtime_detection_with_long_rate_limit_screen_output(self, tmp_path):
+        """Rate-limit 문구 뒤에 긴 TUI 출력이 이어져도 실시간 감지 후 fallback."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        # Claude: rate-limit 화면 출력 후 긴 노이즈 라인 추가 + sleep (종료하지 않음)
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "claude" >> "$TRACE_FILE"\n'
+            'trap \'echo "claude-terminated" >> "$TRACE_FILE"; exit 0\' INT TERM\n'
+            'echo "You\'ve hit your limit • resets 12am (Asia/Seoul)"\n'
+            'echo "/rate-limit-options"\n'
+            'echo "What do you want to do?"\n'
+            'for i in $(seq 1 140); do echo "tui-noise-line-$i........................................"; done\n'
+            "sleep 120\n"
+            'echo "claude-after-sleep" >> "$TRACE_FILE"\n'
+            "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+
+        # cooldown 중 재시작 루프 방지: codex는 실패 종료
+        codex_script = bin_dir / "codex"
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex" >> "$TRACE_FILE"\nexit 1\n')
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "60"
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback test"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        lines = trace_file.read_text().splitlines()
+        assert result.returncode == 1
+        assert lines[0] == "claude"
+        assert "codex" in lines
+        # 긴 출력 이후 sleep 진입 전에 끊겨야 함
+        assert "claude-after-sleep" not in lines
+
     def test_codex_restarts_while_claude_cooldown_active(self, tmp_path):
         """Claude cooldown 중 Codex 세션 종료(exit 0) 시 Codex 자동 재시작 확인."""
         gen = self._make_generator(["claude", "codex"])

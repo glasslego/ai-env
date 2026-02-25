@@ -112,17 +112,23 @@ claude() {{
     _claude_is_rate_limited() {{
         local log_file="$1"
         local strict="${{2:-0}}"
+        local mode="${{3:-post}}"  # post | realtime
         # Claude Code 한도 초과/요금량 제한 핵심 패턴
-        local _strict_rate_patterns="/rate-limit-option(s)?|/reset-rate-limit|hit.?your.?limit|you.?ve.?hit.?your.?limit|you.?have.?exhausted|you.?have.?exceeded|too.?many.?requests|requests?.?per.?minute|rate.?limit|usage.?limit|usage.?quota|request.?limit|request.?quota|quota.{{0,24}}(exceeded|reached|exhausted|limit)|request.{{0,24}}(limit|quota|reached|exceeded)|usage.{{0,24}}(limit|quota|reached|exceeded)|(exhausted|exceeded|reached).{{0,24}}(your.{{0,20}})?(quota|limit|request)|limit.{{0,24}}(reached|exceeded|hit)"
+        local _strong_rate_patterns="/rate-limit-option(s)?|/reset-rate-limit|what.?do.?you.?want.?to.?do|switch.?to.?extra.?usage|upgrade.?your.?plan|stop.?and.?wait.?for.?limit.?to.?reset|hit.?your.?limit|you.?ve.?hit.?your.?limit|you.?have.?hit.?your.?limit|you.?have.?exhausted|you.?have.?exceeded"
+        local _strict_rate_patterns="${{_strong_rate_patterns}}|too.?many.?requests|requests?.?per.?minute|rate.?limit|usage.?limit|usage.?quota|request.?limit|request.?quota|quota.{{0,24}}(exceeded|reached|exhausted|limit)|request.{{0,24}}(limit|quota|reached|exceeded)|usage.{{0,24}}(limit|quota|reached|exceeded)|(exhausted|exceeded|reached).{{0,24}}(your.{{0,20}})?(quota|limit|request)|limit.{{0,24}}(reached|exceeded|hit)"
         local _rate_limit_patterns="${{_strict_rate_patterns}}|(reached|exceeded|hit|exhausted|over).{{0,16}}(hourly|daily|weekly|monthly).?limit|(hourly|daily|weekly|monthly).?limit.{{0,16}}(reached|exceeded|hit|exhausted)|quota.{{0,24}}(used|exceeded|reached|exhausted)|reached.{{0,24}}your.{{0,24}}(usage|quota|request|limit)|exceeded.{{0,24}}your.{{0,24}}(usage|quota|request|limit)"
-        # tail -n 50: rate-limit 메시지는 세션 끝부분에 나타남 (과거 출력 오탐 방지)
-        local _cleaned
-        _cleaned=$(tail -n 50 "$log_file" 2>/dev/null | _strip_ansi)
-        if [[ "$strict" -eq 1 ]]; then
-            echo "$_cleaned" | command grep -Eiq "${{_strict_rate_patterns}}"
-        else
-            echo "$_cleaned" | command grep -Eiq "${{_rate_limit_patterns}}"
+        # realtime 모니터는 TUI 리드로잉으로 끝부분이 오염될 수 있어 더 넓은 창을 검사
+        local _tail_n=50
+        local _patterns="${{_rate_limit_patterns}}"
+        if [[ "$mode" == "realtime" ]]; then
+            _tail_n=300
+            _patterns="${{_strong_rate_patterns}}"
+        elif [[ "$strict" -eq 1 ]]; then
+            _patterns="${{_strict_rate_patterns}}"
         fi
+        local _cleaned
+        _cleaned=$(tail -n "$_tail_n" "$log_file" 2>/dev/null | _strip_ansi)
+        echo "$_cleaned" | command grep -Eiq "${{_patterns}}"
     }}
 
     _resolve_bin() {{
@@ -545,7 +551,7 @@ claude() {{
                     while true; do
                         script_pid=$(pgrep -f "script.*$log_file" 2>/dev/null | head -1)
                         [[ -z "$script_pid" ]] && break
-                        if _claude_is_rate_limited "$log_file"; then
+                        if _claude_is_rate_limited "$log_file" 0 realtime; then
                             : > "$rate_limit_marker"
                             _kill_process_tree "$script_pid" INT
                             sleep 1
