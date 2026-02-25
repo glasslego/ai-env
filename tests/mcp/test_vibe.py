@@ -233,8 +233,8 @@ class TestGenerateShellFunctions:
         # --auto → claude에 --dangerously-skip-permissions 자동 주입
         assert trace_file.read_text().strip() == "args:--dangerously-skip-permissions hello"
 
-    def test_codex_always_gets_yolo(self, tmp_path):
-        """codex는 --auto 여부와 무관하게 항상 --yolo 주입 확인"""
+    def test_codex_uses_exec_when_prompt_exists(self, tmp_path):
+        """codex는 프롬프트가 있으면 exec + approval_policy never로 실행."""
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
 
@@ -261,7 +261,7 @@ class TestGenerateShellFunctions:
         env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "0"
         env.pop("CLAUDECODE", None)
 
-        # --auto 없이 실행해도 codex에 --yolo + --no-alt-screen 주입
+        # 프롬프트가 있으면 codex exec one-shot 모드 사용
         result = subprocess.run(
             [
                 "bash",
@@ -277,10 +277,10 @@ class TestGenerateShellFunctions:
         assert result.returncode == 0, result.stdout + result.stderr
         lines = trace_file.read_text().splitlines()
         assert lines[0] == "claude"
-        assert lines[1] == "args:--yolo --no-alt-screen hello"
+        assert lines[1] == "args:exec -c approval_policy='never' -s workspace-write hello"
 
     def test_dangerous_skip_permissions_maps_to_yolo_for_codex(self, tmp_path):
-        """--dangerously-skip-permissions는 fallback wrapper에서 소비되어 codex에 --yolo 매핑."""
+        """--dangerously-skip-permissions는 wrapper에서 소비되고 codex exec로 이어진다."""
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
 
@@ -328,8 +328,8 @@ class TestGenerateShellFunctions:
         # Codex도 실패하므로 전체 return 1 (플래그 매핑 검증이 핵심)
         lines = trace_file.read_text().splitlines()
         assert lines[0] == "claude:--dangerously-skip-permissions test"
-        # rate-limit 시 핸드오프 컨텍스트가 생성되어 codex에 전달됨
-        assert lines[1].startswith("codex:--yolo ")
+        # rate-limit 시 핸드오프 컨텍스트가 생성되어 codex exec 프롬프트로 전달됨
+        assert lines[1].startswith("codex:exec -c approval_policy='never' -s workspace-write ")
         assert "test" in lines[1]  # 원래 프롬프트가 핸드오프에 포함
 
     def test_fallback_to_option_overrides_agent(self, tmp_path):

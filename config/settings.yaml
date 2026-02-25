@@ -2,7 +2,7 @@
 version: "1.0"
 
 # 기본 에이전트
-default_agent: claude
+default_agent: codex
 
 # 환경변수 소스 파일
 env_file: ".env"

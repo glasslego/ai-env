@@ -46,7 +46,7 @@ class Settings(BaseModel):
     """메인 설정"""
 
     version: str = "1.0"
-    default_agent: str = "claude"
+    default_agent: str = "codex"
     env_file: str = ".env"
     codex_model: str = "gpt-5.3-codex"
     codex_model_reasoning_effort: str = "high"

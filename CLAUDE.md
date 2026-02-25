@@ -111,7 +111,8 @@ claude                         # 일반 claude 실행 (passthrough)
 ```
 
 `--dangerously-skip-permissions` / `--allow-dangerously-skip-permissions`는 fallback wrapper에서 제어 플래그로 소비된다.
-즉, Claude에는 `--dangerously-skip-permissions`, Codex에는 `--yolo`로 매핑되어 전달된다.
+즉, Claude에는 `--dangerously-skip-permissions`가 적용되고, Codex는 프롬프트 실행 시 `codex exec -c "approval_policy='never'" -s workspace-write`로 one-shot 실행된다.
+Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`을 사용한다.
 
 우선순위 변경: `config/settings.yaml`의 `agent_priority` 수정 후 `ai-env sync`.
 

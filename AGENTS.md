@@ -97,6 +97,9 @@ AI 에이전트(Claude, Gemini, Codex 등)가 이 저장소에서 수행해야 �
 ## 📌 6. Autonomy (No confirmation prompts)
 
 - "이어서 진행할까요?", "진행해도 될까요?", "계속할까요?" 같은 확인 질문을 하지 말고 자동으로 계속 진행한다.
+- 대화 턴 마무리 확인 질문(예: "다음을 이어서 진행할까요?")을 금지한다.
+- Codex 사용 시 명령 승인(approval)과 대화형 질문을 분리해서 처리하고, 승인 이슈가 없으면 계속 실행한다.
+- non-interactive 실행이 가능한 작업은 `codex exec -c "approval_policy='never'" -s workspace-write "<task>"`를 우선 사용한다.
 - 멈추는 경우는 딱 3가지뿐:
   1) 파괴적/되돌리기 어려운 작업(데이터 삭제 등)
   2) 자격증명/비밀키가 필요한 작업

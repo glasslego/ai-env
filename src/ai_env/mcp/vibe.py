@@ -532,11 +532,23 @@ claude() {{
                     _reverse_handoff=0
                 fi
             fi
-            # Codex: 항상 --yolo (= --dangerously-bypass-approvals-and-sandbox)
-            # 완전 non-interactive: 모든 승인·샌드박스 우회
-            # --full-auto는 on-request 수준이라 여전히 프롬프트 발생 가능
+            # Codex:
+            # - 프롬프트가 있으면 codex exec로 one-shot(non-interactive) 실행
+            # - 프롬프트가 없으면 기존 TUI 모드(--yolo) 실행
             if [[ "$base_agent" == "codex" ]]; then
-                run_args=("--yolo" "--no-alt-screen" "${{run_args[@]}}")
+                if [[ ${{#run_args[@]}} -gt 0 ]]; then
+                    local codex_prompt="${{run_args[*]}}"
+                    run_args=(
+                        "exec"
+                        "-c"
+                        "approval_policy='never'"
+                        "-s"
+                        "workspace-write"
+                        "$codex_prompt"
+                    )
+                else
+                    run_args=("--yolo" "--no-alt-screen")
+                fi
             fi
             # --auto 모드: Claude 자동 승인 플래그 주입
             if [[ $auto_mode -eq 1 && "$base_agent" == "claude" ]]; then

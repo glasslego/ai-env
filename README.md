@@ -92,7 +92,7 @@ claude                         # 일반 실행 (passthrough)
 
 | 옵션 | 설명 |
 |------|------|
-| `--auto` | Claude에 `--dangerously-skip-permissions`, Codex에 `--yolo` 주입 |
+| `--auto` | Claude에 `--dangerously-skip-permissions` 주입. Codex는 프롬프트 실행 시 `codex exec -c "approval_policy='never'" -s workspace-write`로 동작 |
 | `--dangerously-skip-permissions` | `--auto`와 동일 (wrapper가 소비) |
 | `-N` | N순위부터 시작 (예: `-2`) |
 
