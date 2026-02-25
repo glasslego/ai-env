@@ -1,0 +1,58 @@
+# 주식 자동매매 시스템
+topic:
+  id: auto-stock
+  name: "주식 자동매매 시스템"
+  obsidian_base: "51_자동화시스템/01_주식자동화"
+  project_repo: ~/work/glasslego/auto-stock
+
+# ── 3-Track 리서치 ──
+research:
+  auto:
+    - query: "korea stock market automated trading system python pykrx 2025"
+      output: "07_참고/auto-korea-stock-api.md"
+    - query: "stock backtesting framework python vectorbt backtrader comparison"
+      output: "07_참고/auto-backtest-framework.md"
+    - query: "quantitative trading strategy momentum mean-reversion factor investing python"
+      output: "07_참고/auto-quant-strategy.md"
+    - query: "stock market sentiment analysis NLP korean news finance-datareader"
+      output: "07_참고/auto-sentiment-analysis.md"
+    - query: "algorithmic trading risk management position sizing kelly criterion"
+      output: "07_참고/auto-risk-management.md"
+
+# ── Plan/Spec 생성 ──
+plan:
+  synthesis_prompt: |
+    리서치 자료를 종합하여 주식 자동매매 시스템의 기술 설계 문서를 작성해줘.
+
+    작성 항목:
+    1. **시스템 아키텍처**: 데이터 수집 → 전략 실행 → 주문 → 모니터링 흐름
+    2. **기술 스택**: FastAPI + SQLAlchemy + Redis + Streamlit 기반 설계 근거
+    3. **전략 엔진**: 플러그인 구조, 전략 설정 YAML, 지표 계산 파이프라인
+    4. **백테스트**: 벡터 기반 백테스트, 성과 지표 (Sharpe, MDD, CAGR)
+    5. **리스크 관리**: 포지션 사이징, 손절/익절, 드로다운 제어
+    6. **ML 파이프라인**: 특성 엔지니어링, 모델 학습/추론 흐름
+    7. **운영**: 스케줄러, 모니터링, 알림
+  output: "01_시스템구성/plan-spec.md"
+
+# ── 코드 생성 ──
+code:
+  style: tdd
+  target_repo: ~/work/glasslego/auto-stock
+  test_framework: pytest
+  modules:
+    - name: "data"
+      desc: "시세 데이터 수집/관리 (pykrx, yfinance, finance-datareader)"
+    - name: "strategy"
+      desc: "매매 전략 엔진 (플러그인 구조, 지표 계산, YAML 설정)"
+    - name: "engine"
+      desc: "백테스트/실행 엔진 (벡터 기반, 성과 지표)"
+    - name: "trading"
+      desc: "주문 실행 (한국투자증권/키움 API)"
+    - name: "risk"
+      desc: "리스크 관리 (포지션 사이징, 손절/익절, 드로다운)"
+    - name: "ml"
+      desc: "ML 파이프라인 (특성 엔지니어링, 감성 분석)"
+    - name: "notification"
+      desc: "알림 (텔레그램/슬랙)"
+    - name: "api"
+      desc: "FastAPI 서버 (전략 관리, 포트폴리오 조회)"

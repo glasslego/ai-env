@@ -1,9 +1,9 @@
-# 비트코인 자동매매 시스템 리서치 파이프라인
+# 비트코인 자동매매 시스템
 topic:
-  id: bitcoin-automation
+  id: auto-bitcoin
   name: "비트코인 자동매매 시스템"
   obsidian_base: "51_자동화시스템/02_비트코인자동화"
-  project_repo: ~/work/glasslego/bitcoin-auto
+  project_repo: ~/work/glasslego/auto-bitcoin
 
 # ── 3-Track 리서치 ──
 research:
@@ -44,7 +44,7 @@ plan:
 # ── 코드 생성 ──
 code:
   style: tdd
-  target_repo: ~/work/glasslego/bitcoin-auto
+  target_repo: ~/work/glasslego/auto-bitcoin
   test_framework: pytest
   modules:
     - name: "exchange_client"
