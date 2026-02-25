@@ -261,7 +261,7 @@ class TestGenerateShellFunctions:
         env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "0"
         env.pop("CLAUDECODE", None)
 
-        # --auto 없이 실행해도 codex에 --yolo 주입
+        # --auto 없이 실행해도 codex에 --yolo + --no-alt-screen 주입
         result = subprocess.run(
             [
                 "bash",
@@ -277,7 +277,7 @@ class TestGenerateShellFunctions:
         assert result.returncode == 0, result.stdout + result.stderr
         lines = trace_file.read_text().splitlines()
         assert lines[0] == "claude"
-        assert lines[1] == "args:--yolo hello"
+        assert lines[1] == "args:--yolo --no-alt-screen hello"
 
     def test_dangerous_skip_permissions_maps_to_yolo_for_codex(self, tmp_path):
         """--dangerously-skip-permissions는 fallback wrapper에서 소비되어 codex에 --yolo 매핑."""
@@ -1372,6 +1372,61 @@ class TestModelLevelFallback:
         assert lines[0] == "claude:1:hello"
         # 2nd call: sonnet (--model sonnet), success
         assert lines[1] == "claude:2:--model sonnet hello"
+
+    def test_model_fallback_interactive_injects_handoff_for_sonnet(self, tmp_path):
+        """대화형(--fallback만)에서 opus rate-limit 후 sonnet에 handoff 프롬프트 자동 주입."""
+        gen = self._make_generator(["claude", "claude:sonnet", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        counter_file = tmp_path / "claude.count"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        # Claude: opus(1회차)와 sonnet(2회차) 모두 rate-limit
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'count=$(cat "$COUNTER_FILE" 2>/dev/null || echo 0)\n'
+            "count=$((count + 1))\n"
+            'echo "$count" > "$COUNTER_FILE"\n'
+            'echo "claude:$count:$*" >> "$TRACE_FILE"\n'
+            'echo "You\'ve hit your limit · resets 12am (Asia/Seoul)"\n'
+            "exit 1\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex:$*" >> "$TRACE_FILE"\nexit 1\n')
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env["COUNTER_FILE"] = str(counter_file)
+        env["CLAUDE_FALLBACK_RETRY_MINUTES"] = "60"
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        assert result.returncode == 1
+        lines = trace_file.read_text().splitlines()
+        assert lines[0] == "claude:1:"
+        # sonnet 호출 시 handoff 프롬프트가 자동 주입되어 입력 대기 없이 진행
+        assert lines[1].startswith("claude:2:--model sonnet ")
+        assert "이전 Claude 세션이 rate-limit으로 중단됨." in lines[1]
+        # sonnet도 rate-limit이면 codex로 자동 전환
+        assert lines[2].startswith("codex:")
 
     def test_model_fallback_all_claude_rate_limited_then_codex(self, tmp_path):
         """Claude Opus + Sonnet 모두 rate-limit → Codex 전환 테스트"""

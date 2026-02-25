@@ -48,7 +48,7 @@ class Settings(BaseModel):
     version: str = "1.0"
     default_agent: str = "claude"
     env_file: str = ".env"
-    codex_model: str = "gpt-5.3-codex-spark"
+    codex_model: str = "gpt-5.3-codex"
     codex_model_reasoning_effort: str = "high"
     agent_priority: list[str] = Field(default_factory=lambda: ["claude", "codex"])
     fallback_log_dir: str | None = None

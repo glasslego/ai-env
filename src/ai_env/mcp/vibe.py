@@ -72,6 +72,13 @@ claude() {{
     # zsh 호환: 0-based 배열 인덱싱 (bash와 동일하게)
     [[ -n "${{ZSH_VERSION:-}}" ]] && setopt localoptions KSH_ARRAYS 2>/dev/null
 
+    # fallback 실행 중 xtrace(set -x) 출력이 TUI를 깨뜨리지 않도록 일시 비활성화
+    local _saved_xtrace=0
+    if [[ $- == *x* ]]; then
+        _saved_xtrace=1
+        set +x
+    fi
+
     local agents=({agents_str})
     local start_idx=0
     local claude_retry_minutes="${{CLAUDE_FALLBACK_RETRY_MINUTES:-15}}"
@@ -80,7 +87,7 @@ claude() {{
     # 터미널 상태 보존 + 시그널 트랩 (kill/Ctrl+C 시에도 터미널 복원)
     local _saved_stty
     _saved_stty=$(stty -g 2>/dev/null || true)
-    trap 'stty "$_saved_stty" 2>/dev/null; printf "\\033[0m\\033[?25h\\r" 2>/dev/null' INT TERM HUP
+    trap 'stty "$_saved_stty" 2>/dev/null; printf "\\033[0m\\033[?25h\\r" 2>/dev/null; [[ "${{_saved_xtrace:-0}}" -eq 1 ]] && set -x 2>/dev/null' INT TERM HUP
 
     # 세션 로그/핸드오프 저장 경로 (미설정 시 기존 temp 동작)
     local _fb_log_dir="${{CLAUDE_FALLBACK_LOG_DIR:-{log_dir_default}}}"
@@ -107,6 +114,10 @@ claude() {{
     _strip_ansi() {{
         # ANSI/제어 시퀀스 제거: CSI, OSC, charset, CR, 제어문자
         sed -E $'s/\\x1b\\\\[[0-9;?]*[a-zA-Z]//g; s/\\x1b\\\\][^\\x07]*\\x07//g; s/\\x1b\\\\(B//g; s/\\\\r//g' 2>/dev/null
+    }}
+
+    _restore_xtrace() {{
+        [[ $_saved_xtrace -eq 1 ]] && set -x
     }}
 
     _claude_is_rate_limited() {{
@@ -416,12 +427,14 @@ claude() {{
                         printf '  %d. %s\\n' "$((i+1))" "$base_agent"
                     fi
                 done
+                _restore_xtrace
                 return 0
                 ;;
             --to)
                 shift
                 if [[ -z "$1" ]]; then
                     printf '\\033[31m❌ --to 옵션에 에이전트를 지정하세요 (예: --to gemini)\\033[0m\\n'
+                    _restore_xtrace
                     return 1
                 fi
                 local IFS=','
@@ -510,6 +523,10 @@ claude() {{
                 local orig_prompt="${{agent_args[*]}}"
                 if [[ "$base_agent" != "claude" ]]; then
                     run_args=("이전 Claude 세션이 rate-limit으로 중단됨. 원래 작업: ${{orig_prompt:-대화형 세션}}. 상세 컨텍스트(세션 로그, git diff)가 $handoff_file 에 저장됨. 이 파일을 먼저 읽고 이어서 작업하세요.")
+                elif [[ -n "$model_suffix" && ${{#agent_args[@]}} -eq 0 ]]; then
+                    # Claude model-level fallback(opus → sonnet)에서 대화형 입력 대기 방지:
+                    # 원래 인자가 없으면 handoff 프롬프트를 자동 주입해 즉시 이어서 실행.
+                    run_args=("이전 Claude 세션이 rate-limit으로 중단됨. 원래 작업: 대화형 세션. 상세 컨텍스트(세션 로그, git diff)가 $handoff_file 에 저장됨. 이 파일을 먼저 읽고 이어서 작업하세요.")
                 elif [[ $_reverse_handoff -eq 1 ]]; then
                     run_args=("이전 에이전트에서 작업 수행됨. 원래 작업: ${{orig_prompt:-대화형 세션}}. 상세 컨텍스트(세션 로그, git diff)가 $handoff_file 에 저장됨. 이 파일을 먼저 읽고 이어서 작업하세요.")
                     _reverse_handoff=0
@@ -519,7 +536,7 @@ claude() {{
             # 완전 non-interactive: 모든 승인·샌드박스 우회
             # --full-auto는 on-request 수준이라 여전히 프롬프트 발생 가능
             if [[ "$base_agent" == "codex" ]]; then
-                run_args=("--yolo" "${{run_args[@]}}")
+                run_args=("--yolo" "--no-alt-screen" "${{run_args[@]}}")
             fi
             # --auto 모드: Claude 자동 승인 플래그 주입
             if [[ $auto_mode -eq 1 && "$base_agent" == "claude" ]]; then
@@ -593,6 +610,7 @@ claude() {{
                 rm -f "$log_file" "$rate_limit_marker"
                 _release_handoff
                 printf '\\033[36m👋 세션 종료\\033[0m\\n'
+                _restore_xtrace
                 return 0
             fi
 
@@ -670,6 +688,7 @@ claude() {{
                 # 사용자가 /exit 명시적 종료 시 래퍼도 종료
                 if [[ $_user_exited -eq 1 ]]; then
                     printf '\\033[36m👋 세션 종료\\033[0m\\n'
+                    _restore_xtrace
                     return 0
                 fi
 
@@ -722,6 +741,7 @@ claude() {{
                         break
                     fi
                 fi
+                _restore_xtrace
                 return 0
             fi
 
@@ -763,6 +783,7 @@ claude() {{
             if [[ -z "$_fb_log_dir" && -n "$handoff_file" ]]; then
                 rm -f "$handoff_file"
             fi
+            _restore_xtrace
             return 1
         fi
 
@@ -779,6 +800,7 @@ claude() {{
         if [[ -z "$_fb_log_dir" && -n "$handoff_file" ]]; then
             rm -f "$handoff_file"
         fi
+        _restore_xtrace
         return 1
     done
 }}"""

@@ -42,7 +42,7 @@ outputs:
 trust_level = "trusted"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
-model = "gpt-5.3-codex-spark"
+model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 
 # === 권한 (Permissions) ===

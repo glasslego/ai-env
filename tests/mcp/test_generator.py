@@ -76,13 +76,13 @@ class TestGenerateCodexConfig:
         with patch("ai_env.mcp.generator.load_mcp_config") as mock_mcp:
             mock_mcp.return_value = MagicMock(mcp_servers={})
             mock_settings.return_value = Settings(
-                codex_model="gpt-5.3-codex-spark", codex_model_reasoning_effort="high"
+                codex_model="gpt-5.3-codex", codex_model_reasoning_effort="high"
             )
             gen = MCPConfigGenerator(secrets)
 
         result = gen.generate_codex()
 
-        assert 'model = "gpt-5.3-codex-spark"' in result
+        assert 'model = "gpt-5.3-codex"' in result
         assert 'model_reasoning_effort = "high"' in result
 
     def test_custom_startup_timeout_for_codex_sse(self):
