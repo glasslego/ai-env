@@ -78,7 +78,9 @@ When unsure about implementation details, ALWAYS ask the developer.
 - pytest로 테스트 작성
 - Type hints 필수
 - Google style docstrings
-- pre-commit 검증
+- pre-commit 검증 (프로젝트 루트에 `.pre-commit-config.yaml` 필수)
+  - ruff 자동 수정 hook 포함: `ruff check --fix` + `ruff format`
+  - 새 프로젝트 시작 시 `pre-commit install` 반드시 실행
 
 ### 파일/네이밍
 - 파일 이름은 설명적으로 길게 (예: user_identity_check.py)
@@ -103,17 +105,32 @@ When unsure about implementation details, ALWAYS ask the developer.
 
 ### 자주 쓰는 라이브러리 (권장)
 ```python
-# JSON: orjson 또는 msgspec (기본 json 대신)
+# JSON: orjson 또는 msgspec (기본 json 대신, 성능 우선)
+# 복잡한 유효성 검사가 필요하면 pydantic 모델 사용
 import orjson  # indent 없이 사용
+from pydantic import BaseModel  # 스키마 검증이 필요한 경우
 
-# Logging: loguru
+# Logging: loguru (backtrace + rotation 기본 설정)
 from loguru import logger
+logger.add("logs/{time:YYYY-MM-DD}.log", rotation="10 MB", retention="30 days",
+           backtrace=True, diagnose=True, encoding="utf-8")
+
+# 환경변수/시크릿: python-dotenv (.env 파일 로드)
+from dotenv import load_dotenv  # API 키는 반드시 .env로 관리
 
 # 캐싱: diskcache
 from diskcache import Cache
 
 # SQL ORM: SQLAlchemy 2.0
 from sqlalchemy import select
+
+# 시각화: matplotlib 한글 폰트 설정
+import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'AppleGothic'  # macOS
+plt.rcParams['axes.unicode_minus'] = False
+
+# 이미지 처리: Pillow (OCR/리사이즈 등)
+from PIL import Image
 
 # DataFrame 출력: tabulate + CJK wide char
 pd.set_option('display.unicode.east_asian_width', True)
@@ -156,6 +173,22 @@ from pyspark.sql import functions as F  # 항상 F로 alias
 "permissions": {
   "allow": ["mcp__jira-wiki-mcp"]
 }
+```
+
+---
+
+## 🔒 보안 (Secrets) 관리
+
+- API 키, 토큰 등 시크릿은 **절대 코드에 하드코딩하지 마라**
+- `.env` 파일로 관리하고, `python-dotenv`로 로드
+- `.gitignore`에 `.env`, `*.pem`, `credentials*.json` 반드시 포함
+- pre-commit에 `gitleaks` hook 추가 권장 (시크릿 유출 방지)
+```yaml
+# .pre-commit-config.yaml에 추가
+- repo: https://github.com/gitleaks/gitleaks
+  rev: v8.18.0
+  hooks:
+    - id: gitleaks
 ```
 
 ---
