@@ -12,6 +12,23 @@ uv run ai-env sync                # 전체 동기화
 source ./generated/shell_exports.sh
 ```
 
+## 공용 에이전트 가이드라인 운영
+
+Spec-Task-Test-Commit 규칙의 단일 원본(SSOT)은 다음 파일입니다.
+
+- `.claude/global/CLAUDE.md`
+
+여기서 가이드라인을 수정한 후 아래 명령으로 모든 에이전트 글로벌 가이드에 동기화합니다.
+
+```bash
+uv run ai-env sync --claude-only
+```
+
+동기화 대상:
+- `~/.claude/CLAUDE.md` (Claude Code)
+- `~/.codex/AGENTS.md` (Codex CLI)
+- `~/.gemini/GEMINI.md` (Gemini CLI)
+
 ## 동작 원리
 
 ```

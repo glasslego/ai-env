@@ -13,6 +13,32 @@ AI 에이전트(Claude, Gemini, Codex 등)가 이 저장소에서 수행해야 �
 
 ---
 
+## 📌 1-1. 공용 에이전트 가이드라인 운영 (Spec-Task-Test-Commit)
+
+전체 에이전트 공용 기준의 단일 원본(SSOT)은 아래 파일이다.
+
+- `ai-env/.claude/global/CLAUDE.md`
+
+이 파일은 `ai-env sync`로 각 에이전트 글로벌 설정으로 배포된다.
+
+- Claude Code: `~/.claude/CLAUDE.md`
+- Codex CLI: `~/.codex/AGENTS.md`
+- Gemini CLI: `~/.gemini/GEMINI.md`
+
+공용 필수 규칙:
+- Spec 기준으로 Task를 먼저 확정한다.
+- Task 단위로만 구현한다.
+- 테스트 통과 후에만 커밋한다.
+- 커밋 단위는 Spec의 Task 완료 단위로 유지한다.
+- 커밋 메시지에 `spec/task` 식별자를 포함한다.
+
+운영 명령:
+```bash
+uv run ai-env sync --claude-only
+```
+
+---
+
 ## 📌 2. 에이전트의 핵심 임무
 
 ### ① 환경설정 관리 지원

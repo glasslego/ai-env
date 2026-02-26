@@ -6,6 +6,14 @@ ai-env는 AI 개발 환경(Claude, Gemini, Codex, ChatGPT 등)의 설정과 MCP 
 
 **핵심 가치**: 토큰·MCP 설정을 중앙화하고, 각 AI 도구 형식으로 자동 변환·배포한다.
 
+## 공용 작업 원칙 (Spec-Task-Test-Commit)
+
+- 공용 글로벌 원본: `.claude/global/CLAUDE.md`
+- 구현 순서: `Spec 확인 -> Task 단위 구현 -> 테스트 통과 -> 커밋`
+- 커밋 단위: `Spec의 Task 완료 단위`
+- 커밋 메시지 권장 형식: `<type>(spec-<id>/task-<id>): <summary>`
+- 공용 정책 변경 후 동기화: `uv run ai-env sync --claude-only`
+
 ## 개발 명령어
 
 ```bash

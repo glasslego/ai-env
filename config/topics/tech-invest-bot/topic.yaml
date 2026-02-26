@@ -1,0 +1,68 @@
+# 테크투자봇 — 고신호 테크 투자 인사이트 자동화
+topic:
+  id: tech-invest-bot
+  name: "테크투자봇"
+  obsidian_base: "51_자동화시스템/04_테크투자봇"
+  project_repo: ~/work/glasslego/tech-invest-bot
+
+# ── 3-Track 리서치 ──
+research:
+  # Track A: Claude Code 자동 실행 (brave-search + web_fetch)
+  auto:
+    - query: "telegram bot news aggregator architecture python APScheduler 2025"
+      output: "10_Research/Clippings/auto-telegram-bot-architecture.md"
+    - query: "SEC EDGAR API python RSS feed aggregation best practices"
+      output: "10_Research/Clippings/auto-sec-edgar-rss.md"
+    - query: "FinBERT financial sentiment analysis spaCy NER pipeline python 2025"
+      output: "10_Research/Clippings/auto-finbert-nlp-pipeline.md"
+    - query: "4-axis news scoring relevance novelty impact confirmation algorithm"
+      output: "10_Research/Clippings/auto-news-scoring-algorithm.md"
+    - query: "streamlit multi-page dashboard real-time data visualization financial news"
+      output: "10_Research/Clippings/auto-streamlit-dashboard.md"
+    - query: "pgvector similarity search SimHash deduplication news articles python"
+      output: "10_Research/Clippings/auto-pgvector-dedup.md"
+
+# ── Plan/Spec 생성 ──
+plan:
+  synthesis_prompt: |
+    아래 리서치 자료들과 기존 Obsidian 스펙 문서(01_시스템구성/, 02_기획/, 03_구현/)를
+    모두 읽고 종합하여 테크투자봇의 통합 기술 설계 문서(plan-spec)를 작성해줘.
+
+    작성 항목:
+    1. **시스템 아키텍처**: 수집(Ingest) → NLP → 스코어링 → 요약 → 봇/대시보드 전체 흐름
+    2. **기술 스택 선정**: Python 단일 스택 근거, 각 라이브러리 선택 이유
+    3. **데이터 파이프라인**: 30+ 소스 커넥터, RSS/API 수집, SHA+SimHash 중복 제거
+    4. **NLP 파이프라인**: fastText 언어감지, spaCy NER, FinBERT 감성분석
+    5. **4축 스코어링**: R(0.35)+N(0.20)+I(0.30)+C(0.15) 알고리즘 상세
+    6. **텔레그램 봇**: 핸들러 구조, Redis 발송 큐, 구독 모델(Free/Pro/Team)
+    7. **Streamlit 대시보드**: 멀티페이지 구성, HITL 리뷰 UI
+    8. **MVP 로드맵**: 8주(W1~W8) 마일스톤
+    9. **테스트 전략**: Unit → Integration → E2E 분리
+    10. **Gemini vs GPT 리서치 비교**: 상충 의견 명시
+
+    특히 Gemini 리서치(시장/트렌드)와 GPT 리서치(기술/학술)의 관점 차이를
+    잘 살려서 균형 잡힌 설계를 해줘.
+  output: "01_시스템구성/plan-spec.md"
+
+# ── 코드 생성 ──
+code:
+  style: tdd
+  target_repo: ~/work/glasslego/tech-invest-bot
+  test_framework: pytest
+  modules:
+    - name: "models"
+      desc: "SQLAlchemy 2.0 ORM + Pydantic 스키마 (Article, Source, Score, UserProfile)"
+    - name: "ingest"
+      desc: "데이터 수집 파이프라인 (BaseConnector ABC, RSS, SEC EDGAR, OpenDART, FRED, PatentsView)"
+    - name: "nlp"
+      desc: "NLP 파이프라인 (fastText 언어감지, spaCy NER, FinBERT 감성분석, 엔티티→종목 매핑)"
+    - name: "scoring"
+      desc: "4축 스코어링 엔진 (Relevance, Novelty, Impact, Confirmation) + SimHash 중복 제거"
+    - name: "summarize"
+      desc: "RAG 요약 + 팩트체크 파이프라인 (근거 자료 첨부)"
+    - name: "bot"
+      desc: "텔레그램 봇 (python-telegram-bot v20+, Redis 발송 큐, 구독 관리, Jinja2 템플릿)"
+    - name: "dashboard"
+      desc: "Streamlit 멀티페이지 대시보드 (Overview, Signals, Trends, Settings, HITL 리뷰)"
+    - name: "scheduler"
+      desc: "APScheduler 기반 수집 스케줄러 + 일일 다이제스트 발송"
