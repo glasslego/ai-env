@@ -170,9 +170,11 @@ API 키: `.env`의 `GOOGLE_API_KEY`, `OPENAI_API_KEY` 사용.
 
 ## 주요 규칙
 
-- `.env`는 절대 커밋하지 않음
+- `.env`는 절대 커밋하지 않음 (`.gitignore`에 `.env`, `*.pem`, `credentials*.json` 포함)
+- 시크릿 하드코딩 절대 금지. 환경변수 또는 `.env` 파일 사용
 - 경로 확장은 `expand_path()` 사용
 - CLI는 `console.print()` 사용 (`print()` 금지)
+- pre-commit 필수 (`.pre-commit-config.yaml` + `ruff check --fix` + `ruff format` + `gitleaks`)
 - SSE 서버는 Claude/ChatGPT Desktop에서 미지원 (stdio만). Codex Desktop은 SSE(url) 지원
 - glocal = "global template for local" (MCP generator가 생성, git 추적)
 - local = 프로젝트별 permissions (sync가 덮어쓰지 않음)

@@ -18,7 +18,14 @@ Spec-Task-Test-Commit 규칙의 단일 원본(SSOT)은 다음 파일입니다.
 
 - `.claude/global/CLAUDE.md`
 
-여기서 가이드라인을 수정한 후 아래 명령으로 모든 에이전트 글로벌 가이드에 동기화합니다.
+주요 포함 내용:
+- Spec-Task-Test-Commit 워크플로우
+- 시크릿/환경변수 관리 (하드코딩 금지, gitleaks)
+- pre-commit + ruff 자동 수정
+- PySpark 컨벤션 (UDF 지양, cache/unpersist 쌍)
+- 권장 라이브러리 (pydantic, loguru, matplotlib, Pillow 등)
+
+가이드라인 수정 후 동기화:
 
 ```bash
 uv run ai-env sync --claude-only

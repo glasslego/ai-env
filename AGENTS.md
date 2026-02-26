@@ -88,25 +88,41 @@ uv run ai-env sync --claude-only
 ### **1) Python 스타일**
 - Python 3.11+ 문법 사용
 - Type hints 필수
-- Pydantic 모델로 설정 정의
+- Google style docstrings
+- Pydantic 모델로 설정/스키마 정의 (orjson/msgspec은 성능 우선 직렬화용)
+- loguru 로깅 (backtrace + rotation 기본 설정)
 
 ### **2) CLI 규칙**
 - Click 프레임워크 사용
-- Rich로 출력 포맷팅
+- Rich로 출력 포맷팅 (`console.print()` 사용, `print()` 금지)
 - 명령어 그룹화 (config, doctor, generate, pipeline, secrets, setup, status, sync)
 
-### **3) 테스트**
+### **3) pre-commit + ruff**
+- 프로젝트 루트에 `.pre-commit-config.yaml` 필수
+- ruff 자동 수정 hook: `ruff check --fix` + `ruff format`
+- gitleaks hook 권장 (시크릿 유출 방지)
+- 새 프로젝트 시작 시 `pre-commit install` 반드시 실행
+
+### **4) 테스트**
 - pytest 사용
 - tests/ 디렉토리에 테스트 작성
+
+### **5) PySpark 컨벤션**
+- `from pyspark.sql import functions as F` (항상 F alias)
+- UDF 사용 전 네이티브 함수로 가능한지 반드시 확인
+- DataFrame API 우선, SparkSQL은 복잡한 윈도우 함수에서만
+- `.cache()` 사용 시 반드시 `.unpersist()` 쌍으로
+- 셔플 파티션 수는 데이터 규모에 맞게 조정
 
 ---
 
 ## 📌 5. AI가 강조해야 할 핵심 기능
 
-### **시크릿 관리**
-- .env 파일 기반 환경변수 관리
+### **시크릿/환경변수**
+- 하드코딩 절대 금지. 환경변수 또는 `.env` 파일 사용
+- `.env`는 `.gitignore`에 반드시 포함
+- 시크릿이 필요한 작업은 사용자에게 확인 후 진행
 - 마스킹된 출력으로 보안 유지
-- keyring 연동 (선택)
 
 ### **MCP Config 생성**
 - Claude Desktop용 JSON 생성
@@ -144,8 +160,10 @@ uv run ai-env sync --claude-only
 ## 📌 8. AI가 하면 안 되는 것
 
 * .env 파일의 실제 토큰값을 출력하거나 로깅
-* 시크릿을 git에 커밋하도록 유도
+* 시크릿을 git에 커밋하도록 유도 (`.env`, `*.pem`, `credentials*.json`)
 * 보안 설정을 약화시키는 변경
+* 라이브러리 버전 임의 변경, 구조 자체 변경 (unless explicitly asked)
+* 테스트 통과를 위해 테스트 코드 삭제/기준 완화
 
 ---
 
