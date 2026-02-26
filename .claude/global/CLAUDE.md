@@ -136,10 +136,14 @@ from PIL import Image
 pd.set_option('display.unicode.east_asian_width', True)
 ```
 
-### Spark
+### 📊 PySpark 컨벤션
 ```python
 from pyspark.sql import functions as F  # 항상 F로 alias
 ```
+- UDF 사용 전 네이티브 함수로 가능한지 반드시 확인
+- DataFrame API 우선, SparkSQL은 복잡한 윈도우 함수에서만
+- `.cache()` 사용 시 반드시 `.unpersist()` 쌍으로
+- 셔플 파티션 수는 데이터 규모에 맞게 조정
 
 ---
 
@@ -177,11 +181,11 @@ from pyspark.sql import functions as F  # 항상 F로 alias
 
 ---
 
-## 🔒 보안 (Secrets) 관리
+## 🔒 시크릿/환경변수
 
-- API 키, 토큰 등 시크릿은 **절대 코드에 하드코딩하지 마라**
-- `.env` 파일로 관리하고, `python-dotenv`로 로드
-- `.gitignore`에 `.env`, `*.pem`, `credentials*.json` 반드시 포함
+- 하드코딩 절대 금지. 환경변수 또는 `.env` 파일 사용
+- `.env`는 `.gitignore`에 반드시 포함 (`*.pem`, `credentials*.json` 포함)
+- 시크릿이 필요한 작업은 사용자에게 확인 후 진행
 - pre-commit에 `gitleaks` hook 추가 권장 (시크릿 유출 방지)
 ```yaml
 # .pre-commit-config.yaml에 추가
