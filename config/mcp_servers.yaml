@@ -248,7 +248,7 @@ mcp_servers:
 
   # Browserbase remote MCP endpoint (requires custom remote URL)
   browserbase:
-    enabled: true
+    enabled: false
     type: stdio
     startup_timeout_sec: 60
     command: npx
