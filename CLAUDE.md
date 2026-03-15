@@ -58,6 +58,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE) |
 | `core/codex_skills.py` | Codex 호환 스킬 패키징 (SKILL.md frontmatter 정규화) |
 | `mcp/vibe.py` | Agent Fallback 셸 함수 생성 (`claude()` wrapper) |
+| `core/env_example.py` | `.env.example` 자동 생성 — mcp_servers.yaml + settings.yaml 기반 |
 | `cli/` | Click CLI + Rich UI (doctor, generate, project, status, sync, pipeline) |
 
 ### 환경변수 치환

@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""pre-push hook: 문서 ↔ 코드 정합성 검증.
+"""문서 ↔ 코드 정합성 검증 및 자동 수정.
 
-push 전에 CLAUDE.md, SERVICES.md, SETUP.md 등 주요 문서가
-실제 코드/설정과 일치하는지 자동 검증한다.
-불일치가 발견되면 비정상 종료(exit 1)하여 push를 차단한다.
+pre-commit: --fix 모드로 자동 수정 가능한 불일치를 수정한다.
+pre-push:   검증만 수행하고 불일치 시 push를 차단한다.
+
+사용법:
+    python scripts/doc_sync_check.py          # 검증만 (pre-push)
+    python scripts/doc_sync_check.py --fix    # 자동 수정 (pre-commit)
 """
 
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from pathlib import Path
@@ -48,6 +52,19 @@ def _parse_yaml_servers(yaml_text: str) -> dict[str, bool]:
             servers[current_server] = False
 
     return servers
+
+
+def _extract_module_docstring(py_path: Path) -> str:
+    """Python 파일에서 모듈 docstring 첫 줄을 추출한다."""
+    try:
+        source = py_path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        docstring = ast.get_docstring(tree)
+        if docstring:
+            return docstring.split("\n")[0].strip()
+    except (SyntaxError, FileNotFoundError, UnicodeDecodeError):
+        pass
+    return ""
 
 
 # ────────────────────────────────────────────
@@ -173,20 +190,109 @@ def check_skills_integrity() -> Errors:
 
 
 # ────────────────────────────────────────────
+# 자동 수정 함수들
+# ────────────────────────────────────────────
+
+
+def fix_claude_md_modules() -> list[str]:
+    """CLAUDE.md 핵심 모듈 테이블에 누락된 모듈을 자동 추가한다.
+
+    Returns:
+        수정된 항목 목록 (빈 리스트면 수정 없음)
+    """
+    claude_md = ROOT / "CLAUDE.md"
+    content = _read(claude_md)
+    if not content:
+        return []
+
+    # 실제 모듈 스캔
+    actual_modules: dict[str, Path] = {}
+    for subdir in ["core", "mcp"]:
+        module_dir = ROOT / "src" / "ai_env" / subdir
+        if module_dir.is_dir():
+            for py in sorted(module_dir.glob("*.py")):
+                if py.name != "__init__.py":
+                    actual_modules[f"{subdir}/{py.stem}"] = py
+
+    # 문서에 기재된 모듈
+    documented: set[str] = set()
+    for m in re.finditer(r"\|\s*`((?:core|mcp|cli)/[\w.]+)`\s*\|", content):
+        name = m.group(1)
+        documented.add(name.replace(".py", "").rstrip("/"))
+
+    missing = set(actual_modules.keys()) - documented - {"cli"}
+    if not missing:
+        return []
+
+    # 테이블 마지막 행 찾기 (| `cli/` | ... | 패턴 바로 앞에 삽입)
+    # cli/ 행이 테이블의 마지막이므로 그 앞에 추가
+    lines = content.splitlines()
+    insert_idx = -1
+    for i, line in enumerate(lines):
+        if re.match(r"\|\s*`cli/`\s*\|", line):
+            insert_idx = i
+            break
+
+    if insert_idx == -1:
+        # cli/ 행이 없으면 테이블 마지막 행 뒤에 추가
+        for i, line in enumerate(lines):
+            if re.match(r"\|\s*`(core|mcp)/", line):
+                insert_idx = i + 1
+        if insert_idx == -1:
+            return []
+
+    # 누락 모듈 행 생성 (docstring에서 역할 추출)
+    new_rows: list[str] = []
+    fixed: list[str] = []
+    for mod in sorted(missing):
+        py_path = actual_modules[mod]
+        desc = _extract_module_docstring(py_path)
+        if not desc:
+            desc = f"`{mod}` 모듈"
+        new_rows.append(f"| `{mod}.py` | {desc} |")
+        fixed.append(mod)
+
+    # 삽입
+    for row in reversed(new_rows):
+        lines.insert(insert_idx, row)
+
+    claude_md.write_text("\n".join(lines), encoding="utf-8")
+    return fixed
+
+
+# ────────────────────────────────────────────
 # 메인
 # ────────────────────────────────────────────
 
 
 def main() -> int:
+    fix_mode = "--fix" in sys.argv
+
     yaml_text = _read(ROOT / "config" / "mcp_servers.yaml")
     mcp_servers = _parse_yaml_servers(yaml_text)
 
+    # --fix 모드: 자동 수정 가능한 항목 먼저 수정
+    fixed_files: list[str] = []
+    if fix_mode:
+        fixed_modules = fix_claude_md_modules()
+        if fixed_modules:
+            fixed_files.append("CLAUDE.md")
+            for mod in fixed_modules:
+                print(f"  [fix] CLAUDE.md: 모듈 '{mod}' 테이블에 추가")
+
+    # 수정 후 재검증
     all_errors: Errors = []
     all_errors.extend(check_services_md(mcp_servers))
     all_errors.extend(check_claude_md_modules())
     all_errors.extend(check_setup_md_env_keys(mcp_servers))
     all_errors.extend(check_project_structure())
     all_errors.extend(check_skills_integrity())
+
+    if fixed_files and not all_errors:
+        # 자동 수정으로 모든 문제 해결됨 → 파일이 수정되었으므로 exit 1
+        # (pre-commit이 "files were modified" 감지 → 사용자가 re-stage)
+        print(f"Doc Sync: {', '.join(fixed_files)} 자동 수정됨 (re-stage 필요)")
+        return 1
 
     if all_errors:
         print("=" * 60)
@@ -195,8 +301,11 @@ def main() -> int:
         for err in all_errors:
             print(f"  - {err}")
         print()
-        print("문서를 업데이트하거나 '/doc-sync'를 실행한 뒤 다시 push하세요.")
-        print("긴급 시 --no-verify 로 우회 가능 (비권장).")
+        if fix_mode:
+            print("자동 수정할 수 없는 항목입니다. '/doc-sync'를 실행하세요.")
+        else:
+            print("'/doc-sync'를 실행하거나 문서를 직접 수정하세요.")
+            print("긴급 시 --no-verify 로 우회 가능 (비권장).")
         print("=" * 60)
         return 1
 

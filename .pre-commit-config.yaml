@@ -35,6 +35,15 @@ repos:
 
   - repo: local
     hooks:
+      # pre-commit: 자동 수정 가능한 문서 불일치 수정 (ruff와 같은 패턴)
+      - id: doc-sync-fix
+        name: doc-sync-fix
+        entry: python scripts/doc_sync_check.py --fix
+        language: python
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+      # pre-push: 최종 안전망 (자동 수정 불가 항목 포함 전체 검증)
       - id: doc-sync-check
         name: doc-sync-check
         entry: python scripts/doc_sync_check.py
