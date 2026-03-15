@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 from .codex_skills import copy_skill_tree_for_codex
@@ -305,6 +306,7 @@ def _sync_skills_merged(
     dry_run: bool,
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
+    copy_fn: Callable[[Path, Path], None] | None = None,
 ) -> tuple[str, int]:
     """personal + team 스킬을 합쳐서 동기화
 
@@ -314,39 +316,21 @@ def _sync_skills_merged(
         dry_run: True면 실제 복사하지 않음
         skills_include: 포함할 팀 스킬 디렉토리 이름
         skills_exclude: 제외할 팀 스킬 디렉토리 이름
+        copy_fn: 스킬 디렉토리 복사 함수 (기본: safe_copytree).
+            signature: (src: Path, dst: Path) -> None
 
     Returns:
         (설명, 복사된 스킬 수)
     """
+    if copy_fn is None:
+        copy_fn = safe_copytree
+
     skill_dirs = _collect_skill_sources(project_root, skills_include, skills_exclude)
 
     if not dry_run:
         dst.mkdir(parents=True, exist_ok=True)
         for skill_dir in skill_dirs:
-            safe_copytree(skill_dir, dst / skill_dir.name)
-
-    return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
-
-
-def _sync_codex_skills_merged(
-    project_root: Path,
-    dst: Path,
-    dry_run: bool,
-    skills_include: list[str] | None = None,
-    skills_exclude: list[str] | None = None,
-) -> tuple[str, int]:
-    """Codex용 skills 동기화.
-
-    Codex는 SKILL.md frontmatter를 엄격하게 파싱하므로, 복사 시 각 SKILL.md를
-    Codex 호환 YAML frontmatter로 정규화한다.
-    """
-    skill_dirs = _collect_skill_sources(project_root, skills_include, skills_exclude)
-
-    if not dry_run:
-        dst.mkdir(parents=True, exist_ok=True)
-        for skill_dir in skill_dirs:
-            dst_subdir = dst / skill_dir.name
-            copy_skill_tree_for_codex(skill_dir, dst_subdir)
+            copy_fn(skill_dir, dst / skill_dir.name)
 
     return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
 
@@ -538,6 +522,47 @@ def _sync_agent_global_md(
     return {target_filename: str(dst)}
 
 
+def _sync_agent_global(
+    target_dir_name: str,
+    target_filename: str,
+    skills_copy_fn: Callable[[Path, Path], None] | None,
+    dry_run: bool,
+    skills_include: list[str] | None,
+    skills_exclude: list[str] | None,
+) -> dict[str, str]:
+    """에이전트별 글로벌 설정 동기화 (공통 로직)
+
+    Args:
+        target_dir_name: 홈 디렉토리 하위 폴더 이름 (예: ".codex", ".gemini")
+        target_filename: 대상 파일 이름 (예: "AGENTS.md", "GEMINI.md")
+        skills_copy_fn: 스킬 복사 함수 (None이면 스킬 동기화 건너뜀)
+        dry_run: True면 실제 복사하지 않음
+        skills_include: 포함할 팀 스킬 디렉토리 이름
+        skills_exclude: 제외할 팀 스킬 디렉토리 이름
+    """
+    results = _sync_agent_global_md(
+        target_dir_name, target_filename, dry_run, skills_include, skills_exclude
+    )
+    if not results:
+        return results
+
+    # 스킬 파일 동기화 (copy_fn이 있는 에이전트만)
+    if skills_copy_fn is not None:
+        skills_dir = Path.home() / target_dir_name / "skills"
+        desc, count = _sync_skills_merged(
+            get_project_root(),
+            skills_dir,
+            dry_run,
+            skills_include,
+            skills_exclude,
+            copy_fn=skills_copy_fn,
+        )
+        if count:
+            results[desc] = str(skills_dir)
+
+    return results
+
+
 def sync_codex_global_config(
     dry_run: bool = False,
     skills_include: list[str] | None = None,
@@ -548,22 +573,9 @@ def sync_codex_global_config(
     ai-env/.claude/global/CLAUDE.md + 스킬 인덱스 → ~/.codex/AGENTS.md
     ai-env/.claude/skills + team skills 병합 → ~/.codex/skills
     """
-    results = _sync_agent_global_md(".codex", "AGENTS.md", dry_run, skills_include, skills_exclude)
-    if not results:
-        return results
-
-    codex_skills_dir = Path.home() / ".codex" / "skills"
-    desc, count = _sync_codex_skills_merged(
-        get_project_root(),
-        codex_skills_dir,
-        dry_run,
-        skills_include,
-        skills_exclude,
+    return _sync_agent_global(
+        ".codex", "AGENTS.md", copy_skill_tree_for_codex, dry_run, skills_include, skills_exclude
     )
-    if count:
-        results[desc] = str(codex_skills_dir)
-
-    return results
 
 
 def sync_gemini_global_config(
@@ -575,4 +587,4 @@ def sync_gemini_global_config(
 
     ai-env/.claude/global/CLAUDE.md + 스킬 인덱스 → ~/.gemini/GEMINI.md
     """
-    return _sync_agent_global_md(".gemini", "GEMINI.md", dry_run, skills_include, skills_exclude)
+    return _sync_agent_global(".gemini", "GEMINI.md", None, dry_run, skills_include, skills_exclude)

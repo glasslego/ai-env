@@ -208,7 +208,7 @@ class TestGenerateShellFunctions:
         _prepare_fake_sync_env(home_dir, bin_dir)
 
         git_script = bin_dir / "git"
-        git_script.write_text("#!/usr/bin/env bash\n" 'echo "git:$*" >> "$TRACE_FILE"\n' "exit 0\n")
+        git_script.write_text('#!/usr/bin/env bash\necho "git:$*" >> "$TRACE_FILE"\nexit 0\n')
         git_script.chmod(git_script.stat().st_mode | stat.S_IXUSR)
 
         uv_script = bin_dir / "uv"
@@ -223,9 +223,7 @@ class TestGenerateShellFunctions:
         uv_script.chmod(uv_script.stat().st_mode | stat.S_IXUSR)
 
         claude_script = bin_dir / "claude"
-        claude_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "claude:$*" >> "$TRACE_FILE"\n' "exit 0\n"
-        )
+        claude_script.write_text('#!/usr/bin/env bash\necho "claude:$*" >> "$TRACE_FILE"\nexit 0\n')
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
         fn_file.write_text(shell_fn)
@@ -271,9 +269,7 @@ class TestGenerateShellFunctions:
         uv_script.chmod(uv_script.stat().st_mode | stat.S_IXUSR)
 
         codex_script = bin_dir / "codex"
-        codex_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "codex:$*" >> "$TRACE_FILE"\n' "exit 0\n"
-        )
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex:$*" >> "$TRACE_FILE"\nexit 0\n')
         codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
 
         fn_file.write_text(shell_fn)
@@ -308,19 +304,13 @@ class TestGenerateShellFunctions:
 
         uv_script = bin_dir / "uv"
         uv_script.write_text(
-            "#!/usr/bin/env bash\n"
-            'echo "uv-start" >> "$TRACE_FILE"\n'
-            'echo "SYNC-LIVE"\n'
-            "exit 0\n"
+            '#!/usr/bin/env bash\necho "uv-start" >> "$TRACE_FILE"\necho "SYNC-LIVE"\nexit 0\n'
         )
         uv_script.chmod(uv_script.stat().st_mode | stat.S_IXUSR)
 
         codex_script = bin_dir / "codex"
         codex_script.write_text(
-            "#!/usr/bin/env bash\n"
-            'echo "codex:$*" >> "$TRACE_FILE"\n'
-            'echo "CODEX-LIVE"\n'
-            "exit 0\n"
+            '#!/usr/bin/env bash\necho "codex:$*" >> "$TRACE_FILE"\necho "CODEX-LIVE"\nexit 0\n'
         )
         codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
 
@@ -1928,7 +1918,7 @@ class TestSessionLogAndExit:
         )
 
         # 핸드오프 파일이 로그 디렉토리에 보관됨
-        handoff_files = list(log_dir.glob("*_handoff.md"))
+        handoff_files = list(log_dir.glob("*_handoff_*.md"))
         assert len(handoff_files) == 1
         content = handoff_files[0].read_text()
         assert "Handoff" in content
@@ -2383,7 +2373,7 @@ class TestPersistentCooldown:
         assert "handoff" in lines[2].lower() or "fix login" in lines[2]
 
         # reverse handoff 파일이 log_dir에 존재
-        handoff_files = list(log_dir.glob("*_handoff.md"))
+        handoff_files = list(log_dir.glob("*_handoff_*.md"))
         assert len(handoff_files) >= 1
         # 최소 1개는 "codex → Claude Code" 방향이어야 함
         reverse_found = False
@@ -2447,9 +2437,7 @@ class TestClaudeExitAndCooldownReset:
 
         # Codex: 호출되면 안 됨
         codex_script = bin_dir / "codex"
-        codex_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "codex" >> "$TRACE_FILE"\n' "exit 0\n"
-        )
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex" >> "$TRACE_FILE"\nexit 0\n')
         codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
 
         fn_file.write_text(shell_fn)
@@ -2502,9 +2490,7 @@ class TestClaudeExitAndCooldownReset:
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
         codex_script = bin_dir / "codex"
-        codex_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "codex" >> "$TRACE_FILE"\n' "exit 0\n"
-        )
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex" >> "$TRACE_FILE"\nexit 0\n')
         codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
 
         fn_file.write_text(shell_fn)
@@ -2557,16 +2543,12 @@ class TestClaudeExitAndCooldownReset:
 
         # Claude: 정상 종료
         claude_script = bin_dir / "claude"
-        claude_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "claude" >> "$TRACE_FILE"\n' "exit 0\n"
-        )
+        claude_script.write_text('#!/usr/bin/env bash\necho "claude" >> "$TRACE_FILE"\nexit 0\n')
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
         # Codex
         codex_script = bin_dir / "codex"
-        codex_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "codex" >> "$TRACE_FILE"\n' "exit 0\n"
-        )
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex" >> "$TRACE_FILE"\nexit 0\n')
         codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
 
         fn_file.write_text(shell_fn)
@@ -2726,10 +2708,7 @@ class TestCodexTransitionEdgeCases:
         # Claude: 일반 에러 (rate-limit 아님)
         claude_script = bin_dir / "claude"
         claude_script.write_text(
-            "#!/usr/bin/env bash\n"
-            'echo "claude" >> "$TRACE_FILE"\n'
-            'echo "internal error"\n'
-            "exit 1\n"
+            '#!/usr/bin/env bash\necho "claude" >> "$TRACE_FILE"\necho "internal error"\nexit 1\n'
         )
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
@@ -2764,9 +2743,7 @@ class TestCodexTransitionEdgeCases:
 
         # Claude: 일반 에러
         claude_script = bin_dir / "claude"
-        claude_script.write_text(
-            "#!/usr/bin/env bash\n" 'echo "claude" >> "$TRACE_FILE"\n' "exit 1\n"
-        )
+        claude_script.write_text('#!/usr/bin/env bash\necho "claude" >> "$TRACE_FILE"\nexit 1\n')
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
         codex_script = bin_dir / "codex"
@@ -3133,7 +3110,7 @@ class TestHandoffFileIntegrity:
         fn_file = tmp_path / "claude_fn.sh"
 
         claude_script = bin_dir / "claude"
-        claude_script.write_text("#!/usr/bin/env bash\n" 'echo "rate limit exceeded"\n' "exit 1\n")
+        claude_script.write_text('#!/usr/bin/env bash\necho "rate limit exceeded"\nexit 1\n')
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
         codex_script = bin_dir / "codex"
@@ -3157,7 +3134,7 @@ class TestHandoffFileIntegrity:
             timeout=30,
         )
 
-        handoff_files = list(log_dir.glob("*_handoff.md"))
+        handoff_files = list(log_dir.glob("*_handoff_*.md"))
         assert len(handoff_files) >= 1
         content = handoff_files[0].read_text()
 
@@ -3179,7 +3156,7 @@ class TestHandoffFileIntegrity:
         fn_file = tmp_path / "claude_fn.sh"
 
         claude_script = bin_dir / "claude"
-        claude_script.write_text("#!/usr/bin/env bash\n" 'echo "/rate-limit-options"\n' "exit 0\n")
+        claude_script.write_text('#!/usr/bin/env bash\necho "/rate-limit-options"\nexit 0\n')
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
         codex_script = bin_dir / "codex"
@@ -3203,7 +3180,7 @@ class TestHandoffFileIntegrity:
             timeout=30,
         )
 
-        handoff_files = list(log_dir.glob("*_handoff.md"))
+        handoff_files = list(log_dir.glob("*_handoff_*.md"))
         assert len(handoff_files) >= 1
         content = handoff_files[0].read_text()
         assert "대화형 세션" in content

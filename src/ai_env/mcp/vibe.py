@@ -21,6 +21,7 @@ def _format_entry(entry: str) -> str:
 def generate_shell_functions(
     agent_priority: list[str],
     fallback_log_dir: str | None = None,
+    ai_env_dir: str | None = None,
 ) -> str:
     """에이전트 우선순위 기반 claude --fallback 쉘 함수 생성
 
@@ -37,12 +38,18 @@ def generate_shell_functions(
         agent_priority: 에이전트 우선순위 리스트
             (예: ["claude", "claude:sonnet", "codex"])
         fallback_log_dir: 세션 로그/핸드오프 저장 디렉토리 (None이면 temp 사용)
+        ai_env_dir: ai-env 프로젝트 루트 경로 (None이면 get_project_root() 사용)
 
     Returns:
         bash 함수 문자열
     """
     if not agent_priority:
         return ""
+
+    if ai_env_dir is None:
+        from ..core.config import get_project_root
+
+        ai_env_dir = str(get_project_root())
 
     agents_str = " ".join(f'"{a}"' for a in agent_priority)
     priority_display = " → ".join(_format_entry(a) for a in agent_priority)
@@ -68,7 +75,7 @@ _ai_env_sync_skills_run() {{
 
 _ai_env_sync_skills() {{
     local _mode="${{1:-auto}}"
-    local _ai_env_dir="${{HOME}}/work/glasslego/ai-env"
+    local _ai_env_dir="{ai_env_dir}"
     local _lock="/tmp/.ai_env_skills_sync.lock"
     local _run_foreground=0
 
@@ -241,17 +248,20 @@ claude() {{
         shift 2
         local original_args=("$@")
 
+        local _from_base="${{from_agent%%:*}}"
+        local _direction="forward"
+        [[ "$_from_base" != "claude" ]] && _direction="reverse"
+
         local hf
         if [[ -n "$_fb_log_dir" ]]; then
             mkdir -p "$_fb_log_dir"
             [[ -z "$_fallback_session_id" ]] && _fallback_session_id=$(_get_claude_session_id)
-            hf="${{_fb_log_dir}}/${{_fallback_session_id}}_handoff.md"
+            hf="${{_fb_log_dir}}/${{_fallback_session_id}}_handoff_${{_direction}}.md"
         else
-            hf=$(mktemp -t "claude-fb-handoff.XXXXXX.md")
+            hf=$(mktemp -t "claude-fb-handoff-${{_direction}}.XXXXXX.md")
         fi
 
         {{
-            local _from_base="${{from_agent%%:*}}"
             if [[ "$_from_base" == "claude" ]]; then
                 echo "# Handoff: Claude Code → Fallback Agent"
                 echo ""
@@ -285,12 +295,21 @@ claude() {{
                     echo '```'
                     echo ""
                 fi
-                local fd
-                fd=$(git diff HEAD 2>/dev/null | head -300)
+                local fd=""
+                local _diff_files
+                _diff_files=$(git diff HEAD --name-only 2>/dev/null)
+                if [[ -n "$_diff_files" ]]; then
+                    local _file
+                    while IFS= read -r _file; do
+                        local _file_diff
+                        _file_diff=$(git diff HEAD -- "$_file" 2>/dev/null | head -50)
+                        [[ -n "$_file_diff" ]] && fd="${{fd}}${{_file_diff}}\\n"
+                    done <<< "$_diff_files"
+                fi
                 if [[ -n "$fd" ]]; then
                     echo "## Diff Detail"
                     echo '```diff'
-                    echo "$fd"
+                    printf '%b' "$fd"
                     echo '```'
                     echo ""
                 fi
@@ -331,6 +350,17 @@ claude() {{
             echo "3. 중단된 작업을 이어서 진행하세요"
         }} > "$hf"
 
+        # .claude/handoff/latest.md에 동기화 (다음 세션 자동 로드용)
+        if git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+            local _git_root
+            _git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+            if [[ -n "$_git_root" ]]; then
+                local _handoff_dir="${{_git_root}}/.claude/handoff"
+                mkdir -p "$_handoff_dir"
+                command cp -f "$hf" "$_handoff_dir/latest.md" 2>/dev/null || true
+            fi
+        fi
+
         echo "$hf"
     }}
 
@@ -359,6 +389,7 @@ claude() {{
     _save_session_log() {{
         # 세션 로그를 영구 저장 디렉토리에 복사
         # agent_name에 모델명이 없는 경우 (plain "claude") 로그에서 파싱해 추가
+        # 실제 저장 경로를 stdout으로 반환 (호출부에서 캡처 가능)
         local log_file="$1"
         local agent_name="$2"
         [[ -z "$_fb_log_dir" || ! -f "$log_file" ]] && return 0
@@ -372,7 +403,8 @@ claude() {{
         fi
         local perm_log="${{_fb_log_dir}}/${{_fallback_session_id}}_${{agent_name}}.log"
         command cp -f "$log_file" "$perm_log" < /dev/null 2>/dev/null
-        printf '\\r\\033[36m📝 세션 로그: %s\\033[0m\\r\\n' "$perm_log"
+        printf '\\r\\033[36m📝 세션 로그: %s\\033[0m\\r\\n' "$perm_log" >&2
+        echo "$perm_log"
     }}
 
     _parse_reset_epoch() {{
@@ -427,7 +459,8 @@ claude() {{
 
     _release_handoff() {{
         # 이전 핸드오프 파일 정리 (log_dir 있으면 보관, 없으면 삭제)
-        if [[ -n "$_fb_log_dir" ]]; then
+        if [[ -n "$_fb_log_dir" && -n "$_fallback_session_id" ]]; then
+            # 양방향 핸드오프 파일 모두 정리 (보관)
             handoff_file=""
         else
             [[ -n "$handoff_file" ]] && rm -f "$handoff_file" && handoff_file=""
@@ -563,6 +596,11 @@ claude() {{
             fi
 
             tried=$((tried + 1))
+            # model-level fallback 시 이전 reverse_handoff 상태 리셋 방지
+            # (claude:opus → claude:sonnet 전환에서 stale 상태 방지)
+            if [[ "$base_agent" == "claude" && -z "$handoff_file" ]]; then
+                _reverse_handoff=0
+            fi
             if [[ -n "$model_suffix" ]]; then
                 printf '\\r\\033[36m🚀 Starting %s (%s)...\\033[0m\\r\\n' "$base_agent" "$model_suffix"
             else
@@ -574,7 +612,12 @@ claude() {{
             # Fallback → Claude: _reverse_handoff=1일 때만 주입 (Claude→Claude 전환 시 오주입 방지)
             local run_args=("${{agent_args[@]}}")
             if [[ -n "$handoff_file" && -f "$handoff_file" ]]; then
-                local orig_prompt="${{agent_args[*]}}"
+                # shell-safe 프롬프트 (특수문자 이스케이프)
+                local orig_prompt=""
+                if [[ ${{#agent_args[@]}} -gt 0 ]]; then
+                    orig_prompt=$(printf '%s ' "${{agent_args[@]}}")
+                    orig_prompt="${{orig_prompt% }}"  # trailing space 제거
+                fi
                 if [[ "$base_agent" != "claude" ]]; then
                     run_args=("이전 Claude 세션이 rate-limit으로 중단됨. 원래 작업: ${{orig_prompt:-대화형 세션}}. 상세 컨텍스트(세션 로그, git diff)가 $handoff_file 에 저장됨. 이 파일을 먼저 읽고 이어서 작업하세요.")
                 elif [[ -n "$model_suffix" && ${{#agent_args[@]}} -eq 0 ]]; then
@@ -589,7 +632,11 @@ claude() {{
             # Codex:
             # - 프롬프트가 있으면 codex exec로 one-shot(non-interactive) 실행
             # - 프롬프트가 없으면 기존 TUI 모드(--yolo) 실행
+            # - handoff 존재 시 반드시 exec 모드 보장 (대화형 Codex에서 컨텍스트 유실 방지)
             if [[ "$base_agent" == "codex" ]]; then
+                if [[ ${{#run_args[@]}} -eq 0 && -n "$handoff_file" && -f "$handoff_file" ]]; then
+                    run_args=("핸드오프 컨텍스트가 $handoff_file 에 저장됨. 이 파일을 먼저 읽고 이어서 작업하세요.")
+                fi
                 if [[ ${{#run_args[@]}} -gt 0 ]]; then
                     local codex_prompt="${{run_args[*]}}"
                     run_args=(
@@ -730,15 +777,11 @@ claude() {{
             # 세션 로그 저장 (영구 디렉토리 설정 시)
             # agent:model 형식은 "agent-model"로 변환 (예: claude:sonnet → claude-sonnet)
             # plain "claude" 엔트리는 로그에서 실제 모델명을 파싱해 파일명에 반영
-            _save_session_log "$log_file" "${{agent//:/-}}"
-
-            # 비-Claude 에이전트 영구 로그 경로 보존 (reverse handoff용)
+            # _save_session_log가 실제 저장 경로를 stdout으로 반환
+            # 주의: $() 서브쉘에서 _fallback_session_id가 유실되므로 미리 설정
+            [[ -z "$_fallback_session_id" && -n "$_fb_log_dir" ]] && _fallback_session_id=$(_get_claude_session_id)
             local _perm_log_path=""
-            if [[ "$base_agent" != "claude" && -n "$_fb_log_dir" ]]; then
-                [[ -z "$_fallback_session_id" ]] && _fallback_session_id=$(_get_claude_session_id)
-                local _non_claude_name="${{agent//:/-}}"
-                _perm_log_path="${{_fb_log_dir}}/${{_fallback_session_id}}_${{_non_claude_name}}.log"
-            fi
+            _perm_log_path=$(_save_session_log "$log_file" "${{agent//:/-}}")
 
             # /exit 감지 (비-Claude 에이전트, 성공 종료 시)
             local _user_exited=0

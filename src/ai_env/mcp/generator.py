@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,7 @@ class MCPConfigGenerator:
     ]
     CODEX_PERMISSION_ALLOW: list[str] = []
     CODEX_PERMISSION_DENY: list[str] = []
-    CODEX_PERMISSION_ENV = {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}
+    CODEX_PERMISSION_ENV_DEFAULTS = {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}
     CODEX_TEAMMATE_MODE = "tmux"
 
     # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
@@ -80,10 +81,19 @@ class MCPConfigGenerator:
 
             if server.env_keys:
                 env = {}
+                seen_mapped: dict[str, str] = {}
                 for key in server.env_keys:
                     value = self.secrets.get(key, "")
                     if value:
                         mapped_key = self._map_env_key(key)
+                        if mapped_key in seen_mapped and seen_mapped[mapped_key] != key:
+                            warnings.warn(
+                                f"MCP server '{name}': env keys '{seen_mapped[mapped_key]}' and "
+                                f"'{key}' both map to '{mapped_key}'. "
+                                f"Last value (from '{key}') will be used.",
+                                stacklevel=2,
+                            )
+                        seen_mapped[mapped_key] = key
                         env[mapped_key] = value
                 if env:
                     config["env"] = env
@@ -127,14 +137,22 @@ class MCPConfigGenerator:
             "mcpServers": self._generate_mcp_servers_for_target("claude_local"),
         }
 
+    def _resolve_codex_env(self) -> dict[str, str]:
+        """Codex env 값을 .env 오버라이드 지원으로 해석"""
+        resolved = {}
+        for key, default in self.CODEX_PERMISSION_ENV_DEFAULTS.items():
+            resolved[key] = self.secrets.get(key, default)
+        return resolved
+
     def generate_codex(self) -> str:
         """Codex용 config.toml 생성"""
+        codex_env = self._resolve_codex_env()
         lines = [
             f'model = "{self.settings.codex_model}"',
             f'model_reasoning_effort = "{self.settings.codex_model_reasoning_effort}"',
             "",
             "[env]",
-            *[f'{key} = "{value}"' for key, value in self.CODEX_PERMISSION_ENV.items()],
+            *[f'{key} = "{value}"' for key, value in codex_env.items()],
             "",
             "[features]",
             "rmcp_client = true",

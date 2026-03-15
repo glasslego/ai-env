@@ -71,23 +71,25 @@ def sync(
 
     # --skills-only: 스킬만 빠르게 동기화 (hooks/startup용)
     if skills_only:
-        from ..core.sync import _sync_codex_skills_merged, _sync_skills_merged
+        from ..core.codex_skills import copy_skill_tree_for_codex
+        from ..core.sync import _sync_skills_merged
 
         if not _has_team_skills:
             project_root = get_project_root()
         action = "Would sync" if dry_run else "Synced"
         console.print("[bold]🔄 Skills-only sync...[/bold]")
         skill_targets = [
-            ("Claude", Path.home() / ".claude" / "skills", _sync_skills_merged),
-            ("Codex", Path.home() / ".codex" / "skills", _sync_codex_skills_merged),
+            ("Claude", Path.home() / ".claude" / "skills", None),
+            ("Codex", Path.home() / ".codex" / "skills", copy_skill_tree_for_codex),
         ]
-        for label, target_dir, sync_fn in skill_targets:
-            desc, _ = sync_fn(
+        for label, target_dir, copy_fn in skill_targets:
+            desc, _ = _sync_skills_merged(
                 project_root,
                 target_dir,
                 dry_run,
                 skills_include=effective_include,
                 skills_exclude=effective_exclude,
+                copy_fn=copy_fn,
             )
             console.print(f"  [green]✓[/green] {label}: {action} {desc} → {target_dir}")
         return
@@ -194,6 +196,14 @@ def sync(
             path: Path = results[name]
             console.print(f"  [green]✓[/green] {action} {name}")
             console.print(f"    → {str(path)}")
+
+        # .env.example 자동 생성
+        from ..core.env_example import save_env_example
+
+        env_example_path = save_env_example(dry_run=dry_run)
+        if env_example_path:
+            console.print(f"\n  [green]✓[/green] {action} .env.example")
+            console.print(f"    → {env_example_path}")
 
         if not dry_run:
             console.print("\n[bold green]✓ Sync complete![/bold green]")
