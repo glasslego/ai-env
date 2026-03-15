@@ -49,7 +49,7 @@ description: "역할 설명. 트리거 키워드."
 ```
 
 ### Phase 4: 스킬 생성
-각 에이전트가 사용할 스킬을 `프로젝트/.claude/skills/{name}/skill.md`에 생성:
+각 에이전트가 사용할 스킬을 `프로젝트/.claude/skills/{name}/SKILL.md`에 생성:
 
 ```markdown
 ---

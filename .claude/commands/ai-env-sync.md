@@ -1,4 +1,4 @@
-# Sync: MCP 설정 동기화
+# ai-env Sync: MCP + 글로벌 설정 동기화
 ---
 description: ai-env의 MCP 설정을 글로벌 환경에 동기화합니다
 ---

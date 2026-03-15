@@ -56,7 +56,7 @@ source_evidence: []
 
 `scripts/parse_spec_status.py`를 실행하여 상태 파일을 갱신한다.
 ```bash
-python .claude/skills/spec-manager/scripts/parse_spec_status.py <specs_dir> <status_file>
+python ~/.claude/skills/spec-manager/scripts/parse_spec_status.py <specs_dir> <status_file>
 ```
 
 스크립트가 없는 환경에서는 수동으로 _project-status.yaml에 새 스펙 엔트리를 추가:

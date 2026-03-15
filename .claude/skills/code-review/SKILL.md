@@ -1,11 +1,8 @@
 ---
 name: code-review
 description: |
-  코드 리뷰 + 스펙 정합성 검증 통합 스킬.
-  사용자가 리뷰, 코드 리뷰, 개선, simplify, spec review를 요청할 때 트리거.
-  "리뷰해줘", "review", "코드 개선", "simplify", "spec review", "정합성 검증" 등에 반응.
-  3가지 모드: Quick Review (변경사항), Spec Conformance (AC 검증), Simplify (개선).
-  프로젝트의 .claude/project-profile.yaml이 있으면 프로젝트 컨벤션을 자동 로드한다.
+  프로젝트 코드베이스 전체 리뷰 + 스펙 정합성 검증. /simplify와 달리 지정 파일/디렉토리 전체를 리뷰한다.
+  "리뷰해줘", "이 모듈 리뷰해줘", "src/ 리뷰", "spec review", "정합성 검증" 등에 반응.
 ---
 
 # Code Review

@@ -42,6 +42,7 @@ class MCPConfigGenerator:
     ENV_KEY_MAPPING = {
         "GITHUB_GLASSLEGO_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
         "GITHUB_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "AGIT_TOKEN": "AGIT_ACCESS_TOKEN",
     }
 
     def __init__(self, secrets: SecretsManager):

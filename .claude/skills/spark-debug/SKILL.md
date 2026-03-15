@@ -26,13 +26,16 @@ Spark application 디버깅과 로그 모니터링을 지원합니다.
 | `hadoop-dev` | 개발 클러스터 |
 | `hadoop-doopey` | Doopey 클러스터 |
 
-설정 상세: `.claude/skills/spark-debug/.config.json` 참조.
+설정 상세: 스킬 디렉토리의 `.config.json` 참조.
 
 ## 사용 방법
 
 ```python
 import sys
-sys.path.append('.claude/skills/spark-debug/scripts')
+from pathlib import Path
+
+_SKILL_DIR = Path(__file__).parent if '__file__' in dir() else Path.home() / ".claude/skills/spark-debug"
+sys.path.append(str(_SKILL_DIR / 'scripts'))
 from spark_debugger import SparkDebugger
 from format_logs import format_applications, format_error_logs
 ```
