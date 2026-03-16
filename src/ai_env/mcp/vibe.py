@@ -71,7 +71,12 @@ _ai_env_sync_skills_run() {{
     # nullglob: 매칭 없으면 빈 배열 (zsh no-match 에러 방지)
     setopt nullglob 2>/dev/null || shopt -s nullglob 2>/dev/null || true
     for d in cde-*skills; do
-        [[ -d "$d/.git" ]] && git -C "$d" pull --ff-only --quiet 2>/dev/null || true
+        # develop 브랜치일 때만 pull, 작업 브랜치는 현재 상태 그대로 sync
+        if [[ -d "$d/.git" ]]; then
+            local _branch
+            _branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)
+            [[ "$_branch" == "develop" ]] && git -C "$d" pull --ff-only --quiet 2>/dev/null || true
+        fi
     done
     uv run ai-env sync --skills-only --skills-all 2>/dev/null
     cd "$_orig_dir"
