@@ -60,26 +60,26 @@ def generate_shell_functions(
 # 인터랙티브 TTY에서는 sync를 먼저 보여주고, 비대화형에서는 조용히 백그라운드 실행
 # claude(), codex() wrapper에서 자동 호출
 _ai_env_sync_skills_run() {{
-    local _ai_env_dir="$1"
-    local _lock="$2"
-    local _orig_dir="$PWD"
+    # 서브쉘로 실행하여 cd가 부모 셸에 영향을 주지 않도록 격리
+    (
+        local _ai_env_dir="$1"
+        local _lock="$2"
 
-    touch "$_lock"
-    cd "$_ai_env_dir"
-    # 다른 프로젝트의 VIRTUAL_ENV가 남아있으면 uv가 경고를 출력하므로 해제
-    unset VIRTUAL_ENV
-    # nullglob: 매칭 없으면 빈 배열 (zsh no-match 에러 방지)
-    setopt nullglob 2>/dev/null || shopt -s nullglob 2>/dev/null || true
-    for d in cde-*skills; do
-        # develop 브랜치일 때만 pull, 작업 브랜치는 현재 상태 그대로 sync
-        if [[ -d "$d/.git" ]]; then
-            local _branch
-            _branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)
-            [[ "$_branch" == "develop" ]] && git -C "$d" pull --ff-only --quiet 2>/dev/null || true
-        fi
-    done
-    uv run ai-env sync --skills-only --skills-all 2>/dev/null
-    cd "$_orig_dir"
+        touch "$_lock"
+        cd "$_ai_env_dir" || return 1
+        # 다른 프로젝트의 VIRTUAL_ENV가 남아있으면 uv가 경고를 출력하므로 해제
+        unset VIRTUAL_ENV
+        # nullglob: 매칭 없으면 빈 배열 (zsh no-match 에러 방지)
+        setopt nullglob 2>/dev/null || shopt -s nullglob 2>/dev/null || true
+        for d in cde-*skills; do
+            # develop 브랜치일 때만 pull, 작업 브랜치는 현재 상태 그대로 sync
+            if [[ -d "$d/.git" ]]; then
+                _branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)
+                [[ "$_branch" == "develop" ]] && git -C "$d" pull --ff-only --quiet 2>/dev/null || true
+            fi
+        done
+        uv run ai-env sync --skills-only --skills-all 2>/dev/null
+    )
 }}
 
 _ai_env_sync_skills() {{
