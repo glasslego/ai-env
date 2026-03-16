@@ -62,6 +62,7 @@ def generate_shell_functions(
 _ai_env_sync_skills_run() {{
     local _ai_env_dir="$1"
     local _lock="$2"
+    local _orig_dir="$PWD"
 
     touch "$_lock"
     cd "$_ai_env_dir"
@@ -71,6 +72,7 @@ _ai_env_sync_skills_run() {{
         [[ -d "$d/.git" ]] && git -C "$d" pull --ff-only --quiet 2>/dev/null || true
     done
     uv run ai-env sync --skills-only --skills-all 2>/dev/null
+    cd "$_orig_dir"
 }}
 
 _ai_env_sync_skills() {{
