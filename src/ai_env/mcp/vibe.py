@@ -66,6 +66,8 @@ _ai_env_sync_skills_run() {{
 
     touch "$_lock"
     cd "$_ai_env_dir"
+    # 다른 프로젝트의 VIRTUAL_ENV가 남아있으면 uv가 경고를 출력하므로 해제
+    unset VIRTUAL_ENV
     # nullglob: 매칭 없으면 빈 배열 (zsh no-match 에러 방지)
     setopt nullglob 2>/dev/null || shopt -s nullglob 2>/dev/null || true
     for d in cde-*skills; do

@@ -19,6 +19,7 @@ if [[ -d "$AI_ENV_DIR" ]]; then
         export TERM=dumb NO_COLOR=1 UV_NO_PROGRESS=1
         exec </dev/null >/dev/null 2>&1
         cd "$AI_ENV_DIR"
+        unset VIRTUAL_ENV
         # cde-*skills 디렉토리 git pull (fast-forward only)
         # nullglob: 매칭 없으면 빈 배열 (zsh no-match 에러 방지)
         setopt nullglob 2>/dev/null || shopt -s nullglob 2>/dev/null || true
