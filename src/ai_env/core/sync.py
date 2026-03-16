@@ -170,7 +170,7 @@ def _update_team_skill_repos(
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
 ) -> dict[str, str]:
-    """팀 스킬 심링크의 실제 레포에서 develop 브랜치 git pull
+    """팀 스킬 심링크의 실제 레포에서 git pull (develop 브랜치일 때만)
 
     Args:
         project_root: ai-env 프로젝트 루트
@@ -198,26 +198,30 @@ def _update_team_skill_repos(
             continue
 
         try:
-            # develop 브랜치로 전환 후 pull
-            subprocess.run(
-                ["git", "checkout", "develop"],
+            # 현재 브랜치 확인 — develop일 때만 pull, 작업 브랜치는 그대로 sync
+            branch_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=repo_dir,
                 capture_output=True,
                 text=True,
                 check=True,
             )
-            pull_result = subprocess.run(
-                ["git", "pull", "--ff-only"],
-                cwd=repo_dir,
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            output = pull_result.stdout.strip()
-            if "Already up to date" in output:
-                results[item.name] = "already up to date"
+            current_branch = branch_result.stdout.strip()
+            if current_branch == "develop":
+                pull_result = subprocess.run(
+                    ["git", "pull", "--ff-only"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                output = pull_result.stdout.strip()
+                if "Already up to date" in output:
+                    results[item.name] = "already up to date"
+                else:
+                    results[item.name] = "updated"
             else:
-                results[item.name] = "updated"
+                results[item.name] = f"on branch '{current_branch}', skipped pull"
         except subprocess.CalledProcessError as e:
             results[item.name] = f"failed: {e.stderr.strip()}"
 
