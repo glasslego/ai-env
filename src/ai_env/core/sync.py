@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -9,8 +10,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .codex_skills import copy_skill_tree_for_codex
-from .config import get_project_root
+from .config import get_project_root, load_settings
 from .secrets import get_secrets_manager
+
+# cmux 훅 스크립트 파일명
+_CMUX_HOOK_SCRIPT = "cmux_notify.sh"
 
 
 def safe_copytree(src: Path, dst: Path) -> None:
@@ -108,21 +112,31 @@ def _sync_directory(src: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
     return f"{src.name}/", 1
 
 
-def _sync_hooks(src: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
+def _sync_hooks(
+    src: Path, dst: Path, dry_run: bool, *, cmux_enabled: bool = True
+) -> tuple[str, int]:
     """hooks 디렉토리 동기화 (전체 복사 + .sh 실행 권한 설정)
 
     Args:
         src: 소스 디렉토리
         dst: 목적지 디렉토리
         dry_run: True면 실제 복사하지 않음
+        cmux_enabled: False면 cmux_notify.sh를 제외
 
     Returns:
         (설명, 복사된 항목 수)
     """
     sh_files = list(src.glob("*.sh"))
+    if not cmux_enabled:
+        sh_files = [f for f in sh_files if f.name != _CMUX_HOOK_SCRIPT]
 
     if not dry_run:
         safe_copytree(src, dst)
+        # cmux 비활성화 시 복사된 cmux 스크립트 제거
+        if not cmux_enabled:
+            cmux_script = dst / _CMUX_HOOK_SCRIPT
+            if cmux_script.exists():
+                cmux_script.unlink()
         # .sh 파일에 실행 권한 부여
         for sh_file in dst.glob("*.sh"):
             sh_file.chmod(sh_file.stat().st_mode | 0o755)
@@ -130,20 +144,23 @@ def _sync_hooks(src: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
     return f"hooks/ ({len(sh_files)} scripts)", len(sh_files)
 
 
-def _sync_file_or_dir(src: Path, dst: Path, dry_run: bool = False) -> tuple[str, int]:
+def _sync_file_or_dir(
+    src: Path, dst: Path, dry_run: bool = False, *, cmux_enabled: bool = True
+) -> tuple[str, int]:
     """파일이나 디렉토리 동기화 (공통 로직)
 
     동기화 전략:
     - 파일: 단순 복사
     - commands/ 디렉토리: .md 파일만 복사
     - skills/ 디렉토리: 서브디렉토리 전체 복사
-    - hooks/ 디렉토리: 전체 복사 + .sh 실행 권한
+    - hooks/ 디렉토리: 전체 복사 + .sh 실행 권한 (cmux 조건부)
     - 기타 디렉토리: 전체 복사
 
     Args:
         src: 소스 경로
         dst: 목적지 경로
         dry_run: True면 실제 복사하지 않음
+        cmux_enabled: hooks/ 동기화 시 cmux 스크립트 포함 여부
 
     Returns:
         (설명, 복사된 항목 수)
@@ -160,7 +177,7 @@ def _sync_file_or_dir(src: Path, dst: Path, dry_run: bool = False) -> tuple[str,
     elif src.name == "skills":
         return _sync_subdirectories(src, dst, dry_run)
     elif src.name == "hooks":
-        return _sync_hooks(src, dst, dry_run)
+        return _sync_hooks(src, dst, dry_run, cmux_enabled=cmux_enabled)
     else:
         return _sync_directory(src, dst, dry_run)
 
@@ -339,6 +356,41 @@ def _sync_skills_merged(
     return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
 
 
+def _strip_cmux_hooks(settings_json: str) -> str:
+    """settings.json에서 cmux 훅 엔트리를 제거
+
+    cmux_notify.sh를 참조하는 훅을 제거하고, 빈 이벤트 카테고리도 정리한다.
+
+    Args:
+        settings_json: settings.json 문자열
+
+    Returns:
+        cmux 훅이 제거된 settings.json 문자열
+    """
+    data = json.loads(settings_json)
+    hooks = data.get("hooks", {})
+
+    events_to_remove: list[str] = []
+    for event_name, matchers in hooks.items():
+        if not isinstance(matchers, list):
+            continue
+        for matcher_block in matchers:
+            hook_list = matcher_block.get("hooks", [])
+            # cmux 훅 제거
+            matcher_block["hooks"] = [
+                h for h in hook_list if _CMUX_HOOK_SCRIPT not in h.get("command", "")
+            ]
+        # 훅이 모두 제거된 matcher 블록 제거
+        hooks[event_name] = [m for m in matchers if m.get("hooks")]
+        if not hooks[event_name]:
+            events_to_remove.append(event_name)
+
+    for event_name in events_to_remove:
+        del hooks[event_name]
+
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
 def sync_claude_global_config(
     dry_run: bool = False,
     skills_include: list[str] | None = None,
@@ -347,8 +399,9 @@ def sync_claude_global_config(
     """
     글로벌 Claude Code 설정 동기화
     ai-env/.claude → ~/.claude
-    (CLAUDE.md, commands/, skills/, settings.json)
+    (CLAUDE.md, commands/, skills/, settings.json, hooks/)
 
+    cmux_enabled 설정에 따라 cmux 훅을 조건부로 포함/제외한다.
     skills는 ai-env/.claude/skills/ (personal)를 동기화한다.
     team 스킬(cde-*skills)은 옵션으로 지정했을 때만 함께 동기화한다.
 
@@ -362,6 +415,10 @@ def sync_claude_global_config(
     global_dir = source_dir / "global"  # CLAUDE.md와 settings.json.template 위치
     target_dir = Path.home() / ".claude"
 
+    # settings.yaml에서 cmux 활성화 여부 확인
+    settings = load_settings()
+    cmux_enabled = settings.cmux_enabled
+
     results: dict[str, str] = {}
 
     if not source_dir.exists():
@@ -372,13 +429,17 @@ def sync_claude_global_config(
     if desc:
         results[desc] = str(target_dir / "CLAUDE.md")
 
-    # 2. settings.json 생성 (환경변수 치환, global/에서)
+    # 2. settings.json 생성 (환경변수 치환 + cmux 조건부 처리, global/에서)
     settings_template = global_dir / "settings.json.template"
     settings_dst = target_dir / "settings.json"
     if settings_template.exists():
         sm = get_secrets_manager()
         with open(settings_template) as f:
             content = sm.substitute(f.read())
+
+        # cmux 비활성화 시 settings.json에서 cmux 훅 제거
+        if not cmux_enabled:
+            content = _strip_cmux_hooks(content)
 
         if not dry_run:
             settings_dst.parent.mkdir(parents=True, exist_ok=True)
@@ -391,8 +452,10 @@ def sync_claude_global_config(
     if desc:
         results[desc] = str(target_dir / "commands")
 
-    # 4. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks)
-    desc, _ = _sync_file_or_dir(source_dir / "hooks", target_dir / "hooks", dry_run)
+    # 4. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks, cmux 조건부)
+    desc, _ = _sync_file_or_dir(
+        source_dir / "hooks", target_dir / "hooks", dry_run, cmux_enabled=cmux_enabled
+    )
     if desc:
         results[desc] = str(target_dir / "hooks")
 

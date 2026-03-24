@@ -745,3 +745,105 @@ def test_sync_claude_global_config_includes_hooks(tmp_path, mock_secrets_manager
     hooks_dst = target_dir / "hooks" / "session_start.sh"
     assert hooks_dst.exists()
     assert hooks_dst.stat().st_mode & stat.S_IXUSR
+
+
+def test_sync_cmux_hooks_included_by_default(tmp_path, mock_secrets_manager):
+    """cmux_enabled=true(기본값)일 때 cmux_notify.sh가 동기화되고 settings.json에 cmux 훅 포함."""
+    project_root = tmp_path / "ai-env"
+    source_dir = project_root / ".claude"
+    global_dir = source_dir / "global"
+    global_dir.mkdir(parents=True)
+
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+    settings_content = """{
+  "hooks": {
+    "SessionStart": [{"matcher": "", "hooks": [
+      {"type": "command", "command": "bash ~/.claude/hooks/session_start.sh"},
+      {"type": "command", "command": "bash ~/.claude/hooks/cmux_notify.sh", "async": true}
+    ]}],
+    "Stop": [{"matcher": "", "hooks": [
+      {"type": "command", "command": "bash ~/.claude/hooks/cmux_notify.sh", "async": true}
+    ]}]
+  }
+}"""
+    (global_dir / "settings.json.template").write_text(settings_content)
+
+    hooks_dir = source_dir / "hooks"
+    hooks_dir.mkdir()
+    (hooks_dir / "session_start.sh").write_text("#!/usr/bin/env bash\necho start")
+    (hooks_dir / "cmux_notify.sh").write_text("#!/usr/bin/env bash\necho cmux")
+
+    config_dir = project_root / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.yaml").write_text("cmux_enabled: true\n")
+
+    target_dir = tmp_path / "home" / ".claude"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("ai_env.core.config.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        sync_claude_global_config()
+
+    # cmux_notify.sh가 hooks에 복사됨
+    assert (target_dir / "hooks" / "cmux_notify.sh").exists()
+    # settings.json에 cmux 훅이 포함됨
+    import json
+
+    settings = json.loads((target_dir / "settings.json").read_text())
+    assert "Stop" in settings["hooks"]
+
+
+def test_sync_cmux_hooks_excluded_when_disabled(tmp_path, mock_secrets_manager):
+    """cmux_enabled=false일 때 cmux_notify.sh 제외, settings.json에서 cmux 훅 제거."""
+    project_root = tmp_path / "ai-env"
+    source_dir = project_root / ".claude"
+    global_dir = source_dir / "global"
+    global_dir.mkdir(parents=True)
+
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+    settings_content = """{
+  "hooks": {
+    "SessionStart": [{"matcher": "", "hooks": [
+      {"type": "command", "command": "bash ~/.claude/hooks/session_start.sh"},
+      {"type": "command", "command": "bash ~/.claude/hooks/cmux_notify.sh", "async": true}
+    ]}],
+    "Stop": [{"matcher": "", "hooks": [
+      {"type": "command", "command": "bash ~/.claude/hooks/cmux_notify.sh", "async": true}
+    ]}]
+  }
+}"""
+    (global_dir / "settings.json.template").write_text(settings_content)
+
+    hooks_dir = source_dir / "hooks"
+    hooks_dir.mkdir()
+    (hooks_dir / "session_start.sh").write_text("#!/usr/bin/env bash\necho start")
+    (hooks_dir / "cmux_notify.sh").write_text("#!/usr/bin/env bash\necho cmux")
+
+    config_dir = project_root / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.yaml").write_text("cmux_enabled: false\n")
+
+    target_dir = tmp_path / "home" / ".claude"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("ai_env.core.config.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        sync_claude_global_config()
+
+    # cmux_notify.sh가 hooks에 없어야 함
+    assert not (target_dir / "hooks" / "cmux_notify.sh").exists()
+    # session_start.sh는 있어야 함
+    assert (target_dir / "hooks" / "session_start.sh").exists()
+    # settings.json에서 Stop 카테고리 제거 (cmux 전용이었으므로)
+    import json
+
+    settings = json.loads((target_dir / "settings.json").read_text())
+    assert "Stop" not in settings["hooks"]
+    # SessionStart는 남아있되, cmux 훅만 제거
+    session_hooks = settings["hooks"]["SessionStart"][0]["hooks"]
+    assert len(session_hooks) == 1
+    assert "session_start.sh" in session_hooks[0]["command"]

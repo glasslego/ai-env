@@ -11,6 +11,11 @@ env_file: ".env"
 codex_model: gpt-5.4
 codex_model_reasoning_effort: high
 
+# cmux 터미널 연동 (cmux 훅 동기화 on/off)
+# true: settings.json에 cmux 훅 포함 + cmux_notify.sh 동기화
+# false: cmux 훅 제거, cmux_notify.sh 동기화 스킵
+cmux_enabled: true
+
 # === AI Providers ===
 # 모델은 각 도구에서 최신 버전을 자동으로 사용합니다
 providers:

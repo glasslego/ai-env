@@ -50,6 +50,7 @@ class Settings(BaseModel):
     env_file: str = ".env"
     codex_model: str = "gpt-5.4"
     codex_model_reasoning_effort: str = "high"
+    cmux_enabled: bool = True
     agent_priority: list[str] = Field(default_factory=lambda: ["claude", "codex"])
     fallback_log_dir: str | None = None
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
