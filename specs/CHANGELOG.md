@@ -5,12 +5,21 @@ SPEC 문서 관련 변경 이력은 이 파일에서만 관리합니다.
 ## v1.4 (2026-04-30)
 
 - `SPEC-013-claude-codex-focused-and-session-save.md` 추가 (status: implemented)
-  - Claude Code + Codex 중심으로 사용 범위 정리 (Gemini/Antigravity/ChatGPT 기본 비활성)
+  - Claude Code + Codex 중심으로 사용 범위 정리
   - Codex의 Claude 자산 활용 강화: `~/.codex/commands/`, `~/.codex/project-profile.yaml` 미러
   - `ai-env session save` CLI + `.claude/skills/session-save/SKILL.md` 신규 추가
     (Obsidian vault에 세션 컨텍스트 저장)
+- 후속 정리(B-1~B-7): Gemini/Antigravity/ChatGPT Desktop 지원 코드 완전 제거
+  - `MCPConfigGenerator`에서 `generate_gemini`/`generate_antigravity`/`generate_chatgpt_desktop`/`_OUTPUT_PROVIDER_MAP` 삭제
+  - `core/sync.py`의 `sync_gemini_global_config()` 삭제
+  - `OutputsConfig`에서 `gemini_*` / `antigravity` / `chatgpt_desktop` 필드 제거
+  - `config/mcp_servers.yaml`의 모든 `targets:`에서 동일 항목 제거 (47건)
+  - `cli/generate_cmd.py`에서 `gemini` / `antigravity` / `chatgpt-desktop` 서브커맨드 삭제
+  - `core/doctor.py`의 도구 검사 대상을 `claude` + `codex`로 축소
+  - 관련 테스트 정리/축소
 - 신규 모듈: `core/session_save.py`, `cli/session_cmd.py`
-- 테스트: +32개 (총 309), 커버리지 70.07%
+- Deep Research API 디스패치(`core/research.py`)는 외부 API 호출 전용 기능으로 잔존 (sync와 무관).
+- 테스트: 309 → 303 (Gemini 전용 테스트 제거), 모두 통과
 
 ## v1.0 (2026-02-14)
 

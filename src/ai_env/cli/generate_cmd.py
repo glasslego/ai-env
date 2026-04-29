@@ -36,28 +36,12 @@ def generate_claude_desktop(output: str | None) -> None:
     _output_content(generator.generate_claude_desktop(), output)
 
 
-@generate.command("chatgpt-desktop")
-@click.option("--output", "-o", help="출력 경로")
-def generate_chatgpt_desktop(output: str | None) -> None:
-    """ChatGPT Desktop 설정 생성"""
-    generator = MCPConfigGenerator(get_secrets_manager())
-    _output_content(generator.generate_chatgpt_desktop(), output)
-
-
 @generate.command("codex-desktop")
 @click.option("--output", "-o", help="출력 경로")
 def generate_codex_desktop(output: str | None) -> None:
     """Codex Desktop 설정 생성"""
     generator = MCPConfigGenerator(get_secrets_manager())
     _output_content(generator.generate_codex_desktop(), output)
-
-
-@generate.command("antigravity")
-@click.option("--output", "-o", help="출력 경로")
-def generate_antigravity(output: str | None) -> None:
-    """Antigravity 설정 생성"""
-    generator = MCPConfigGenerator(get_secrets_manager())
-    _output_content(generator.generate_antigravity(), output)
 
 
 @generate.command("shell")

@@ -21,11 +21,8 @@ mcp_servers:
       - GITHUB_GLASSLEGO_TOKEN
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
-      - gemini
 
   # GitHub Kakao Enterprise
   github-kakao:
@@ -47,11 +44,8 @@ mcp_servers:
       - GITHUB_TOKEN
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
-      - gemini
 
   jira-wiki-mcp:
     enabled: true
@@ -78,11 +72,8 @@ mcp_servers:
       - WIKI_TOKEN
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
-      - gemini
 
   # === NPX 기반 서버 ===
   playwright:
@@ -94,12 +85,9 @@ mcp_servers:
       - "@executeautomation/playwright-mcp-server"
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   desktop-commander:
     enabled: true
@@ -112,10 +100,8 @@ mcp_servers:
     targets:
       - claude_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   brave-search:
     enabled: true
@@ -128,12 +114,9 @@ mcp_servers:
       - BRAVE_API_KEY
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   context7:
     enabled: true
@@ -144,12 +127,9 @@ mcp_servers:
       - "@upstash/context7-mcp@latest"
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   mem0:
     enabled: true
@@ -162,9 +142,7 @@ mcp_servers:
     env_keys:
       - MEM0_API_KEY
     targets:
-      - antigravity
       - claude_local
-      - gemini
 
   fetch:
     enabled: true
@@ -174,12 +152,9 @@ mcp_servers:
       - mcp-server-fetch
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   filesystem:
     enabled: true
@@ -191,12 +166,9 @@ mcp_servers:
       - .
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   git:
     enabled: true
@@ -206,12 +178,9 @@ mcp_servers:
       - mcp-server-git
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   memory:
     enabled: true
@@ -222,12 +191,9 @@ mcp_servers:
       - "@modelcontextprotocol/server-memory"
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   # Supabase hosted MCP endpoint (remote)
   supabase:
@@ -241,10 +207,8 @@ mcp_servers:
       - https://mcp.supabase.com/mcp
     targets:
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   # Browserbase remote MCP endpoint (requires custom remote URL)
   browserbase:
@@ -260,10 +224,8 @@ mcp_servers:
       - BROWSERBASE_MCP_URL
     targets:
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   sequential-thinking:
     enabled: true
@@ -274,12 +236,9 @@ mcp_servers:
       - "@modelcontextprotocol/server-sequential-thinking"
     targets:
       - claude_desktop
-      - chatgpt_desktop
       - codex_desktop
-      - antigravity
       - claude_local
       - codex
-      - gemini
 
   # === SSE 기반 서버 ===
   browseract:
@@ -287,9 +246,7 @@ mcp_servers:
     type: sse
     url_env: BROWSERACT_MCP_URL
     targets:
-      - antigravity
       - claude_local
-      - gemini
       - codex
 
   # Kakao 내부
@@ -300,9 +257,7 @@ mcp_servers:
     url_env: KKOTO_MCP_URL
     targets:
       - codex_desktop
-      - antigravity
       - claude_local
-      - gemini
 
   cdp-mcp-server:
     enabled: true
@@ -311,6 +266,4 @@ mcp_servers:
     url_env: CDP_MCP_URL
     targets:
       - codex_desktop
-      - antigravity
       - claude_local
-      - gemini

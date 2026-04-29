@@ -121,12 +121,10 @@ class TestGenerateCodexConfig:
         assert 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1"' in result
 
 
-class TestProviderEnabledGuard:
-    """SPEC-013: providers[*].enabled에 따른 save_all 가드 테스트."""
+class TestSaveAllTargets:
+    """SPEC-013: save_all이 Claude+Codex 타겟만 생성한다."""
 
-    def _make_generator(self, providers: dict | None = None) -> MCPConfigGenerator:
-        from ai_env.core.config import ProviderConfig
-
+    def _make_generator(self) -> MCPConfigGenerator:
         secrets = MagicMock()
         secrets.get.return_value = ""
         secrets.substitute.side_effect = lambda value: value
@@ -137,62 +135,17 @@ class TestProviderEnabledGuard:
             patch("ai_env.mcp.generator.load_settings") as mock_settings,
         ):
             mock_mcp.return_value = MagicMock(mcp_servers={})
-            settings = Settings()
-            if providers is not None:
-                settings.providers = {
-                    name: ProviderConfig(**cfg) for name, cfg in providers.items()
-                }
-            mock_settings.return_value = settings
+            mock_settings.return_value = Settings()
             return MCPConfigGenerator(secrets)
 
-    def test_default_settings_enables_all_targets(self):
-        """providers 미정의면 모든 타겟이 enabled로 간주."""
-        gen = self._make_generator(providers=None)
-        for name in [
-            "claude_desktop",
-            "codex_global",
-            "gemini_global",
-            "antigravity",
-            "chatgpt_desktop",
-            "shell_exports",
-        ]:
-            assert gen._is_target_enabled(name) is True
-
-    def test_disabled_provider_skips_target(self):
-        """providers.gemini.enabled=false면 gemini_global/local 스킵."""
-        gen = self._make_generator(
-            providers={
-                "claude": {"enabled": True},
-                "codex": {"enabled": True},
-                "gemini": {"enabled": False},
-                "antigravity": {"enabled": False},
-                "chatgpt": {"enabled": False},
-            }
-        )
-        assert gen._is_target_enabled("claude_desktop") is True
-        assert gen._is_target_enabled("codex_global") is True
-        assert gen._is_target_enabled("gemini_global") is False
-        assert gen._is_target_enabled("gemini_local") is False
-        assert gen._is_target_enabled("antigravity") is False
-        assert gen._is_target_enabled("chatgpt_desktop") is False
-
-    def test_save_all_dry_run_skips_disabled(self, tmp_path):
-        """save_all dry_run에서 disabled 타겟은 결과에 포함되지 않음."""
-        gen = self._make_generator(
-            providers={
-                "claude": {"enabled": True},
-                "codex": {"enabled": True},
-                "gemini": {"enabled": False},
-                "antigravity": {"enabled": False},
-                "chatgpt": {"enabled": False},
-            }
-        )
+    def test_save_all_dry_run_emits_only_supported_targets(self):
+        gen = self._make_generator()
         result = gen.save_all(dry_run=True)
-        assert "claude_desktop" in result
-        assert "codex_global" in result
-        assert "shell_exports" in result
-        # 비활성 타겟은 결과에 없어야 함
-        assert "gemini_global" not in result
-        assert "gemini_local" not in result
-        assert "antigravity" not in result
-        assert "chatgpt_desktop" not in result
+        assert set(result.keys()) == {
+            "claude_desktop",
+            "codex_desktop",
+            "codex_global",
+            "claude_local",
+            "codex_local",
+            "shell_exports",
+        }

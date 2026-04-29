@@ -12,7 +12,6 @@ from ai_env.core.sync import (
     _sync_skills_merged,
     sync_claude_global_config,
     sync_codex_global_config,
-    sync_gemini_global_config,
 )
 
 
@@ -481,60 +480,6 @@ def test_sync_codex_commands_overwrite_clean(tmp_path, mock_secrets_manager):
     assert (target_root / "commands" / "second.md").exists()
 
 
-def test_sync_gemini_global_config(tmp_path, mock_secrets_manager):
-    """CLAUDE.md → ~/.gemini/GEMINI.md 동기화 확인."""
-    project_root = tmp_path / "ai-env"
-    global_dir = project_root / ".claude" / "global"
-    global_dir.mkdir(parents=True)
-    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
-
-    target_dir = tmp_path / "home" / ".gemini"
-
-    with (
-        patch("ai_env.core.sync.get_project_root", return_value=project_root),
-        patch("pathlib.Path.home", return_value=tmp_path / "home"),
-    ):
-        results = sync_gemini_global_config()
-
-    assert "GEMINI.md" in results
-    gemini_md = target_dir / "GEMINI.md"
-    assert gemini_md.exists()
-    assert gemini_md.read_text() == "# Global Instructions"
-
-
-def test_sync_gemini_global_config_dry_run(tmp_path, mock_secrets_manager):
-    """Gemini dry_run 시 파일 미생성 확인."""
-    project_root = tmp_path / "ai-env"
-    global_dir = project_root / ".claude" / "global"
-    global_dir.mkdir(parents=True)
-    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
-
-    target_dir = tmp_path / "home" / ".gemini"
-
-    with (
-        patch("ai_env.core.sync.get_project_root", return_value=project_root),
-        patch("pathlib.Path.home", return_value=tmp_path / "home"),
-    ):
-        results = sync_gemini_global_config(dry_run=True)
-
-    assert "GEMINI.md" in results
-    assert not (target_dir / "GEMINI.md").exists()
-
-
-def test_sync_gemini_no_source(tmp_path, mock_secrets_manager):
-    """소스 CLAUDE.md 없으면 빈 결과 반환."""
-    project_root = tmp_path / "ai-env"
-    project_root.mkdir(parents=True)
-
-    with (
-        patch("ai_env.core.sync.get_project_root", return_value=project_root),
-        patch("pathlib.Path.home", return_value=tmp_path / "home"),
-    ):
-        results = sync_gemini_global_config()
-
-    assert results == {}
-
-
 def test_sync_hooks_directory(tmp_path):
     """hooks/ 디렉토리 동기화 및 .sh 실행 권한 확인."""
     src = tmp_path / "hooks"
@@ -759,36 +704,6 @@ description: Spark application 디버깅 및 로그 모니터링 도구입니다
     assert content.startswith("---\nname: spark-debug\n")
     assert "description:" in content
     assert "Kerberos 인증" in content
-
-
-def test_sync_gemini_includes_skills_index(tmp_path, mock_secrets_manager):
-    """Gemini 동기화 시 GEMINI.md에 스킬 인덱스가 포함되는지 확인."""
-    project_root = tmp_path / "ai-env"
-    global_dir = project_root / ".claude" / "global"
-    global_dir.mkdir(parents=True)
-    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
-
-    # 스킬 생성
-    skills_dir = project_root / ".claude" / "skills"
-    (skills_dir / "research").mkdir(parents=True)
-    (skills_dir / "research" / "SKILL.md").write_text(
-        "---\nname: research\ndescription: 멀티소스 리서치\n---\n"
-    )
-
-    target_dir = tmp_path / "home" / ".gemini"
-
-    with (
-        patch("ai_env.core.sync.get_project_root", return_value=project_root),
-        patch("pathlib.Path.home", return_value=tmp_path / "home"),
-    ):
-        results = sync_gemini_global_config()
-
-    assert "GEMINI.md" in results
-    gemini_md = target_dir / "GEMINI.md"
-    content = gemini_md.read_text()
-    assert "# Global Instructions" in content
-    assert "## Available Skills" in content
-    assert "**research**" in content
 
 
 def test_sync_claude_global_config_includes_hooks(tmp_path, mock_secrets_manager):

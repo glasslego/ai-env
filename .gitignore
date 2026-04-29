@@ -50,15 +50,15 @@ generated/
 .claude/logs/
 .claude/worktrees/
 .codex/config.toml
-.gemini/settings.local.json
 
 # 디렉토리 구조 유지
 !.claude/
 !.codex/
-!.gemini/
 !.claude/README.md
 !.codex/README.md
-!.gemini/README.md
+
+# SPEC-013: Gemini/Antigravity 지원 제거 — 디렉토리 무시
+.gemini/
 
 # Temp files
 .tmp.*

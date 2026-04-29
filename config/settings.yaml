@@ -17,10 +17,8 @@ codex_model_reasoning_effort: high
 cmux_enabled: true
 
 # === AI Providers ===
-# 모델은 각 도구에서 최신 버전을 자동으로 사용합니다
-# 현재 사용 범위: Claude Code + Codex (SPEC-013)
-# 그 외(Gemini, Antigravity, ChatGPT Desktop)는 enabled=false로 비활성화.
-# 다시 사용하려면 enabled를 true로 변경하면 됨.
+# 사용 범위: Claude Code + Codex (SPEC-013).
+# 다른 도구는 본 코드베이스에서 더 이상 지원하지 않는다.
 providers:
   claude:
     enabled: true
@@ -29,16 +27,6 @@ providers:
   codex:
     enabled: true
     env_key: OPENAI_API_KEY
-
-  gemini:
-    enabled: false
-    env_key: GOOGLE_API_KEY
-
-  antigravity:
-    enabled: false
-
-  chatgpt:
-    enabled: false
 
 # === Agent 우선순위 (claude --fallback) ===
 # claude --fallback이 이 순서대로 에이전트를 시도
@@ -62,21 +50,17 @@ obsidian_base: ~/Documents/Obsidian/PARA-2025
 
 # === 출력 경로 (글로벌 설정) ===
 outputs:
-  # Desktop 앱들
+  # Desktop 앱
   claude_desktop: ~/Library/Application Support/Claude/claude_desktop_config.json
-  chatgpt_desktop: ~/Library/Application Support/ChatGPT/config.json
   codex_desktop: ~/.codex/codex.config.json
-  antigravity: ~/.gemini/antigravity/mcp_config.json
 
-  # CLI 도구들 (글로벌)
+  # CLI 도구 (글로벌)
   claude_global: ~/.claude/settings.json
   codex_global: ~/.codex/config.toml
-  gemini_global: ~/.gemini/settings.json
 
   # 로컬 프로젝트 설정 (glocal = 다른 프로젝트용 템플릿)
   claude_local: ./.claude/settings.glocal.json
   codex_local: ./.codex/config.toml
-  gemini_local: ./.gemini/settings.local.json
 
   # 기타
   shell_exports: ./generated/shell_exports.sh

@@ -20,23 +20,19 @@ class ProviderConfig(BaseModel):
 
 
 class OutputsConfig(BaseModel):
-    """출력 경로 설정"""
+    """출력 경로 설정 (Claude + Codex 전용, SPEC-013)"""
 
-    # Desktop 앱들
+    # Desktop 앱
     claude_desktop: str = "~/Library/Application Support/Claude/claude_desktop_config.json"
-    chatgpt_desktop: str = "~/Library/Application Support/ChatGPT/config.json"
     codex_desktop: str = "~/.codex/codex.config.json"
-    antigravity: str = "~/.gemini/antigravity/mcp_config.json"
 
-    # CLI 도구들 (글로벌)
+    # CLI 도구 (글로벌)
     claude_global: str = "~/.claude/settings.json"
     codex_global: str = "~/.codex/config.toml"
-    gemini_global: str = "~/.gemini/settings.json"
 
     # 로컬 프로젝트 설정 (glocal = global template for local)
     claude_local: str = "./.claude/settings.glocal.json"
     codex_local: str = "./.codex/config.toml"
-    gemini_local: str = "./.gemini/settings.local.json"
 
     # 기타
     shell_exports: str = "./generated/shell_exports.sh"

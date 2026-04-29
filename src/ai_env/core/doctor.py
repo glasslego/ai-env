@@ -96,8 +96,8 @@ def check_env(report: DoctorReport) -> None:
 
 
 def check_tools(report: DoctorReport) -> None:
-    """CLI 도구 설치 검사"""
-    tools = ["claude", "codex", "gemini"]
+    """CLI 도구 설치 검사 (SPEC-013: claude + codex만)"""
+    tools = ["claude", "codex"]
     for tool in tools:
         path = shutil.which(tool)
         if path:
@@ -120,17 +120,13 @@ def check_sync_drift(report: DoctorReport) -> None:
     generator = MCPConfigGenerator(sm)
     settings = generator.settings
 
-    # (타겟 이름, 생성 함수, 출력 경로) 튜플 리스트
+    # (타겟 이름, 생성 함수, 출력 경로) 튜플 리스트 (Claude+Codex 전용)
     mcp_targets: list[tuple[str, Any, str]] = [
         ("claude_desktop", generator.generate_claude_desktop(), settings.outputs.claude_desktop),
-        ("chatgpt_desktop", generator.generate_chatgpt_desktop(), settings.outputs.chatgpt_desktop),
         ("codex_desktop", generator.generate_codex_desktop(), settings.outputs.codex_desktop),
-        ("antigravity", generator.generate_antigravity(), settings.outputs.antigravity),
         ("codex_global", generator.generate_codex(), settings.outputs.codex_global),
-        ("gemini_global", generator.generate_gemini(), settings.outputs.gemini_global),
         ("claude_local", generator.generate_claude_local(), settings.outputs.claude_local),
         ("codex_local", generator.generate_codex(), settings.outputs.codex_local),
-        ("gemini_local", generator.generate_gemini(), settings.outputs.gemini_local),
     ]
 
     for name, content, path_str in mcp_targets:
@@ -168,11 +164,10 @@ def check_sync_drift(report: DoctorReport) -> None:
         else:
             report.checks.append(CheckResult(name, "warn", "not found", "sync"))
 
-    # Codex AGENTS.md / Gemini GEMINI.md
+    # Codex AGENTS.md
     instruction_items = [
         ("~/.codex/AGENTS.md", Path.home() / ".codex" / "AGENTS.md"),
         ("~/.codex/skills/", Path.home() / ".codex" / "skills"),
-        ("~/.gemini/GEMINI.md", Path.home() / ".gemini" / "GEMINI.md"),
     ]
 
     for name, dst in instruction_items:

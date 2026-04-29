@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-ai-env는 AI 개발 환경(주로 **Claude Code + Codex CLI**)의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. Gemini/Antigravity/ChatGPT Desktop은 코드는 유지되지만 기본 비활성(`providers.*.enabled = false`).
+ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. (Gemini / Antigravity / ChatGPT Desktop 지원은 SPEC-013 정리 시점에 제거되었다 — Deep Research API 디스패치만 별도 기능으로 남아있다.)
 
 **핵심 가치**: 토큰·MCP 설정을 중앙화하고, 각 AI 도구 형식으로 자동 변환·배포한다.
 
@@ -32,7 +32,6 @@ uv run ruff check . && uv run ruff format . # 린트·포맷
 config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 .env                                      ← 시크릿 (gitignore)
          ↓ (ai-env sync)
-[기본 활성: Claude + Codex]
 ├─ Claude Desktop  (claude_desktop_config.json)
 ├─ Claude Code Global (~/.claude/settings.json, CLAUDE.md, commands/, skills/, hooks/)
 ├─ Claude Local    (.claude/settings.glocal.json)
@@ -40,11 +39,6 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 ├─ Codex Global    (~/.codex/config.toml, AGENTS.md, commands/, skills/, project-profile.yaml)
 ├─ Codex Local     (.codex/config.toml, .codex/skills, .codex/commands, .codex/project-profile.yaml)
 └─ Shell exports   (shell_exports.sh)
-
-[기본 비활성 — settings.yaml에서 enabled=true 시 동작]
-├─ ChatGPT Desktop (config.json)
-├─ Antigravity     (mcp_config.json)
-└─ Gemini CLI      (~/.gemini/settings.json, GEMINI.md)
 ```
 
 ### 핵심 모듈
@@ -53,11 +47,11 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 |------|------|
 | `core/config.py` | Pydantic 모델, YAML 설정 로드 |
 | `core/secrets.py` | `.env` 환경변수 관리, `${VAR}` 치환 |
-| `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex; Gemini는 enabled 시) |
+| `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex) |
 | `core/session_save.py` | Obsidian vault에 세션 컨텍스트(메모+git 스냅샷) 저장 (SPEC-013) |
 | `core/doctor.py` | 환경 건강 검사 (`ai-env doctor`) |
 | `core/pipeline.py` | 토픽 YAML 모델, 리서치 파이프라인 유틸 |
-| `core/research.py` | Deep Research API 디스패치 (Gemini/OpenAI) |
+| `core/research.py` | Deep Research API 디스패치 (Gemini / OpenAI — 외부 API 호출 전용, sync와 무관) |
 | `core/project_sync.py` | 프로젝트 로컬 Claude↔Codex 동기화 |
 | `core/workflow.py` | 6-Phase 워크플로우 스캐폴딩, 상태 관리 |
 | `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE) |

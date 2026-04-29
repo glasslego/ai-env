@@ -1,8 +1,8 @@
 # ai-env
 
-**Claude Code + Codex CLI** 중심 AI 개발 환경의 MCP 서버와 설정을 한 곳에서 관리하는 CLI.
-Gemini/Antigravity/ChatGPT Desktop은 코드는 유지되지만 기본 비활성 (`config/settings.yaml`의
-`providers.*.enabled = true`로 다시 켤 수 있음).
+**Claude Code + Codex CLI** 개발 환경의 MCP 서버와 설정을 한 곳에서 관리하는 CLI.
+(Gemini / Antigravity / ChatGPT Desktop 지원은 SPEC-013 정리에서 제거됨. Deep Research API
+디스패치만 별도 기능으로 잔존.)
 
 > **사용 예시**: 시나리오별 상세 가이드는 [docs/USAGE-EXAMPLES.md](docs/USAGE-EXAMPLES.md) 참조.
 
@@ -38,7 +38,6 @@ uv run ai-env sync --claude-only
 동기화 대상:
 - `~/.claude/CLAUDE.md` (Claude Code)
 - `~/.codex/AGENTS.md`, `~/.codex/skills/`, `~/.codex/commands/`, `~/.codex/project-profile.yaml` (Codex CLI)
-- `~/.gemini/GEMINI.md` (Gemini CLI — `providers.gemini.enabled=true`인 경우만)
 
 ## 동작 원리
 
@@ -56,8 +55,7 @@ uv run ai-env sync --claude-only
                     ~/.codex/project-profile.yaml
 ```
 
-기본적으로 Claude + Codex 타겟만 생성됩니다. Gemini/Antigravity/ChatGPT Desktop은
-`config/settings.yaml`의 `providers.<name>.enabled = true`로 활성화할 때만 생성됩니다.
+ai-env는 Claude + Codex 두 타겟만 지원한다 (SPEC-013).
 
 ## CLI 명령어
 
@@ -82,9 +80,7 @@ ai-env sync --skills-exclude <dir>  # 특정 팀 스킬 제외
 # 개별 생성 (stdout)
 ai-env generate all
 ai-env generate claude-desktop [-o FILE]
-ai-env generate chatgpt-desktop [-o FILE]
 ai-env generate codex-desktop [-o FILE]
-ai-env generate antigravity [-o FILE]
 ai-env generate shell [-o FILE]
 
 # 프로젝트 로컬 Claude → Codex 연결
@@ -112,19 +108,15 @@ ai-env session save --note "..." --dry-run               # 본문 미리보기
 
 ## 동기화 대상
 
-| 대상 | provider | 출력 경로 |
-|------|----------|----------|
-| Claude Desktop | claude (기본 활성) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Claude Code (글로벌) | claude (기본 활성) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/`, `hooks/` |
-| Claude Local | claude (기본 활성) | `.claude/settings.glocal.json` |
-| Codex Desktop | codex (기본 활성) | `~/.codex/codex.config.json` |
-| Codex CLI (글로벌) | codex (기본 활성) | `~/.codex/config.toml`, `AGENTS.md`, `skills/`, `commands/`, `project-profile.yaml` |
-| Codex Local | codex (기본 활성) | `.codex/config.toml`, `.codex/skills`, `.codex/commands`, `.codex/project-profile.yaml` |
-| Shell exports | (provider 없음, 항상 생성) | `generated/shell_exports.sh` |
-| ChatGPT Desktop | chatgpt (기본 비활성) | `~/Library/Application Support/ChatGPT/config.json` |
-| Antigravity | antigravity (기본 비활성) | `~/.gemini/antigravity/mcp_config.json` |
-| Gemini CLI (글로벌) | gemini (기본 비활성) | `~/.gemini/settings.json`, `GEMINI.md` |
-| Gemini Local | gemini (기본 비활성) | `.gemini/settings.local.json` |
+| 대상 | 출력 경로 |
+|------|----------|
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Code (글로벌) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/`, `hooks/` |
+| Claude Local | `.claude/settings.glocal.json` |
+| Codex Desktop | `~/.codex/codex.config.json` |
+| Codex CLI (글로벌) | `~/.codex/config.toml`, `AGENTS.md`, `skills/`, `commands/`, `project-profile.yaml` |
+| Codex Local | `.codex/config.toml`, `.codex/skills`, `.codex/commands`, `.codex/project-profile.yaml` |
+| Shell exports | `generated/shell_exports.sh` |
 
 ## 프로젝트별 Claude Skills를 Codex와 공유
 
@@ -214,13 +206,12 @@ my-server:
   command: docker
   args: [run, -i, --rm, my-image]
   env_keys: [MY_TOKEN]  # .env에서 가져올 키
-  targets:              # 배포 대상
+  targets:              # 배포 대상 (claude_desktop, claude_local, codex, codex_desktop)
     - claude_desktop
     - claude_local
-    - antigravity
 ```
 
-> Claude Desktop/ChatGPT Desktop은 stdio만 지원. Codex Desktop은 stdio + SSE(url) 지원.
+> Claude Desktop은 stdio만 지원. Codex Desktop은 stdio + SSE(url) 지원.
 
 ## 개발
 

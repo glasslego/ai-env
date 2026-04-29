@@ -6,27 +6,14 @@ from pathlib import Path
 
 import click
 
-from ..core import get_project_root, get_secrets_manager, load_mcp_config, load_settings
+from ..core import get_project_root, get_secrets_manager, load_mcp_config
 from ..core.sync import (
     _update_team_skill_repos,
     sync_claude_global_config,
     sync_codex_global_config,
-    sync_gemini_global_config,
 )
 from ..mcp import MCPConfigGenerator
 from . import console, main
-
-
-def _provider_enabled(provider_name: str) -> bool:
-    """settings.yaml의 providers[provider_name].enabled 확인.
-
-    정의되지 않은 provider는 기본 활성(True).
-    """
-    settings = load_settings()
-    provider = settings.providers.get(provider_name)
-    if provider is None:
-        return True
-    return provider.enabled
 
 
 @main.command()
@@ -174,28 +161,6 @@ def sync(
             for name, file_path in codex_results.items():
                 console.print(f"  [green]✓[/green] {action} {name}")
                 console.print(f"    → {file_path}")
-
-        # Gemini CLI 글로벌 설정 동기화 (provider가 enabled일 때만)
-        if _provider_enabled("gemini"):
-            console.print("\n[bold cyan]📁 Gemini CLI Global Config[/bold cyan]")
-            console.print(
-                "[dim]   ai-env/.claude/global/CLAUDE.md + skills index → ~/.gemini/GEMINI.md[/dim]"
-            )
-            gemini_results = sync_gemini_global_config(
-                dry_run=dry_run,
-                skills_include=effective_include,
-                skills_exclude=effective_exclude,
-            )
-            if not gemini_results:
-                console.print("  [yellow]○ No files to sync (source not found)[/yellow]")
-            else:
-                for name, file_path in gemini_results.items():
-                    console.print(f"  [green]✓[/green] {action} {name}")
-                    console.print(f"    → {file_path}")
-        else:
-            console.print(
-                "\n[dim]⊘ Gemini CLI 비활성화 (settings.yaml providers.gemini.enabled=false)[/dim]"
-            )
 
     if claude_only:
         if not dry_run:

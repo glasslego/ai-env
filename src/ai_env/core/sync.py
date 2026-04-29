@@ -703,15 +703,3 @@ def sync_codex_global_config(
         skills_exclude,
         extra_assets=True,
     )
-
-
-def sync_gemini_global_config(
-    dry_run: bool = False,
-    skills_include: list[str] | None = None,
-    skills_exclude: list[str] | None = None,
-) -> dict[str, str]:
-    """Gemini CLI 글로벌 설정 동기화
-
-    ai-env/.claude/global/CLAUDE.md + 스킬 인덱스 → ~/.gemini/GEMINI.md
-    """
-    return _sync_agent_global(".gemini", "GEMINI.md", None, dry_run, skills_include, skills_exclude)

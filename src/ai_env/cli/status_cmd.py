@@ -55,12 +55,9 @@ def status() -> None:
 
     target_order = [
         "claude_desktop",
-        "chatgpt_desktop",
         "codex_desktop",
-        "antigravity",
         "claude_local",
         "codex",
-        "gemini",
     ]
     target_rows = []
     for target in target_order:

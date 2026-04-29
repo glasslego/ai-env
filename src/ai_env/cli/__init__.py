@@ -99,7 +99,7 @@ def setup() -> None:
 
     console.print("\n[bold]2. 필수 환경변수 체크[/bold]")
     required_vars = {
-        "AI API Keys": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"],
+        "AI API Keys": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
         "GitHub": ["GITHUB_GLASSLEGO_TOKEN"],
         "Jira/Wiki": [
             "JIRA_URL",

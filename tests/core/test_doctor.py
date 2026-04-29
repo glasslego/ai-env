@@ -85,12 +85,11 @@ class TestCheckEnv:
 
 class TestCheckTools:
     def test_installed_tool(self) -> None:
-        """설치된 도구는 pass"""
+        """설치된 도구는 pass (SPEC-013: claude + codex)"""
         report = DoctorReport()
         with patch("ai_env.core.doctor.shutil.which", return_value="/usr/local/bin/test"):
             check_tools(report)
-        # claude, codex, gemini 3개 모두 검사
-        assert len(report.checks) == 3
+        assert len(report.checks) == 2
         assert all(c.status == "pass" for c in report.checks)
 
     def test_missing_tool(self) -> None:
@@ -98,7 +97,7 @@ class TestCheckTools:
         report = DoctorReport()
         with patch("ai_env.core.doctor.shutil.which", return_value=None):
             check_tools(report)
-        assert len(report.checks) == 3
+        assert len(report.checks) == 2
         assert all(c.status == "warn" for c in report.checks)
 
     def test_partial_installation(self) -> None:
@@ -113,4 +112,3 @@ class TestCheckTools:
         statuses = {c.name: c.status for c in report.checks}
         assert statuses["claude"] == "pass"
         assert statuses["codex"] == "warn"
-        assert statuses["gemini"] == "warn"
