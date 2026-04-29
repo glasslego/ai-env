@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-ai-env는 AI 개발 환경(Claude, Gemini, Codex, ChatGPT 등)의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다.
+ai-env는 AI 개발 환경(주로 **Claude Code + Codex CLI**)의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. Gemini/Antigravity/ChatGPT Desktop은 코드는 유지되지만 기본 비활성(`providers.*.enabled = false`).
 
 **핵심 가치**: 토큰·MCP 설정을 중앙화하고, 각 AI 도구 형식으로 자동 변환·배포한다.
 
@@ -21,6 +21,7 @@ uv sync --all-extras && pre-commit install  # 초기 설정
 uv run ai-env status                        # 상태 확인
 uv run ai-env sync --dry-run                # 동기화 미리보기
 uv run ai-env sync                          # 전체 동기화
+uv run ai-env session save --note "메모"    # Obsidian에 세션 노트 저장 (SPEC-013)
 uv run pytest                               # 테스트 (커버리지 자동 측정, 최소 65%)
 uv run ruff check . && uv run ruff format . # 린트·포맷
 ```
@@ -31,16 +32,19 @@ uv run ruff check . && uv run ruff format . # 린트·포맷
 config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 .env                                      ← 시크릿 (gitignore)
          ↓ (ai-env sync)
+[기본 활성: Claude + Codex]
 ├─ Claude Desktop  (claude_desktop_config.json)
-├─ ChatGPT Desktop (config.json)
-├─ Codex Desktop   (~/.codex/codex.config.json)
-├─ Antigravity     (mcp_config.json)
-├─ Claude Code Global (~/.claude/settings.json, CLAUDE.md, commands/, skills/)
+├─ Claude Code Global (~/.claude/settings.json, CLAUDE.md, commands/, skills/, hooks/)
 ├─ Claude Local    (.claude/settings.glocal.json)
-├─ Codex Global    (~/.codex/config.toml, AGENTS.md)
-├─ Codex Local     (.codex/config.toml)
-├─ Gemini CLI      (~/.gemini/settings.json, GEMINI.md, .gemini/settings.local.json)
+├─ Codex Desktop   (~/.codex/codex.config.json)
+├─ Codex Global    (~/.codex/config.toml, AGENTS.md, commands/, skills/, project-profile.yaml)
+├─ Codex Local     (.codex/config.toml, .codex/skills, .codex/commands, .codex/project-profile.yaml)
 └─ Shell exports   (shell_exports.sh)
+
+[기본 비활성 — settings.yaml에서 enabled=true 시 동작]
+├─ ChatGPT Desktop (config.json)
+├─ Antigravity     (mcp_config.json)
+└─ Gemini CLI      (~/.gemini/settings.json, GEMINI.md)
 ```
 
 ### 핵심 모듈
@@ -49,7 +53,8 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 |------|------|
 | `core/config.py` | Pydantic 모델, YAML 설정 로드 |
 | `core/secrets.py` | `.env` 환경변수 관리, `${VAR}` 치환 |
-| `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex, Gemini) |
+| `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex; Gemini는 enabled 시) |
+| `core/session_save.py` | Obsidian vault에 세션 컨텍스트(메모+git 스냅샷) 저장 (SPEC-013) |
 | `core/doctor.py` | 환경 건강 검사 (`ai-env doctor`) |
 | `core/pipeline.py` | 토픽 YAML 모델, 리서치 파이프라인 유틸 |
 | `core/research.py` | Deep Research API 디스패치 (Gemini/OpenAI) |
@@ -59,7 +64,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `core/codex_skills.py` | Codex 호환 스킬 패키징 (SKILL.md frontmatter 정규화) |
 | `mcp/vibe.py` | Agent Fallback 셸 함수 생성 (`claude()` wrapper) |
 | `core/env_example.py` | `.env.example` 자동 생성 — mcp_servers.yaml + settings.yaml 기반 |
-| `cli/` | Click CLI + Rich UI (doctor, generate, project, status, sync, pipeline) |
+| `cli/` | Click CLI + Rich UI (doctor, generate, project, session, status, sync, pipeline) |
 
 ### 환경변수 치환
 
@@ -194,3 +199,29 @@ API 키: `.env`의 `GOOGLE_API_KEY`, `OPENAI_API_KEY` 사용.
 - SSE 서버는 Claude/ChatGPT Desktop에서 미지원 (stdio만). Codex Desktop은 SSE(url) 지원
 - glocal = "global template for local" (MCP generator가 생성, git 추적)
 - local = 프로젝트별 permissions (sync가 덮어쓰지 않음)
+
+### Obsidian 세션 저장 (SPEC-013)
+
+스킬/대화 도중 현재 세션 컨텍스트를 Obsidian vault에 마크다운 노트로 보존한다.
+`/handoff`(다음 세션 인계용)와 달리 외부 vault에 영구 저장되어 검색·연결이 가능하다.
+
+```bash
+ai-env session save --note "이번 세션 메모"        # 기본: ~/Documents/Obsidian/PARA-2025/00_Sessions/
+ai-env session save --note "..." --subdir 01_Inbox  # 다른 디렉토리
+ai-env session save --note "..." --dry-run          # 본문 미리보기
+```
+
+`config/settings.yaml`의 `obsidian_base`로 vault 경로를 변경할 수 있다.
+스킬은 `.claude/skills/session-save/SKILL.md`이며, **Codex CLI에서도 동일하게 동작**한다
+(CLI 의존이라 `~/.codex/skills/session-save/`로 정규화 동기화됨).
+
+### Codex가 Claude 자산을 활용하는 범위 (SPEC-013 AC-2)
+
+`ai-env sync` 1회 실행으로 Codex CLI도 Claude의 다음 자산을 사용한다:
+
+- `~/.codex/AGENTS.md` — Claude 글로벌 지침 + 스킬 인덱스
+- `~/.codex/skills/` — SKILL.md frontmatter strict YAML로 정규화된 복사본
+- `~/.codex/commands/` — `.claude/commands/*.md` (phases/ 포함) 트리 미러 (참조용)
+- `~/.codex/project-profile.yaml` — 프로젝트 프로파일 미러
+
+프로젝트 로컬은 `ai-env project sync-codex`로 동일한 구조의 `.codex/`를 만든다.

@@ -2,6 +2,16 @@
 
 SPEC 문서 관련 변경 이력은 이 파일에서만 관리합니다.
 
+## v1.4 (2026-04-30)
+
+- `SPEC-013-claude-codex-focused-and-session-save.md` 추가 (status: implemented)
+  - Claude Code + Codex 중심으로 사용 범위 정리 (Gemini/Antigravity/ChatGPT 기본 비활성)
+  - Codex의 Claude 자산 활용 강화: `~/.codex/commands/`, `~/.codex/project-profile.yaml` 미러
+  - `ai-env session save` CLI + `.claude/skills/session-save/SKILL.md` 신규 추가
+    (Obsidian vault에 세션 컨텍스트 저장)
+- 신규 모듈: `core/session_save.py`, `cli/session_cmd.py`
+- 테스트: +32개 (총 309), 커버리지 70.07%
+
 ## v1.0 (2026-02-14)
 
 - 초기 SPEC 문서 6개 작성 (구현 기반 역방향 설계 문서)

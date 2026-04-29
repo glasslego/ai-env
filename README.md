@@ -1,6 +1,8 @@
 # ai-env
 
-AI 도구(Claude, Gemini, Codex 등)의 MCP 서버와 설정을 한 곳에서 관리하는 CLI.
+**Claude Code + Codex CLI** 중심 AI 개발 환경의 MCP 서버와 설정을 한 곳에서 관리하는 CLI.
+Gemini/Antigravity/ChatGPT Desktop은 코드는 유지되지만 기본 비활성 (`config/settings.yaml`의
+`providers.*.enabled = true`로 다시 켤 수 있음).
 
 > **사용 예시**: 시나리오별 상세 가이드는 [docs/USAGE-EXAMPLES.md](docs/USAGE-EXAMPLES.md) 참조.
 
@@ -35,8 +37,8 @@ uv run ai-env sync --claude-only
 
 동기화 대상:
 - `~/.claude/CLAUDE.md` (Claude Code)
-- `~/.codex/AGENTS.md`, `~/.codex/skills/` (Codex CLI)
-- `~/.gemini/GEMINI.md` (Gemini CLI)
+- `~/.codex/AGENTS.md`, `~/.codex/skills/`, `~/.codex/commands/`, `~/.codex/project-profile.yaml` (Codex CLI)
+- `~/.gemini/GEMINI.md` (Gemini CLI — `providers.gemini.enabled=true`인 경우만)
 
 ## 동작 원리
 
@@ -47,10 +49,15 @@ uv run ai-env sync --claude-only
                          │
         ┌────────────────┼────────────────┐
         ▼                ▼                ▼
-  Claude Desktop    Gemini/Codex     ~/.claude/
-  ChatGPT Desktop   Codex Desktop  (commands, skills)
-                    Antigravity    shell_exports.sh
+  Claude Desktop    Codex CLI/Desktop  ~/.claude/
+  Claude Local      ~/.codex/AGENTS.md  (commands, skills, hooks)
+                    ~/.codex/skills/   shell_exports.sh
+                    ~/.codex/commands/
+                    ~/.codex/project-profile.yaml
 ```
+
+기본적으로 Claude + Codex 타겟만 생성됩니다. Gemini/Antigravity/ChatGPT Desktop은
+`config/settings.yaml`의 `providers.<name>.enabled = true`로 활성화할 때만 생성됩니다.
 
 ## CLI 명령어
 
@@ -95,23 +102,29 @@ ai-env pipeline dispatch <topic_id>      # Deep Research API 디스패치
 ai-env pipeline status <topic_id>        # 리서치 진행 상황
 ai-env pipeline scaffold <topic_id>      # Obsidian 워크스페이스 생성
 ai-env pipeline workflow <topic_id>      # 워크플로우 진행 상태
+
+# Obsidian 세션 저장 (SPEC-013)
+ai-env session save --note "<메모>"                      # 기본 vault의 00_Sessions/에 저장
+ai-env session save --note "..." --subdir 01_Inbox      # 다른 디렉토리
+ai-env session save --note "..." --vault ~/Vaults/Other  # 다른 vault
+ai-env session save --note "..." --dry-run               # 본문 미리보기
 ```
 
 ## 동기화 대상
 
-| 대상 | 출력 경로 |
-|------|----------|
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| ChatGPT Desktop | `~/Library/Application Support/ChatGPT/config.json` |
-| Codex Desktop | `~/.codex/codex.config.json` |
-| Claude Code (글로벌) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/` |
-| Codex CLI (글로벌) | `~/.codex/config.toml`, `AGENTS.md`, `skills/` |
-| Gemini CLI (글로벌) | `~/.gemini/settings.json`, `GEMINI.md` |
-| Antigravity | `~/.gemini/antigravity/mcp_config.json` |
-| Claude Local | `.claude/settings.glocal.json` |
-| Codex Local | `.codex/config.toml` |
-| Gemini Local | `.gemini/settings.local.json` |
-| Shell exports | `generated/shell_exports.sh` |
+| 대상 | provider | 출력 경로 |
+|------|----------|----------|
+| Claude Desktop | claude (기본 활성) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Code (글로벌) | claude (기본 활성) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/`, `hooks/` |
+| Claude Local | claude (기본 활성) | `.claude/settings.glocal.json` |
+| Codex Desktop | codex (기본 활성) | `~/.codex/codex.config.json` |
+| Codex CLI (글로벌) | codex (기본 활성) | `~/.codex/config.toml`, `AGENTS.md`, `skills/`, `commands/`, `project-profile.yaml` |
+| Codex Local | codex (기본 활성) | `.codex/config.toml`, `.codex/skills`, `.codex/commands`, `.codex/project-profile.yaml` |
+| Shell exports | (provider 없음, 항상 생성) | `generated/shell_exports.sh` |
+| ChatGPT Desktop | chatgpt (기본 비활성) | `~/Library/Application Support/ChatGPT/config.json` |
+| Antigravity | antigravity (기본 비활성) | `~/.gemini/antigravity/mcp_config.json` |
+| Gemini CLI (글로벌) | gemini (기본 비활성) | `~/.gemini/settings.json`, `GEMINI.md` |
+| Gemini Local | gemini (기본 비활성) | `.gemini/settings.local.json` |
 
 ## 프로젝트별 Claude Skills를 Codex와 공유
 
@@ -125,8 +138,26 @@ ai-env project sync-codex
 
 - `CLAUDE.md` → `AGENTS.md` (기본: 심볼릭 링크)
 - `.claude/skills/` → `.codex/skills/` (Codex 호환 YAML로 정규화 복사)
+- `.claude/commands/` → `.codex/commands/` (참조용 .md 트리 복사, SPEC-013)
+- `.claude/project-profile.yaml` → `.codex/project-profile.yaml` (SPEC-013)
 
 기존 일반 파일/디렉토리가 있으면 `.bak.<timestamp>`로 백업 후 교체합니다.
+
+## 세션을 Obsidian에 저장 (SPEC-013)
+
+대화·스킬 도중 현재 컨텍스트를 Obsidian vault의 마크다운 노트로 보존합니다.
+`/handoff`(다음 세션 인계용)와 달리 외부 vault에 영구 저장되어 검색·연결 가능합니다.
+
+```bash
+ai-env session save --note "메모"                            # 기본 vault/00_Sessions/
+ai-env session save --note "..." --title "회의 결정"          # 제목 지정
+ai-env session save --note "..." --subdir 01_Inbox           # 다른 폴더
+ai-env session save --note "..." --vault ~/Vaults/Other      # 다른 vault
+ai-env session save --note "..." --dry-run                   # 본문 미리보기
+```
+
+vault 기본 경로는 `config/settings.yaml`의 `obsidian_base`로 설정합니다.
+스킬은 `.claude/skills/session-save/SKILL.md`이며 Codex CLI에서도 동일하게 동작합니다.
 
 ## claude --fallback
 

@@ -18,6 +18,9 @@ cmux_enabled: true
 
 # === AI Providers ===
 # 모델은 각 도구에서 최신 버전을 자동으로 사용합니다
+# 현재 사용 범위: Claude Code + Codex (SPEC-013)
+# 그 외(Gemini, Antigravity, ChatGPT Desktop)는 enabled=false로 비활성화.
+# 다시 사용하려면 enabled를 true로 변경하면 됨.
 providers:
   claude:
     enabled: true
@@ -28,11 +31,14 @@ providers:
     env_key: OPENAI_API_KEY
 
   gemini:
-    enabled: true
+    enabled: false
     env_key: GOOGLE_API_KEY
 
   antigravity:
-    enabled: true
+    enabled: false
+
+  chatgpt:
+    enabled: false
 
 # === Agent 우선순위 (claude --fallback) ===
 # claude --fallback이 이 순서대로 에이전트를 시도
@@ -48,6 +54,11 @@ agent_priority:
 # 미설정 시 macOS temp 사용 후 삭제 (기존 동작)
 # 환경변수 CLAUDE_FALLBACK_LOG_DIR로 오버라이드 가능
 fallback_log_dir: .claude/logs
+
+# Obsidian vault 루트 (ai-env session save에서 사용)
+# session-save 스킬/CLI가 이 경로 하위 00_Sessions/에 노트를 저장한다.
+# 미설정 시 ~/Documents/Obsidian/PARA-2025 사용
+obsidian_base: ~/Documents/Obsidian/PARA-2025
 
 # === 출력 경로 (글로벌 설정) ===
 outputs:

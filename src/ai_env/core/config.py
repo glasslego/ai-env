@@ -53,6 +53,7 @@ class Settings(BaseModel):
     cmux_enabled: bool = True
     agent_priority: list[str] = Field(default_factory=lambda: ["claude", "codex"])
     fallback_log_dir: str | None = None
+    obsidian_base: str | None = None
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
 

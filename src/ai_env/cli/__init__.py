@@ -201,6 +201,7 @@ from . import (  # noqa: E402, F401
     generate_cmd,
     pipeline_cmd,
     project_cmd,
+    session_cmd,
     status_cmd,
     sync_cmd,
 )

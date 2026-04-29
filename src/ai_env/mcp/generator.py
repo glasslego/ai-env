@@ -243,10 +243,45 @@ class MCPConfigGenerator:
                 raise OSError(f"Failed to write {name} to {path}: {e}") from e
         return path
 
+    # 출력 타겟 → provider 매핑.
+    # provider가 disabled면 해당 타겟의 config를 생성하지 않는다.
+    # claude_*, codex_*, shell_exports는 provider 없는 키(None)로 항상 생성.
+    _OUTPUT_PROVIDER_MAP: dict[str, str | None] = {
+        "claude_desktop": "claude",
+        "claude_local": "claude",
+        "chatgpt_desktop": "chatgpt",
+        "codex_desktop": "codex",
+        "codex_global": "codex",
+        "codex_local": "codex",
+        "antigravity": "antigravity",
+        "gemini_global": "gemini",
+        "gemini_local": "gemini",
+        "shell_exports": None,
+    }
+
+    def _is_target_enabled(self, output_name: str) -> bool:
+        """출력 타겟이 활성화되어 있는지 확인.
+
+        provider 없는 출력(shell_exports)은 항상 활성화.
+        provider가 settings.providers에 정의되어 있고 enabled=False면 비활성화.
+        provider 정의가 없으면 활성화 (기본값).
+        """
+        provider_name = self._OUTPUT_PROVIDER_MAP.get(output_name)
+        if provider_name is None:
+            return True
+        provider = self.settings.providers.get(provider_name)
+        if provider is None:
+            return True
+        return provider.enabled
+
     def save_all(self, dry_run: bool = False) -> dict[str, Path]:
-        """모든 설정 파일 저장"""
+        """모든 설정 파일 저장.
+
+        `settings.providers[*].enabled = false`인 provider의 출력은 스킵한다.
+        Claude Code + Codex만 활성화된 기본 환경에서는 Gemini/Antigravity/
+        ChatGPT 관련 파일이 생성되지 않는다.
+        """
         codex_config = self.generate_codex()
-        gemini_config = self.generate_gemini()
 
         configs: list[tuple[str, str, Any]] = [
             (
@@ -266,10 +301,8 @@ class MCPConfigGenerator:
             ),
             ("antigravity", self.settings.outputs.antigravity, self.generate_antigravity()),
             ("codex_global", self.settings.outputs.codex_global, codex_config),
-            ("gemini_global", self.settings.outputs.gemini_global, gemini_config),
             ("claude_local", self.settings.outputs.claude_local, self.generate_claude_local()),
             ("codex_local", self.settings.outputs.codex_local, codex_config),
-            ("gemini_local", self.settings.outputs.gemini_local, gemini_config),
             (
                 "shell_exports",
                 self.settings.outputs.shell_exports,
@@ -277,6 +310,14 @@ class MCPConfigGenerator:
             ),
         ]
 
+        # Gemini config는 활성화된 경우에만 생성 (generate_gemini 호출 자체 회피)
+        if self._is_target_enabled("gemini_global") or self._is_target_enabled("gemini_local"):
+            gemini_config = self.generate_gemini()
+            configs.append(("gemini_global", self.settings.outputs.gemini_global, gemini_config))
+            configs.append(("gemini_local", self.settings.outputs.gemini_local, gemini_config))
+
         return {
-            name: self._save_config(name, path, content, dry_run) for name, path, content in configs
+            name: self._save_config(name, path, content, dry_run)
+            for name, path, content in configs
+            if self._is_target_enabled(name)
         }

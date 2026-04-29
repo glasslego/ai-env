@@ -167,14 +167,19 @@ def sync_project_claude_to_codex(
     dry_run: bool = False,
     sync_agents: bool = True,
     sync_skills: bool = True,
+    sync_assets: bool = True,
 ) -> list[ProjectSyncResult]:
     """프로젝트의 Claude 자산을 Codex가 사용할 수 있게 동기화.
 
     기본 정책:
     - `CLAUDE.md` → `AGENTS.md`
     - `.claude/skills/` → `.codex/skills/`
+    - `.claude/commands/` → `.codex/commands/` (sync_assets=True)
+    - `.claude/project-profile.yaml` → `.codex/project-profile.yaml` (sync_assets=True)
     - `AGENTS.md`는 기본 모드에서 심볼릭 링크이며, `use_copy=True`면 복사한다.
     - skills는 항상 Codex 호환 YAML frontmatter로 정규화된 복사본을 만든다.
+    - commands/와 profile은 단순 복사 (Codex는 슬래시 커맨드를 직접 실행하지
+      않지만 워크플로우 정의 MD를 참조 자료로 활용 가능).
     - 기존 일반 파일/디렉토리는 `.bak.<timestamp>`로 백업 후 교체한다.
 
     Args:
@@ -183,6 +188,7 @@ def sync_project_claude_to_codex(
         dry_run: True면 실제 파일 변경 없이 결과만 계산.
         sync_agents: True면 `CLAUDE.md` → `AGENTS.md` 동기화.
         sync_skills: True면 `.claude/skills` → `.codex/skills` 동기화.
+        sync_assets: True면 commands/와 project-profile.yaml도 동기화.
 
     Returns:
         동기화 결과 목록.
@@ -209,5 +215,18 @@ def sync_project_claude_to_codex(
                 dry_run,
             )
         )
+
+    if sync_assets:
+        commands_src = resolved_project_dir / ".claude" / "commands"
+        commands_dst = resolved_project_dir / ".codex" / "commands"
+        if commands_src.is_dir():
+            results.append(_sync_one(".codex/commands", commands_src, commands_dst, True, dry_run))
+
+        profile_src = resolved_project_dir / ".claude" / "project-profile.yaml"
+        profile_dst = resolved_project_dir / ".codex" / "project-profile.yaml"
+        if profile_src.is_file():
+            results.append(
+                _sync_one(".codex/project-profile.yaml", profile_src, profile_dst, True, dry_run)
+            )
 
     return results

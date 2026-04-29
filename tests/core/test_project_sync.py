@@ -86,6 +86,52 @@ def test_sync_project_claude_to_codex_dry_run(tmp_path: Path) -> None:
 
     results = sync_project_claude_to_codex(project_dir, dry_run=True)
 
-    assert [result.status for result in results] == ["linked", "copied"]
+    statuses = [result.status for result in results]
+    assert statuses[0] == "linked"
+    assert statuses[1] == "copied"
     assert not (project_dir / "AGENTS.md").exists()
     assert not (project_dir / ".codex" / "skills").exists()
+
+
+def test_sync_project_claude_to_codex_mirrors_commands_and_profile(
+    tmp_path: Path,
+) -> None:
+    """SPEC-013 AC-2: 프로젝트 sync도 commands/와 project-profile.yaml 미러."""
+    project_dir = tmp_path / "sample-project"
+    (project_dir / ".claude" / "skills" / "x").mkdir(parents=True)
+    (project_dir / ".claude" / "skills" / "x" / "SKILL.md").write_text("# x")
+    (project_dir / "CLAUDE.md").write_text("# Project Claude")
+
+    commands_dir = project_dir / ".claude" / "commands"
+    commands_dir.mkdir()
+    (commands_dir / "workflow.md").write_text("# workflow")
+    (project_dir / ".claude" / "project-profile.yaml").write_text("project: t\n")
+
+    results = sync_project_claude_to_codex(project_dir, use_copy=True)
+
+    # AGENTS.md, skills, commands, project-profile 4개
+    names = [r.name for r in results]
+    assert "AGENTS.md" in names
+    assert ".codex/skills" in names
+    assert ".codex/commands" in names
+    assert ".codex/project-profile.yaml" in names
+
+    assert (project_dir / ".codex" / "commands" / "workflow.md").exists()
+    assert (project_dir / ".codex" / "project-profile.yaml").exists()
+
+
+def test_sync_project_claude_to_codex_skip_assets(tmp_path: Path) -> None:
+    """sync_assets=False면 commands/profile 미러 스킵."""
+    project_dir = tmp_path / "sample-project"
+    (project_dir / ".claude" / "skills" / "x").mkdir(parents=True)
+    (project_dir / ".claude" / "skills" / "x" / "SKILL.md").write_text("# x")
+    (project_dir / "CLAUDE.md").write_text("# Project Claude")
+
+    commands_dir = project_dir / ".claude" / "commands"
+    commands_dir.mkdir()
+    (commands_dir / "x.md").write_text("# x")
+
+    results = sync_project_claude_to_codex(project_dir, use_copy=True, sync_assets=False)
+    names = [r.name for r in results]
+    assert ".codex/commands" not in names
+    assert not (project_dir / ".codex" / "commands").exists()

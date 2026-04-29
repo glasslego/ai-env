@@ -409,6 +409,78 @@ def test_sync_codex_no_source(tmp_path, mock_secrets_manager):
     assert results == {}
 
 
+def test_sync_codex_includes_commands_and_profile(tmp_path, mock_secrets_manager):
+    """SPEC-013 AC-2: Codex sync 시 commands/와 project-profile.yaml도 미러."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global")
+
+    # commands/ 트리: 루트 .md + phases/ 하위 .md
+    commands_dir = project_root / ".claude" / "commands"
+    commands_dir.mkdir(parents=True)
+    (commands_dir / "workflow.md").write_text("# workflow")
+    (commands_dir / "phases").mkdir()
+    (commands_dir / "phases" / "wf-init.md").write_text("# wf-init")
+
+    # project-profile.yaml
+    (project_root / ".claude" / "project-profile.yaml").write_text("project:\n  name: t\n")
+
+    target_root = tmp_path / "home" / ".codex"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config()
+
+    # 결과에 commands/와 project-profile.yaml이 포함되어야 함
+    assert any("commands/" in key for key in results), f"missing commands in {results}"
+    assert "project-profile.yaml" in results
+
+    # 실제 파일 검증
+    assert (target_root / "commands" / "workflow.md").exists()
+    assert (target_root / "commands" / "phases" / "wf-init.md").exists()
+    assert (target_root / "project-profile.yaml").exists()
+
+
+def test_sync_codex_commands_overwrite_clean(tmp_path, mock_secrets_manager):
+    """Codex sync 두 번 호출해도 commands/ 트리가 깔끔하게 갱신됨."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# G")
+
+    commands_dir = project_root / ".claude" / "commands"
+    commands_dir.mkdir(parents=True)
+    (commands_dir / "first.md").write_text("# 1")
+
+    target_root = tmp_path / "home" / ".codex"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        sync_codex_global_config()
+
+    # 1차 sync 결과: first.md만 존재
+    assert (target_root / "commands" / "first.md").exists()
+
+    # 소스에서 first.md 제거하고 second.md 추가
+    (commands_dir / "first.md").unlink()
+    (commands_dir / "second.md").write_text("# 2")
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        sync_codex_global_config()
+
+    # 2차 sync 결과: first.md는 사라지고 second.md가 있어야 함
+    assert not (target_root / "commands" / "first.md").exists()
+    assert (target_root / "commands" / "second.md").exists()
+
+
 def test_sync_gemini_global_config(tmp_path, mock_secrets_manager):
     """CLAUDE.md → ~/.gemini/GEMINI.md 동기화 확인."""
     project_root = tmp_path / "ai-env"
