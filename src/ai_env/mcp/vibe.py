@@ -121,7 +121,7 @@ _ai_env_sync_skills() {{
 # === AI Agent Fallback (claude --fallback) ===
 # Priority: {priority_display}
 # Usage: claude --fallback [args...]           - 우선순위대로 에이전트 시도, 실패 시 자동 전환
-#        claude --fallback --to gemini [args..] - fallback 대상 지정 (쉼표 구분 가능: gemini,codex)
+#        claude --fallback --to codex [args..]  - fallback 대상 지정 (쉼표 구분 가능)
 #        claude --fallback -2 [args...]         - 2순위 에이전트부터 시작 (예: codex)
 #        claude --fallback --auto [args...]      - 모든 에이전트 자동 승인 모드 (권한 확인 건너뜀)
 #        claude --fallback -l                   - 에이전트 우선순위 목록 출력
@@ -529,7 +529,7 @@ claude() {{
             --to)
                 shift
                 if [[ -z "$1" ]]; then
-                    printf '\\033[31m❌ --to 옵션에 에이전트를 지정하세요 (예: --to gemini)\\033[0m\\n'
+                    printf '\\033[31m❌ --to 옵션에 에이전트를 지정하세요 (예: --to codex)\\033[0m\\n'
                     _restore_xtrace
                     return 1
                 fi

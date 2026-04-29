@@ -33,10 +33,8 @@ class MCPConfigGenerator:
         "WebFetch",
         "mcp__*",
     ]
-    CODEX_PERMISSION_ALLOW: list[str] = []
-    CODEX_PERMISSION_DENY: list[str] = []
+    # Codex 0.113+ config.toml에 주입할 환경변수 (teammate mode 호환용).
     CODEX_PERMISSION_ENV_DEFAULTS = {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}
-    CODEX_TEAMMATE_MODE = "tmux"
 
     # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
     ENV_KEY_MAPPING = {

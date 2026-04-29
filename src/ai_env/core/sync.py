@@ -550,114 +550,6 @@ def _build_skills_index(
     return "\n".join(lines)
 
 
-def _sync_agent_global_md(
-    target_dir_name: str,
-    target_filename: str,
-    dry_run: bool,
-    skills_include: list[str] | None = None,
-    skills_exclude: list[str] | None = None,
-) -> dict[str, str]:
-    """에이전트별 글로벌 MD 파일 동기화 (공통 로직)
-
-    ai-env/.claude/global/CLAUDE.md → ~/.<target_dir_name>/<target_filename>
-    스킬 인덱스를 하단에 추가한다.
-
-    Args:
-        target_dir_name: 홈 디렉토리 하위 폴더 이름 (예: ".codex", ".gemini")
-        target_filename: 대상 파일 이름 (예: "AGENTS.md", "GEMINI.md")
-        dry_run: True면 실제 복사하지 않음
-        skills_include: 포함할 팀 스킬 디렉토리 이름
-        skills_exclude: 제외할 팀 스킬 디렉토리 이름
-    """
-    project_root = get_project_root()
-    source = project_root / ".claude" / "global" / "CLAUDE.md"
-
-    if not source.exists():
-        return {}
-
-    # 원본 내용 + 스킬 인덱스 append
-    content = source.read_text(encoding="utf-8")
-    skills_index = _build_skills_index(project_root, skills_include, skills_exclude)
-    if skills_index:
-        content = content.rstrip() + "\n" + skills_index
-
-    dst = Path.home() / target_dir_name / target_filename
-    if not dry_run:
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_text(content, encoding="utf-8")
-
-    return {target_filename: str(dst)}
-
-
-def _sync_agent_global(
-    target_dir_name: str,
-    target_filename: str,
-    skills_copy_fn: Callable[[Path, Path], None] | None,
-    dry_run: bool,
-    skills_include: list[str] | None,
-    skills_exclude: list[str] | None,
-    *,
-    extra_assets: bool = False,
-) -> dict[str, str]:
-    """에이전트별 글로벌 설정 동기화 (공통 로직)
-
-    Args:
-        target_dir_name: 홈 디렉토리 하위 폴더 이름 (예: ".codex", ".gemini")
-        target_filename: 대상 파일 이름 (예: "AGENTS.md", "GEMINI.md")
-        skills_copy_fn: 스킬 복사 함수 (None이면 스킬 동기화 건너뜀)
-        dry_run: True면 실제 복사하지 않음
-        skills_include: 포함할 팀 스킬 디렉토리 이름
-        skills_exclude: 제외할 팀 스킬 디렉토리 이름
-        extra_assets: True면 commands/, project-profile.yaml도 함께 미러
-            (Codex가 Claude 자산을 최대한 활용할 수 있도록 추가).
-    """
-    results = _sync_agent_global_md(
-        target_dir_name, target_filename, dry_run, skills_include, skills_exclude
-    )
-    if not results:
-        return results
-
-    project_root = get_project_root()
-
-    # 스킬 파일 동기화 (copy_fn이 있는 에이전트만)
-    if skills_copy_fn is not None:
-        skills_dir = Path.home() / target_dir_name / "skills"
-        desc, count = _sync_skills_merged(
-            project_root,
-            skills_dir,
-            dry_run,
-            skills_include,
-            skills_exclude,
-            copy_fn=skills_copy_fn,
-        )
-        if count:
-            results[desc] = str(skills_dir)
-
-    # Codex 같은 에이전트에 commands/와 project-profile.yaml을 함께 제공
-    # Claude 슬래시 커맨드 정의를 그대로 읽을 수 있도록 한다 (참조 용도).
-    if extra_assets:
-        agent_root = Path.home() / target_dir_name
-
-        # commands/ — .md만 복사 (phases 서브디렉토리 포함)
-        src_commands = project_root / ".claude" / "commands"
-        dst_commands = agent_root / "commands"
-        if src_commands.is_dir():
-            md_count = _copy_commands_tree(src_commands, dst_commands, dry_run)
-            if md_count:
-                results[f"commands/ ({md_count} files)"] = str(dst_commands)
-
-        # project-profile.yaml — 그대로 복사
-        src_profile = project_root / ".claude" / "project-profile.yaml"
-        dst_profile = agent_root / "project-profile.yaml"
-        if src_profile.is_file():
-            if not dry_run:
-                dst_profile.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src_profile, dst_profile)
-            results["project-profile.yaml"] = str(dst_profile)
-
-    return results
-
-
 def _copy_commands_tree(src: Path, dst: Path, dry_run: bool) -> int:
     """commands/ 트리에서 .md 파일만 보존 복사 (서브디렉토리 포함).
 
@@ -691,15 +583,57 @@ def sync_codex_global_config(
 
     ai-env/.claude/global/CLAUDE.md + 스킬 인덱스 → ~/.codex/AGENTS.md
     ai-env/.claude/skills + team skills 병합 → ~/.codex/skills
-    ai-env/.claude/commands/ MD 트리 → ~/.codex/commands (참조)
+    ai-env/.claude/commands/ MD 트리 → ~/.codex/commands (참조 자료)
     ai-env/.claude/project-profile.yaml → ~/.codex/project-profile.yaml
     """
-    return _sync_agent_global(
-        ".codex",
-        "AGENTS.md",
-        copy_skill_tree_for_codex,
+    project_root = get_project_root()
+    source = project_root / ".claude" / "global" / "CLAUDE.md"
+
+    if not source.exists():
+        return {}
+
+    # 1) AGENTS.md = CLAUDE.md + 스킬 인덱스
+    content = source.read_text(encoding="utf-8")
+    skills_index = _build_skills_index(project_root, skills_include, skills_exclude)
+    if skills_index:
+        content = content.rstrip() + "\n" + skills_index
+
+    agent_root = Path.home() / ".codex"
+    agents_md = agent_root / "AGENTS.md"
+    if not dry_run:
+        agents_md.parent.mkdir(parents=True, exist_ok=True)
+        agents_md.write_text(content, encoding="utf-8")
+
+    results: dict[str, str] = {"AGENTS.md": str(agents_md)}
+
+    # 2) skills/ — Codex 호환 frontmatter로 정규화하여 복사
+    skills_dir = agent_root / "skills"
+    desc, count = _sync_skills_merged(
+        project_root,
+        skills_dir,
         dry_run,
         skills_include,
         skills_exclude,
-        extra_assets=True,
+        copy_fn=copy_skill_tree_for_codex,
     )
+    if count:
+        results[desc] = str(skills_dir)
+
+    # 3) commands/ — Claude 슬래시 커맨드 정의 트리를 참조 자료로 미러
+    src_commands = project_root / ".claude" / "commands"
+    if src_commands.is_dir():
+        dst_commands = agent_root / "commands"
+        md_count = _copy_commands_tree(src_commands, dst_commands, dry_run)
+        if md_count:
+            results[f"commands/ ({md_count} files)"] = str(dst_commands)
+
+    # 4) project-profile.yaml — 그대로 복사
+    src_profile = project_root / ".claude" / "project-profile.yaml"
+    if src_profile.is_file():
+        dst_profile = agent_root / "project-profile.yaml"
+        if not dry_run:
+            dst_profile.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_profile, dst_profile)
+        results["project-profile.yaml"] = str(dst_profile)
+
+    return results
