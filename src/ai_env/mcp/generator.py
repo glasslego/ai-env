@@ -21,11 +21,17 @@ class MCPConfigGenerator:
     """MCP 설정 파일 생성기"""
 
     CODEX_DEFAULT_STARTUP_TIMEOUT_SEC = 30
+    # 파괴적 삭제 명령 deny 목록 (rm -rf, hdfs dfs -rm -r 등).
+    # HDFS 삭제는 어떤 형태로도 절대 허용하지 않는다 (-rm -r/-rm -rf/-rm -r -f/-rmr 모두 차단).
     RM_RF_DENY_RULES = [
         "Bash(rm -rf /)",
         "Bash(rm -rf /*)",
         "Bash(rm -rf ~)",
         "Bash(rm -rf ~/*)",
+        "Bash(hdfs dfs -rm -r:*)",
+        "Bash(hdfs dfs -rm -rf:*)",
+        "Bash(hdfs dfs -rm -r -f:*)",
+        "Bash(hdfs dfs -rmr:*)",
     ]
     CLAUDE_PERMISSION_ALLOW = [
         "Bash(*)",

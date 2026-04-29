@@ -15,7 +15,11 @@
       "Bash(rm -rf /)",
       "Bash(rm -rf /*)",
       "Bash(rm -rf ~)",
-      "Bash(rm -rf ~/*)"
+      "Bash(rm -rf ~/*)",
+      "Bash(hdfs dfs -rm -r:*)",
+      "Bash(hdfs dfs -rm -rf:*)",
+      "Bash(hdfs dfs -rm -r -f:*)",
+      "Bash(hdfs dfs -rmr:*)"
     ],
     "ask": [],
     "defaultMode": "acceptEdits"

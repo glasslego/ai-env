@@ -149,3 +149,28 @@ class TestSaveAllTargets:
             "codex_local",
             "shell_exports",
         }
+
+
+class TestDestructiveDenyRules:
+    """파괴적 삭제 명령 deny 규칙 회귀 가드.
+
+    rm -rf 와 hdfs dfs -rm -r 계열은 어떤 형태로도 차단되어야 한다.
+    """
+
+    def test_rm_rf_root_and_home_blocked(self):
+        rules = MCPConfigGenerator.RM_RF_DENY_RULES
+        assert "Bash(rm -rf /)" in rules
+        assert "Bash(rm -rf /*)" in rules
+        assert "Bash(rm -rf ~)" in rules
+        assert "Bash(rm -rf ~/*)" in rules
+
+    def test_hdfs_recursive_delete_blocked(self):
+        """HDFS recursive 삭제 명령의 모든 변형이 deny에 포함되어야 한다."""
+        rules = MCPConfigGenerator.RM_RF_DENY_RULES
+        for required in (
+            "Bash(hdfs dfs -rm -r:*)",
+            "Bash(hdfs dfs -rm -rf:*)",
+            "Bash(hdfs dfs -rm -r -f:*)",
+            "Bash(hdfs dfs -rmr:*)",
+        ):
+            assert required in rules, f"missing HDFS deny rule: {required}"
