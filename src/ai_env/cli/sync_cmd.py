@@ -77,9 +77,11 @@ def sync(
             project_root = get_project_root()
         action = "Would sync" if dry_run else "Synced"
         console.print("[bold]🔄 Skills-only sync...[/bold]")
+        # ~/.agents/skills/는 Codex 0.125+ 통합 스킬 위치이므로 정규화 사본 필요
         skill_targets = [
             ("Claude", Path.home() / ".claude" / "skills", None),
             ("Codex", Path.home() / ".codex" / "skills", copy_skill_tree_for_codex),
+            ("Agents", Path.home() / ".agents" / "skills", copy_skill_tree_for_codex),
         ]
         for label, target_dir, copy_fn in skill_targets:
             desc, _ = _sync_skills_merged(

@@ -579,8 +579,15 @@ def test_sync_codex_includes_skills_index(tmp_path, mock_secrets_manager):
     assert "TDD 코드 구현" in content
 
 
-def test_sync_codex_global_config_preserves_existing_skills(tmp_path, mock_secrets_manager):
-    """Codex 기존 시스템/외부 스킬은 유지하고 ai-env 스킬만 병합 덮어쓴다."""
+def test_sync_codex_global_config_prunes_stale_skills_but_keeps_meta(
+    tmp_path, mock_secrets_manager
+):
+    """Codex 동기화는 소스에 없는 stale 스킬을 제거하되, 시스템 메타 디렉토리는 보존.
+
+    Codex 0.125+ 가 SKILL.md frontmatter를 엄격히 파싱하므로 stale 파일은
+    경고를 유발한다. 따라서 ai-env가 관리하지 않는 외부 스킬(예: 'playwright')은
+    제거하고, dotfile/`_`-prefix 디렉토리(`.system`)만 보존한다.
+    """
     project_root = tmp_path / "ai-env"
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
@@ -594,7 +601,7 @@ def test_sync_codex_global_config_preserves_existing_skills(tmp_path, mock_secre
     (target_dir / ".system").mkdir(parents=True)
     (target_dir / ".system" / ".codex-system-skills.marker").write_text("marker")
     (target_dir / "playwright").mkdir()
-    (target_dir / "playwright" / "SKILL.md").write_text("# external")
+    (target_dir / "playwright" / "SKILL.md").write_text("# stale external")
 
     with (
         patch("ai_env.core.sync.get_project_root", return_value=project_root),
@@ -602,8 +609,11 @@ def test_sync_codex_global_config_preserves_existing_skills(tmp_path, mock_secre
     ):
         sync_codex_global_config()
 
+    # 메타(.system)는 보존
     assert (target_dir / ".system" / ".codex-system-skills.marker").exists()
-    assert (target_dir / "playwright" / "SKILL.md").exists()
+    # 소스에 없는 stale 스킬은 제거
+    assert not (target_dir / "playwright").exists()
+    # 소스의 신규 스킬은 정규화되어 추가
     assert (target_dir / "research" / "SKILL.md").exists()
 
 

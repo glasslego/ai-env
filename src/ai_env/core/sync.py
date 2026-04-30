@@ -331,11 +331,11 @@ def _sync_skills_merged(
     skills_exclude: list[str] | None = None,
     copy_fn: Callable[[Path, Path], None] | None = None,
 ) -> tuple[str, int]:
-    """personal + team 스킬을 합쳐서 동기화
+    """personal + team 스킬을 합쳐서 동기화하고 stale 스킬을 정리.
 
     Args:
         project_root: ai-env 프로젝트 루트
-        dst: 목적지 디렉토리 (~/.claude/skills)
+        dst: 목적지 디렉토리 (~/.claude/skills, ~/.codex/skills, ~/.agents/skills 등)
         dry_run: True면 실제 복사하지 않음
         skills_include: 포함할 팀 스킬 디렉토리 이름
         skills_exclude: 제외할 팀 스킬 디렉토리 이름
@@ -344,6 +344,11 @@ def _sync_skills_merged(
 
     Returns:
         (설명, 복사된 스킬 수)
+
+    Notes:
+        Codex 0.125+는 SKILL.md 파싱이 엄격해 stale/잘못된 frontmatter가 남으면
+        시작 시 경고를 출력한다. 따라서 dst의 현재 소스에 없는 스킬 서브디렉토리는
+        제거한다. dotfile/`_`-prefix 디렉토리(`.system` 등)는 보존한다.
     """
     if copy_fn is None:
         copy_fn = safe_copytree
@@ -352,10 +357,26 @@ def _sync_skills_merged(
 
     if not dry_run:
         dst.mkdir(parents=True, exist_ok=True)
+        _prune_stale_skills(dst, keep={s.name for s in skill_dirs})
         for skill_dir in skill_dirs:
             copy_fn(skill_dir, dst / skill_dir.name)
 
     return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
+
+
+def _prune_stale_skills(skills_root: Path, keep: set[str]) -> None:
+    """skills_root 하위에서 keep에 없는 스킬 디렉토리를 제거.
+
+    `.system`, `_shared` 같은 dotfile / underscore-prefix 디렉토리는 보존한다
+    (해당 에이전트가 자체적으로 관리하는 메타 디렉토리일 수 있음).
+    """
+    if not skills_root.is_dir():
+        return
+    for entry in skills_root.iterdir():
+        if not entry.is_dir() or entry.name.startswith((".", "_")):
+            continue
+        if entry.name not in keep:
+            shutil.rmtree(entry, ignore_errors=True)
 
 
 def _strip_cmux_hooks(settings_json: str) -> str:
@@ -581,12 +602,14 @@ def sync_codex_global_config(
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
 ) -> dict[str, str]:
-    """Codex CLI 글로벌 설정 동기화
+    """Codex CLI 글로벌 설정 동기화.
 
-    ai-env/.claude/global/CLAUDE.md + 스킬 인덱스 → ~/.codex/AGENTS.md
-    ai-env/.claude/skills + team skills 병합 → ~/.codex/skills
-    ai-env/.claude/commands/ MD 트리 → ~/.codex/commands (참조 자료)
-    ai-env/.claude/project-profile.yaml → ~/.codex/project-profile.yaml
+    출력:
+    - ~/.codex/AGENTS.md          ← .claude/global/CLAUDE.md + 스킬 인덱스
+    - ~/.codex/skills/            ← .claude/skills + team skills (Codex YAML로 정규화)
+    - ~/.agents/skills/           ← 동일 (Codex 0.125+ 통합 스킬 위치)
+    - ~/.codex/commands/          ← .claude/commands/ MD 트리 (참조)
+    - ~/.codex/project-profile.yaml ← .claude/project-profile.yaml
     """
     project_root = get_project_root()
     source = project_root / ".claude" / "global" / "CLAUDE.md"
@@ -608,18 +631,19 @@ def sync_codex_global_config(
 
     results: dict[str, str] = {"AGENTS.md": str(agents_md)}
 
-    # 2) skills/ — Codex 호환 frontmatter로 정규화하여 복사
-    skills_dir = agent_root / "skills"
-    desc, count = _sync_skills_merged(
-        project_root,
-        skills_dir,
-        dry_run,
-        skills_include,
-        skills_exclude,
-        copy_fn=copy_skill_tree_for_codex,
-    )
-    if count:
-        results[desc] = str(skills_dir)
+    # 2) skills/ — Codex 호환 frontmatter로 정규화하여 ~/.codex/skills 와
+    #    ~/.agents/skills (Codex 0.125+ 통합 위치) 두 곳에 복사
+    for skills_dir in (agent_root / "skills", Path.home() / ".agents" / "skills"):
+        desc, count = _sync_skills_merged(
+            project_root,
+            skills_dir,
+            dry_run,
+            skills_include,
+            skills_exclude,
+            copy_fn=copy_skill_tree_for_codex,
+        )
+        if count:
+            results[f"{desc} → {skills_dir}"] = str(skills_dir)
 
     # 3) commands/ — Claude 슬래시 커맨드 정의 트리를 참조 자료로 미러
     src_commands = project_root / ".claude" / "commands"
