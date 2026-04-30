@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -43,7 +43,6 @@ class GitSnapshot:
     log: str = ""
     diff_stat: str = ""
     is_repo: bool = False
-    extras: dict[str, str] = field(default_factory=dict)
 
 
 def _run_git(args: list[str], cwd: Path) -> str:

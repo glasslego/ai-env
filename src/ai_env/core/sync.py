@@ -267,9 +267,8 @@ def _collect_skill_sources(
     """
     sources: list[Path] = []
 
-    # 1. personal skills (항상 포함)
+    # 1) personal skills — ai-env/.claude/skills/ (항상 포함)
     personal_dir = project_root / ".claude" / "skills"
-
     if personal_dir.is_dir():
         for d in sorted(personal_dir.iterdir()):
             if d.is_dir() and not d.name.startswith("."):
@@ -279,46 +278,49 @@ def _collect_skill_sources(
     if skills_include is None and skills_exclude is None:
         return sources
 
-    # 2. team skills: cde-*skills 심링크들 (cde-skills, cde-ranking-skills 등)
-    #    각 심링크는 다음 구조 중 하나:
-    #    - nested 구조: .claude/skills/skill-name/SKILL.md
-    #    - skills subdir 구조: skills/skill-name/SKILL.md
-    #    - flat 구조: skill-name/SKILL.md (루트에 스킬 디렉토리)
+    # 2) team skills — cde-*skills 심링크에서 수집 (예: cde-skills, cde-ranking-skills)
     for item in sorted(project_root.iterdir()):
-        if not item.name.startswith("cde-") or not item.name.endswith("skills"):
+        if not _is_team_skill_link(item, skills_include, skills_exclude):
             continue
-        if not item.exists():  # broken symlink
-            continue
-
-        # include/exclude 필터 적용
-        if skills_include is not None and item.name not in skills_include:
-            continue
-        if skills_exclude is not None and item.name in skills_exclude:
-            continue
-
-        # 심링크 resolve해서 실제 경로 사용
-        cde_skills_dir = item.resolve()
-
-        # 스킬 디렉토리 탐색 (3가지 구조 지원)
-        #   1) nested: .claude/skills/skill-name/SKILL.md
-        #   2) skills subdir: skills/skill-name/SKILL.md
-        #   3) flat: skill-name/SKILL.md (루트에 직접)
-        nested_skills = cde_skills_dir / ".claude" / "skills"
-        skills_subdir = cde_skills_dir / "skills"
-
-        if nested_skills.is_dir():
-            scan_dir = nested_skills
-        elif skills_subdir.is_dir():
-            scan_dir = skills_subdir
-        else:
-            scan_dir = cde_skills_dir
-
+        scan_dir = _resolve_team_skill_root(item.resolve())
         for d in sorted(scan_dir.iterdir()):
-            if d.is_dir() and not d.name.startswith(".") and not d.name.startswith("_"):
-                if (d / "SKILL.md").exists():
-                    sources.append(d)
+            if not d.is_dir() or d.name.startswith((".", "_")):
+                continue
+            if (d / "SKILL.md").exists():
+                sources.append(d)
 
     return sources
+
+
+def _is_team_skill_link(
+    item: Path,
+    skills_include: list[str] | None,
+    skills_exclude: list[str] | None,
+) -> bool:
+    """item이 수집 대상 cde-*skills 심링크인지 판정 (include/exclude 필터 포함)."""
+    if not (item.name.startswith("cde-") and item.name.endswith("skills")):
+        return False
+    if not item.exists():  # broken symlink
+        return False
+    if skills_include is not None and item.name not in skills_include:
+        return False
+    if skills_exclude is not None and item.name in skills_exclude:
+        return False
+    return True
+
+
+def _resolve_team_skill_root(team_repo: Path) -> Path:
+    """팀 스킬 레포 내부의 스킬 컨테이너 디렉토리 결정.
+
+    지원 layout (우선순위):
+      1) nested: <repo>/.claude/skills/<skill>/SKILL.md
+      2) subdir: <repo>/skills/<skill>/SKILL.md
+      3) flat:   <repo>/<skill>/SKILL.md
+    """
+    for candidate in (team_repo / ".claude" / "skills", team_repo / "skills"):
+        if candidate.is_dir():
+            return candidate
+    return team_repo
 
 
 def _sync_skills_merged(

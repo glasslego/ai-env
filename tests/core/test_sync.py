@@ -237,36 +237,12 @@ def _setup_multi_team_skills(tmp_path):
     return project_root
 
 
-def _setup_multi_team_skills_subdir_layout(tmp_path):
-    """team repo가 skills/ 하위 구조일 때 테스트 환경 생성 헬퍼."""
-    project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
-
-    # personal skill
-    (skills_dir / "my-skill").mkdir(parents=True)
-    (skills_dir / "my-skill" / "SKILL.md").write_text("# my skill")
-
-    # cde-skills (team 1)
-    cde1 = tmp_path / "cde-skills-repo"
-    (cde1 / "skills" / "es-query").mkdir(parents=True)
-    (cde1 / "skills" / "es-query" / "SKILL.md").write_text("# ES query")
-
-    # cde-ranking-skills (team 2)
-    cde2 = tmp_path / "cde-ranking-repo"
-    (cde2 / "skills" / "ranking-lookup").mkdir(parents=True)
-    (cde2 / "skills" / "ranking-lookup" / "SKILL.md").write_text("# ranking")
-    (cde2 / "skills" / "score-drilldown").mkdir()
-    (cde2 / "skills" / "score-drilldown" / "SKILL.md").write_text("# score")
-
-    # symlinks
-    (project_root / "cde-skills").symlink_to(cde1)
-    (project_root / "cde-ranking-skills").symlink_to(cde2)
-
-    return project_root
-
-
 def test_collect_skills_include(tmp_path):
-    """--skills-include로 특정 팀 스킬만 포함."""
+    """--skills-include로 특정 팀 스킬만 포함.
+
+    팀 레포 layout(flat / subdir) 자체의 처리는
+    test_collect_skill_sources_with_cde_skills(_subdir_layout)에서 별도로 검증한다.
+    """
     project_root = _setup_multi_team_skills(tmp_path)
 
     sources = _collect_skill_sources(project_root, skills_include=["cde-skills"])
@@ -275,19 +251,6 @@ def test_collect_skills_include(tmp_path):
     assert "my-skill" in names  # personal은 항상 포함
     assert "es-query" in names  # cde-skills 포함
     assert "ranking-lookup" not in names  # cde-ranking-skills 제외
-    assert "score-drilldown" not in names
-
-
-def test_collect_skills_include_subdir_layout(tmp_path):
-    """skills/ 하위 구조에서도 include 필터 동작."""
-    project_root = _setup_multi_team_skills_subdir_layout(tmp_path)
-
-    sources = _collect_skill_sources(project_root, skills_include=["cde-skills"])
-    names = [s.name for s in sources]
-
-    assert "my-skill" in names
-    assert "es-query" in names
-    assert "ranking-lookup" not in names
     assert "score-drilldown" not in names
 
 
@@ -304,36 +267,9 @@ def test_collect_skills_exclude(tmp_path):
     assert "score-drilldown" not in names
 
 
-def test_collect_skills_exclude_subdir_layout(tmp_path):
-    """skills/ 하위 구조에서도 exclude 필터 동작."""
-    project_root = _setup_multi_team_skills_subdir_layout(tmp_path)
-
-    sources = _collect_skill_sources(project_root, skills_exclude=["cde-ranking-skills"])
-    names = [s.name for s in sources]
-
-    assert "my-skill" in names
-    assert "es-query" in names
-    assert "ranking-lookup" not in names
-    assert "score-drilldown" not in names
-
-
 def test_collect_skills_no_filter(tmp_path):
-    """필터 없으면 personal(megan/.claude)만 포함."""
+    """필터 없으면 personal 스킬만 포함."""
     project_root = _setup_multi_team_skills(tmp_path)
-
-    sources = _collect_skill_sources(project_root)
-    names = [s.name for s in sources]
-
-    assert len(names) == 1  # personal only
-    assert "my-skill" in names
-    assert "es-query" not in names
-    assert "ranking-lookup" not in names
-    assert "score-drilldown" not in names
-
-
-def test_collect_skills_no_filter_subdir_layout(tmp_path):
-    """skills/ 하위 구조에서도 필터 없으면 personal만 포함."""
-    project_root = _setup_multi_team_skills_subdir_layout(tmp_path)
 
     sources = _collect_skill_sources(project_root)
     names = [s.name for s in sources]

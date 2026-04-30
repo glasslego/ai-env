@@ -60,12 +60,16 @@ class TestGenerateShellFunctions:
         assert "claude → codex" in result
 
     def test_custom_priority(self):
-        """커스텀 우선순위 (codex → gemini) 테스트"""
-        gen = self._make_generator(["codex", "gemini"])
+        """커스텀 우선순위 (codex → 추가 에이전트) 직렬화 테스트.
+
+        쉘 함수는 에이전트 이름을 검증하지 않고 그대로 배열에 직렬화하므로,
+        임의 placeholder('altagent')로 직렬화/표시 동작만 확인한다.
+        """
+        gen = self._make_generator(["codex", "altagent"])
         result = gen.generate_shell_functions()
 
-        assert 'agents=("codex" "gemini")' in result
-        assert "codex → gemini" in result
+        assert 'agents=("codex" "altagent")' in result
+        assert "codex → altagent" in result
 
     def test_single_agent(self):
         """에이전트가 하나일 때"""
@@ -508,7 +512,11 @@ class TestGenerateShellFunctions:
         assert "test" in lines[1]  # 원래 프롬프트가 핸드오프에 포함
 
     def test_fallback_to_option_overrides_agent(self, tmp_path):
-        """claude --fallback --to gemini 로 fallback 대상을 런타임에 변경 확인"""
+        """claude --fallback --to <agent> 로 fallback 대상을 런타임에 변경 확인.
+
+        쉘 함수는 에이전트 이름을 자유 placeholder로 받으므로
+        가짜 'altagent' 바이너리를 PATH에 두고 동작만 검증한다.
+        """
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
 
@@ -522,10 +530,10 @@ class TestGenerateShellFunctions:
         claude_script.write_text('#!/usr/bin/env bash\necho "claude" >> "$TRACE_FILE"\nexit 1\n')
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
 
-        # gemini 성공
-        gemini_script = bin_dir / "gemini"
-        gemini_script.write_text('#!/usr/bin/env bash\necho "gemini" >> "$TRACE_FILE"\nexit 0\n')
-        gemini_script.chmod(gemini_script.stat().st_mode | stat.S_IXUSR)
+        # altagent 성공
+        alt_script = bin_dir / "altagent"
+        alt_script.write_text('#!/usr/bin/env bash\necho "altagent" >> "$TRACE_FILE"\nexit 0\n')
+        alt_script.chmod(alt_script.stat().st_mode | stat.S_IXUSR)
 
         fn_file.write_text(shell_fn)
 
@@ -536,7 +544,7 @@ class TestGenerateShellFunctions:
         env.pop("CLAUDECODE", None)
 
         result = subprocess.run(
-            ["bash", "-c", f"source {fn_file} && claude --fallback --to gemini"],
+            ["bash", "-c", f"source {fn_file} && claude --fallback --to altagent"],
             env=env,
             text=True,
             capture_output=True,
@@ -545,11 +553,11 @@ class TestGenerateShellFunctions:
 
         assert result.returncode == 0, result.stdout + result.stderr
         lines = trace_file.read_text().splitlines()
-        # claude 실패 → gemini 성공 (codex는 사용되지 않음)
-        assert lines == ["claude", "gemini"]
+        # claude 실패 → altagent 성공 (codex는 사용되지 않음)
+        assert lines == ["claude", "altagent"]
 
     def test_fallback_to_option_with_multiple_agents(self, tmp_path):
-        """claude --fallback --to gemini,codex 로 다중 fallback 대상 지정 확인"""
+        """claude --fallback --to a,b 로 다중 fallback 대상 지정 확인."""
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
 
@@ -558,8 +566,8 @@ class TestGenerateShellFunctions:
         trace_file = tmp_path / "trace.log"
         fn_file = tmp_path / "claude_fn.sh"
 
-        # claude, gemini 모두 실패
-        for name in ["claude", "gemini"]:
+        # claude, altagent 모두 실패
+        for name in ["claude", "altagent"]:
             script = bin_dir / name
             script.write_text(f'#!/usr/bin/env bash\necho "{name}" >> "$TRACE_FILE"\nexit 1\n')
             script.chmod(script.stat().st_mode | stat.S_IXUSR)
@@ -581,7 +589,7 @@ class TestGenerateShellFunctions:
             [
                 "bash",
                 "-c",
-                f"source {fn_file} && claude --fallback --to gemini,codex",
+                f"source {fn_file} && claude --fallback --to altagent,codex",
             ],
             env=env,
             text=True,
@@ -591,8 +599,8 @@ class TestGenerateShellFunctions:
 
         assert result.returncode == 0, result.stdout + result.stderr
         lines = trace_file.read_text().splitlines()
-        # claude 실패 → gemini 실패 → codex 성공
-        assert lines == ["claude", "gemini", "codex"]
+        # claude 실패 → altagent 실패 → codex 성공
+        assert lines == ["claude", "altagent", "codex"]
 
     def test_claude_fallback_switches_to_codex_then_returns_to_claude(self, tmp_path):
         """Claude 한도 도달 시 codex로 전환 후 제한 해제되면 claude로 복귀."""

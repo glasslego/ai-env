@@ -146,7 +146,7 @@ class MCPConfigGenerator:
         return resolved
 
     def generate_codex(self) -> str:
-        """Codex용 config.toml 생성"""
+        """Codex CLI용 config.toml 생성."""
         codex_env = self._resolve_codex_env()
         lines = [
             f'model = "{self.settings.codex_model}"',
@@ -160,31 +160,36 @@ class MCPConfigGenerator:
             "",
         ]
 
-        servers = self._generate_mcp_servers_for_target("codex")
-        for name, config in servers.items():
-            lines.append(f"[mcp_servers.{name}]")
-
-            if config.get("type") == "sse":
-                lines.append('type = "sse"')
-                lines.append(f'url = "{config["url"]}"')
-                if "startup_timeout_sec" in config:
-                    lines.append(f"startup_timeout_sec = {config['startup_timeout_sec']}")
-            else:
-                lines.append(f'command = "{config["command"]}"')
-                args_str = ", ".join(f'"{a}"' for a in config["args"])
-                lines.append(f"args = [{args_str}]")
-                if "startup_timeout_sec" in config:
-                    lines.append(f"startup_timeout_sec = {config['startup_timeout_sec']}")
-
-                if "env" in config:
-                    lines.append("")
-                    lines.append(f"[mcp_servers.{name}.env]")
-                    for key, value in config["env"].items():
-                        lines.append(f'{key} = "{value}"')
-
-            lines.append("")
+        for name, config in self._generate_mcp_servers_for_target("codex").items():
+            lines.extend(self._codex_server_block(name, config))
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _codex_server_block(name: str, config: dict[str, Any]) -> list[str]:
+        """Codex config.toml의 단일 [mcp_servers.<name>] 블록을 라인 리스트로 직렬화."""
+        lines: list[str] = [f"[mcp_servers.{name}]"]
+
+        if config.get("type") == "sse":
+            lines.append('type = "sse"')
+            lines.append(f'url = "{config["url"]}"')
+        else:
+            lines.append(f'command = "{config["command"]}"')
+            args_str = ", ".join(f'"{a}"' for a in config["args"])
+            lines.append(f"args = [{args_str}]")
+
+        if "startup_timeout_sec" in config:
+            lines.append(f"startup_timeout_sec = {config['startup_timeout_sec']}")
+
+        # stdio 서버 전용: 추가 환경변수 서브 테이블
+        if config.get("type") != "sse" and "env" in config:
+            lines.append("")
+            lines.append(f"[mcp_servers.{name}.env]")
+            for key, value in config["env"].items():
+                lines.append(f'{key} = "{value}"')
+
+        lines.append("")
+        return lines
 
     def generate_codex_desktop(self) -> dict[str, Any]:
         """Codex Desktop App용 codex.config.json 생성
