@@ -2,6 +2,18 @@
 
 SPEC 문서 관련 변경 이력은 이 파일에서만 관리합니다.
 
+## v1.5 (2026-04-30)
+
+- `SPEC-014-cross-agent-handoff.md` 추가 (status: implemented)
+  - Claude SessionEnd 시 cwd 메타가 포함된 핸드오프 파일을 항상 작성
+  - 글로벌 인덱스 `~/.claude/handoffs/index.jsonl` 에 한 줄 JSON append
+    (다른 머신/터미널에서 "최근 어디서 끊겼나" 빠른 조회용)
+  - `.claude/skills/handoff-resume/SKILL.md` 추가 — Codex CLI 등 SessionStart
+    hook 이 없는 환경에서 사용자 트리거("이어서 해줘") 로 같은 cwd 핸드오프 인계
+  - 글로벌 CLAUDE.md 에 cross-agent 핸드오프 정책 추가 (cwd 격리 강제)
+- 변경: `.claude/hooks/session_end.sh` 에 cwd 헤더 보충 + 글로벌 인덱스 append
+- 변경: `.claude/global/CLAUDE.md` 에 핸드오프 정책 섹션 추가
+
 ## v1.4 (2026-04-30)
 
 - `SPEC-013-claude-codex-focused-and-session-save.md` 추가 (status: implemented)

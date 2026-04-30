@@ -8,6 +8,27 @@ When unsure about implementation details, ALWAYS ask the developer.
 
 ---
 
+## 🔁 Cross-Agent 핸드오프 인계 (SPEC-014)
+
+세션 시작 시 현재 cwd 의 `.claude/handoff/latest.md` 가 존재하면, 본격 작업
+이전에 항상 먼저 그 내용을 읽어 이전 세션 컨텍스트를 인계받는다.
+
+규칙:
+- 핸드오프 파일의 `- cwd:` 헤더가 현재 cwd 와 일치할 때만 자동 인계.
+- cwd 가 다르면(다른 프로젝트의 핸드오프가 잘못 들어왔을 가능성) 사용자에게
+  경고하고 명시 확인을 받기 전까지는 컨텍스트를 적용하지 않는다.
+- 여러 프로젝트에서 동시에 다른 세션을 돌리는 환경을 가정하므로, cwd 격리는
+  필수다.
+
+자동 안내가 안 되는 환경(예: SessionStart hook 이 없는 Codex CLI)에서는
+사용자가 "이어서 해줘", "resume", "continue claude session" 등으로 요청 시
+`handoff-resume` 스킬을 통해 동일하게 인계한다.
+
+글로벌 인덱스 `~/.claude/handoffs/index.jsonl` 에 최근 SessionEnd 메타가
+한 줄씩 append 되므로, 다른 cwd 의 최근 끊김 내역을 빠르게 조회할 수 있다.
+
+---
+
 ## 📐 Spec-Task-Test-Commit (공용 필수 워크플로우)
 
 모든 AI 코딩 에이전트(Claude, Codex, Gemini)는 아래 순서를 반드시 따른다.

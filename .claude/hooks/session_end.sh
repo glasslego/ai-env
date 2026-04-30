@@ -95,13 +95,15 @@ if [[ -f "$LATEST" ]]; then
 fi
 
 # Claude가 이미 /handoff로 풍부한 latest.md를 작성했을 수 있으므로
-# 여기서는 latest.md가 없을 때만 fallback으로 기본 정보 작성
+# 여기서는 latest.md가 없을 때만 fallback으로 기본 정보 작성.
+# 헤더에 cwd 를 항상 명시 (SPEC-014 AC-1) — 다음 세션이 cwd 일치 검증에 사용.
 if [[ ! -f "$LATEST" ]]; then
     cat > "$LATEST" << EOF
 # Handoff: ${PROJECT_NAME}
 - Date: ${TIMESTAMP}
 - Session: ${SHORT_ID}
 - Branch: ${GIT_BRANCH}
+- cwd: ${PROJECT_ROOT}
 
 ## 진행 중이던 작업
 ${LAST_USER_MSG:-"(세션 컨텍스트 자동 추출 실패 — /handoff 커맨드로 직접 작성 권장)"}
@@ -119,4 +121,39 @@ ${GIT_DIFF_STAT}
 ${GIT_LOG}
 \`\`\`
 EOF
+elif ! grep -q '^- cwd:' "$LATEST"; then
+    # /handoff 등 다른 경로로 작성된 latest.md 에 cwd 가 없으면 헤더에 보충.
+    # 마지막 '- ' 메타라인 직후 cwd 라인 삽입 (없으면 파일 맨 앞 다음 줄에).
+    awk -v cwd="$PROJECT_ROOT" '
+        BEGIN { inserted = 0 }
+        # 첫번째 비-메타 라인을 만나면 그 직전에 cwd 삽입 (메타 블록은 - 로 시작)
+        !inserted && NR > 1 && !/^- / && /[^[:space:]]/ {
+            print "- cwd: " cwd
+            inserted = 1
+        }
+        { print }
+        END {
+            if (!inserted) print "- cwd: " cwd
+        }
+    ' "$LATEST" > "${LATEST}.tmp" && mv "${LATEST}.tmp" "$LATEST"
 fi
+
+# --- 3) 글로벌 핸드오프 인덱스 ---
+# 다른 머신/터미널에서 "최근 어디서 끊겼나" 빠른 조회용 (SPEC-014 AC-2).
+# 한 줄 JSON append. 자체 cleanup 정책은 후속 SPEC.
+GLOBAL_INDEX_DIR="${HOME}/.claude/handoffs"
+GLOBAL_INDEX="${GLOBAL_INDEX_DIR}/index.jsonl"
+mkdir -p "$GLOBAL_INDEX_DIR"
+
+# 따옴표/제어문자 이스케이프 (단순 escape — JSON-safe)
+_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g'; }
+
+ESC_TS="$(_esc "$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')")"
+ESC_CWD="$(_esc "$PROJECT_ROOT")"
+ESC_BRANCH="$(_esc "$GIT_BRANCH")"
+ESC_SESSION="$(_esc "$SESSION_ID")"
+ESC_PATH="$(_esc "$LATEST")"
+
+printf '{"ts":"%s","cwd":"%s","branch":"%s","session_id":"%s","handoff_path":"%s"}\n' \
+    "$ESC_TS" "$ESC_CWD" "$ESC_BRANCH" "$ESC_SESSION" "$ESC_PATH" \
+    >> "$GLOBAL_INDEX"
