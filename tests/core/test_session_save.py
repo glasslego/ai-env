@@ -109,6 +109,7 @@ class TestBuildSessionNote:
         assert "# hello" in body
         assert "## Note" in body
         assert "my note" in body
+        assert "## Ontology Seeds" in body
 
     def test_omits_note_section_when_no_note(self) -> None:
         snap = GitSnapshot(branch="main", is_repo=True)

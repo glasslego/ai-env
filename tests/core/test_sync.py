@@ -406,33 +406,23 @@ def test_sync_codex_global_config_dry_run(tmp_path, mock_secrets_manager):
     assert not (target_dir / "skills").exists()
 
 
-def test_sync_codex_global_config_removes_unsupported_async_hooks(tmp_path, mock_secrets_manager):
-    """Codex hooks.json에서 아직 지원하지 않는 async 필드를 제거한다."""
+def test_sync_codex_global_config_writes_codex_hooks_json(tmp_path, mock_secrets_manager):
+    """Codex 동기화 시 hooks.json과 hook scripts를 생성한다."""
     project_root = tmp_path / "ai-env"
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
 
+    hooks_dir = project_root / ".claude" / "hooks"
+    hooks_dir.mkdir(parents=True)
+    for name in ("session_start.sh", "session_end.sh", "pre_compact.sh", "security_guard.sh"):
+        (hooks_dir / name).write_text("#!/usr/bin/env bash\necho hook\n")
+
+    codex_hooks_dir = project_root / ".codex" / "hooks"
+    codex_hooks_dir.mkdir(parents=True)
+    (codex_hooks_dir / "hook_event_log.sh").write_text("#!/usr/bin/env bash\necho log\n")
+
     target_dir = tmp_path / "home" / ".codex"
-    target_dir.mkdir(parents=True)
-    hooks_json = target_dir / "hooks.json"
-    hooks_json.write_text(
-        json.dumps(
-            {
-                "SessionStart": [
-                    {
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "bash ~/.codex/hooks/start.sh",
-                                "async": True,
-                            }
-                        ]
-                    }
-                ]
-            }
-        )
-    )
 
     with (
         patch("ai_env.core.sync.get_project_root", return_value=project_root),
@@ -440,14 +430,18 @@ def test_sync_codex_global_config_removes_unsupported_async_hooks(tmp_path, mock
     ):
         results = sync_codex_global_config()
 
-    assert "hooks.json (removed unsupported async fields)" in results
+    assert "hooks.json" in results
+    hooks_json = target_dir / "hooks.json"
     content = hooks_json.read_text()
     assert '"async"' not in content
-    assert "bash ~/.codex/hooks/start.sh" in content
+    assert str(target_dir / "hooks" / "session_end.sh") in content
+    assert str(target_dir / "hooks" / "hook_event_log.sh") in content
+    assert (target_dir / "hooks" / "session_end.sh").exists()
+    assert (target_dir / "hooks" / "hook_event_log.sh").exists()
 
 
-def test_sync_codex_global_config_skips_invalid_hooks_json(tmp_path, mock_secrets_manager):
-    """깨진 hooks.json이 있어도 Codex 동기화 전체는 계속 진행한다."""
+def test_sync_codex_global_config_overwrites_invalid_hooks_json(tmp_path, mock_secrets_manager):
+    """깨진 hooks.json이 있어도 Codex 동기화가 유효한 파일로 덮어쓴다."""
     project_root = tmp_path / "ai-env"
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
@@ -465,8 +459,8 @@ def test_sync_codex_global_config_skips_invalid_hooks_json(tmp_path, mock_secret
         results = sync_codex_global_config()
 
     assert "AGENTS.md" in results
-    assert "hooks.json (removed unsupported async fields)" not in results
-    assert hooks_json.read_text() == "{not-json"
+    assert "hooks.json" in results
+    assert json.loads(hooks_json.read_text())["hooks"]["SessionEnd"]
 
 
 def test_sync_codex_no_source(tmp_path, mock_secrets_manager):

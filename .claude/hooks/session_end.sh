@@ -157,3 +157,34 @@ ESC_PATH="$(_esc "$LATEST")"
 printf '{"ts":"%s","cwd":"%s","branch":"%s","session_id":"%s","handoff_path":"%s"}\n' \
     "$ESC_TS" "$ESC_CWD" "$ESC_BRANCH" "$ESC_SESSION" "$ESC_PATH" \
     >> "$GLOBAL_INDEX"
+
+# --- 4) Obsidian 세션 노트 ---
+# 개인 vault에 세션 스냅샷을 남겨 후속 ontology 구축의 원천으로 사용한다.
+AI_ENV_BIN=( )
+if command -v ai-env >/dev/null 2>&1; then
+    AI_ENV_BIN=(ai-env)
+elif command -v uv >/dev/null 2>&1; then
+    AI_ENV_HOME="${AI_ENV_HOME:-${HOME}/work/glasslego/ai-env}"
+    if [[ -d "$AI_ENV_HOME" ]]; then
+        AI_ENV_BIN=(uv --directory "$AI_ENV_HOME" run ai-env)
+    fi
+fi
+
+if [[ ${#AI_ENV_BIN[@]} -gt 0 ]]; then
+    AI_ENV_SESSION_NOTE=$(
+        cat << EOF
+agent session ended
+
+session_id: ${SESSION_ID}
+cwd: ${PROJECT_ROOT}
+branch: ${GIT_BRANCH}
+last_task: ${LAST_USER_MSG:-"(not extracted)"}
+handoff: ${LATEST}
+EOF
+    )
+    "${AI_ENV_BIN[@]}" session save \
+        --note "$AI_ENV_SESSION_NOTE" \
+        --title "${PROJECT_NAME} ${SHORT_ID}" \
+        --cwd "$PROJECT_ROOT" \
+        >/dev/null 2>&1 || true
+fi

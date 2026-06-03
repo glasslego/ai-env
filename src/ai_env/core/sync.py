@@ -576,6 +576,96 @@ def _sync_codex_hooks_json_compat(target: Path, dry_run: bool) -> bool:
     return True
 
 
+def _codex_hook(command: str) -> dict[str, str]:
+    """Codex hooks.json command hook entry."""
+    return {"type": "command", "command": command}
+
+
+def _codex_matcher(*commands: str, matcher: str = "") -> dict[str, Any]:
+    """Codex hooks.json matcher block."""
+    block: dict[str, Any] = {"hooks": [_codex_hook(command) for command in commands]}
+    if matcher:
+        block["matcher"] = matcher
+    return block
+
+
+def _codex_hooks_json(hooks_dir: Path, *, cmux_enabled: bool) -> str:
+    """Generate Codex hooks.json without unsupported async fields."""
+    session_start = f"bash '{hooks_dir / 'session_start.sh'}'"
+    session_end = f"bash '{hooks_dir / 'session_end.sh'}'"
+    pre_compact = f"bash '{hooks_dir / 'pre_compact.sh'}'"
+    security_guard = f"bash '{hooks_dir / 'security_guard.sh'}'"
+    event_log = f"bash '{hooks_dir / 'hook_event_log.sh'}'"
+    cmux = f"bash '{hooks_dir / _CMUX_HOOK_SCRIPT}'"
+
+    notify_hooks = [event_log]
+    if cmux_enabled:
+        notify_hooks.append(cmux)
+
+    data = {
+        "hooks": {
+            "SessionStart": [
+                _codex_matcher(session_start, *notify_hooks, matcher="startup|resume")
+            ],
+            "UserPromptSubmit": [_codex_matcher(*notify_hooks)],
+            "PreToolUse": [
+                _codex_matcher(
+                    security_guard,
+                    matcher="Bash|shell|shell_command|exec_command|unified_exec|local_shell|user_shell",
+                ),
+                _codex_matcher(event_log),
+            ],
+            "PostToolUse": [_codex_matcher(*notify_hooks)],
+            "PreCompact": [_codex_matcher(pre_compact, *notify_hooks)],
+            "SessionEnd": [_codex_matcher(session_end, *notify_hooks)],
+            "Stop": [_codex_matcher(*notify_hooks)],
+            "TaskCompleted": [_codex_matcher(*notify_hooks)],
+            "Notification": [_codex_matcher(*notify_hooks)],
+        }
+    }
+    return json.dumps(_remove_async_fields(data), indent=2, ensure_ascii=False) + "\n"
+
+
+def _sync_codex_hooks(
+    project_root: Path,
+    agent_root: Path,
+    dry_run: bool,
+    *,
+    cmux_enabled: bool,
+) -> dict[str, str]:
+    """Sync Claude-compatible hook scripts and Codex hooks.json."""
+    source_hooks = project_root / ".claude" / "hooks"
+    extra_hooks = project_root / ".codex" / "hooks"
+    target_hooks = agent_root / "hooks"
+    results: dict[str, str] = {}
+
+    if source_hooks.is_dir():
+        desc, count = _sync_hooks(source_hooks, target_hooks, dry_run, cmux_enabled=cmux_enabled)
+        if count:
+            results[desc] = str(target_hooks)
+
+    if extra_hooks.is_dir():
+        hook_files = sorted(extra_hooks.glob("*.sh"))
+        if not dry_run:
+            target_hooks.mkdir(parents=True, exist_ok=True)
+            for hook_file in hook_files:
+                target = target_hooks / hook_file.name
+                shutil.copy2(hook_file, target)
+                target.chmod(target.stat().st_mode | 0o755)
+        if hook_files:
+            results[f"codex hooks/ ({len(hook_files)} scripts)"] = str(target_hooks)
+
+    hooks_json = agent_root / "hooks.json"
+    if not dry_run:
+        hooks_json.parent.mkdir(parents=True, exist_ok=True)
+        hooks_json.write_text(
+            _codex_hooks_json(target_hooks, cmux_enabled=cmux_enabled),
+            encoding="utf-8",
+        )
+    results["hooks.json"] = str(hooks_json)
+    return results
+
+
 def sync_claude_global_config(
     dry_run: bool = False,
     skills_include: list[str] | None = None,
@@ -793,9 +883,10 @@ def sync_codex_global_config(
 
     results: dict[str, str] = {"AGENTS.md": str(agents_md)}
 
-    hooks_json = agent_root / "hooks.json"
-    if _sync_codex_hooks_json_compat(hooks_json, dry_run):
-        results["hooks.json (removed unsupported async fields)"] = str(hooks_json)
+    settings = load_settings()
+    results.update(
+        _sync_codex_hooks(project_root, agent_root, dry_run, cmux_enabled=settings.cmux_enabled)
+    )
 
     # 2) skills/ — Codex 호환 frontmatter로 정규화하여 ~/.codex/skills 와
     #    ~/.agents/skills (Codex 0.125+ 통합 위치) 두 곳에 복사

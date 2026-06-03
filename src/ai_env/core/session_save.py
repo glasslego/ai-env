@@ -210,6 +210,14 @@ def build_session_note(
             parts.append(value.rstrip())
             parts.append("")
 
+    parts.append("## Ontology Seeds")
+    parts.append("")
+    parts.append("- entities: []")
+    parts.append("- tools: []")
+    parts.append("- decisions: []")
+    parts.append("- todos: []")
+    parts.append("")
+
     return "\n".join(parts).rstrip() + "\n"
 
 
