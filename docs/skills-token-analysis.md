@@ -1,7 +1,7 @@
 # Skill Token Report
 
-- skill_count: 44
-- total_words: 17386
+- skill_count: 45
+- total_words: 17609
 
 | words | skill | path |
 |---:|---|---|
@@ -35,6 +35,7 @@
 | 238 | airflow-ops | `megan-skills/skills/orchestration/airflow-ops/SKILL.md` |
 | 228 | orchestration | `cde-skills/plugins/cde-skills/skills/orchestration/SKILL.md` |
 | 223 | defuddle | `megan-skills/skills/obsidian/defuddle/SKILL.md` |
+| 223 | ranking-harness | `megan-skills/skills/ranking/ranking-harness/SKILL.md` |
 | 222 | second-opinion | `megan-skills/skills/code/second-opinion/SKILL.md` |
 | 216 | vault-lint | `megan-skills/skills/obsidian/vault-lint/SKILL.md` |
 | 216 | platform | `cde-skills/plugins/cde-skills/skills/platform/SKILL.md` |

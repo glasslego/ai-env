@@ -55,13 +55,14 @@ clear ownership boundaries:
 - [x] Task-03: Add Megan harness roadmap.
 - [x] Task-04: Sync Codex hooks and generate hooks.json from ai-env.
 - [x] Task-05: Add Obsidian ontology seed section to session notes.
-- [ ] Task-06: Add ontology extraction script from session notes.
-- [ ] Task-07: Compact top cde-ranking wrapper skills into references-backed
+- [x] Task-06: Add ontology extraction script from session notes.
+- [x] Task-07: Compact top cde-ranking wrapper skills into references-backed
   summaries.
-- [ ] Task-08: Add Claude agent definitions for Megan harness roles.
+- [x] Task-08: Add Claude agent definitions for Megan harness roles.
 
 ## Notes
 
-- `cde-skills` and `cde-ranking-skills` pull from `develop` failed in this run
+- Initial `cde-skills` and `cde-ranking-skills` pull from `develop` failed
   because SSH to `github.daumkakao.com:22` timed out.
-- Local symlink copies were still analyzed.
+- After VPN connection, both symlinked repositories pulled successfully and were
+  already up to date.

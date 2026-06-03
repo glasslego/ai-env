@@ -84,6 +84,30 @@ def test_sync_claude_global_config(tmp_path, mock_secrets_manager):
         assert '{"key": "test_key"}' in settings_dst.read_text()
 
 
+def test_sync_claude_global_config_includes_agents(tmp_path, mock_secrets_manager):
+    """Claude 동기화 시 .claude/agents markdown 정의도 미러."""
+    project_root = tmp_path / "ai-env"
+    source_dir = project_root / ".claude"
+    global_dir = source_dir / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+
+    agents_dir = source_dir / "agents"
+    agents_dir.mkdir()
+    (agents_dir / "router.md").write_text("# router")
+
+    target_dir = tmp_path / "home" / ".claude"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_claude_global_config()
+
+    assert any("agents/" in key for key in results), f"missing agents in {results}"
+    assert (target_dir / "agents" / "router.md").exists()
+
+
 def test_collect_skill_sources_personal_only(tmp_path):
     """personal skills만 있을 때 수집."""
     project_root = tmp_path / "ai-env"
@@ -478,7 +502,7 @@ def test_sync_codex_no_source(tmp_path, mock_secrets_manager):
 
 
 def test_sync_codex_includes_commands_and_profile(tmp_path, mock_secrets_manager):
-    """SPEC-013 AC-2: Codex sync 시 commands/와 project-profile.yaml도 미러."""
+    """Codex sync 시 commands/, agents/, project-profile.yaml도 미러."""
     project_root = tmp_path / "ai-env"
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
@@ -490,6 +514,11 @@ def test_sync_codex_includes_commands_and_profile(tmp_path, mock_secrets_manager
     (commands_dir / "workflow.md").write_text("# workflow")
     (commands_dir / "phases").mkdir()
     (commands_dir / "phases" / "wf-init.md").write_text("# wf-init")
+
+    # agents/ 트리
+    agents_dir = project_root / ".claude" / "agents"
+    agents_dir.mkdir()
+    (agents_dir / "router.md").write_text("# router")
 
     # project-profile.yaml
     (project_root / ".claude" / "project-profile.yaml").write_text("project:\n  name: t\n")
@@ -504,11 +533,13 @@ def test_sync_codex_includes_commands_and_profile(tmp_path, mock_secrets_manager
 
     # 결과에 commands/와 project-profile.yaml이 포함되어야 함
     assert any("commands/" in key for key in results), f"missing commands in {results}"
+    assert any("agents/" in key for key in results), f"missing agents in {results}"
     assert "project-profile.yaml" in results
 
     # 실제 파일 검증
     assert (target_root / "commands" / "workflow.md").exists()
     assert (target_root / "commands" / "phases" / "wf-init.md").exists()
+    assert (target_root / "agents" / "router.md").exists()
     assert (target_root / "project-profile.yaml").exists()
 
 

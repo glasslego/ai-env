@@ -727,14 +727,21 @@ def sync_claude_global_config(
     if desc:
         results[desc] = str(target_dir / "commands")
 
-    # 4. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks, cmux 조건부)
+    # 4. agents/ 동기화 (.claude/agents → ~/.claude/agents)
+    src_agents = source_dir / "agents"
+    if src_agents.is_dir():
+        agent_count = _copy_commands_tree(src_agents, target_dir / "agents", dry_run)
+        if agent_count:
+            results[f"agents/ ({agent_count} files)"] = str(target_dir / "agents")
+
+    # 5. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks, cmux 조건부)
     desc, _ = _sync_file_or_dir(
         source_dir / "hooks", target_dir / "hooks", dry_run, cmux_enabled=cmux_enabled
     )
     if desc:
         results[desc] = str(target_dir / "hooks")
 
-    # 5. skills/ 동기화 (personal + team 합쳐서 → ~/.claude/skills)
+    # 6. skills/ 동기화 (personal + team 합쳐서 → ~/.claude/skills)
     desc, _ = _sync_skills_merged(
         project_root, target_dir / "skills", dry_run, skills_include, skills_exclude
     )
@@ -910,7 +917,15 @@ def sync_codex_global_config(
         if md_count:
             results[f"commands/ ({md_count} files)"] = str(dst_commands)
 
-    # 4) project-profile.yaml — 그대로 복사
+    # 4) agents/ — Claude agent definitions as shared reference material
+    src_agents = project_root / ".claude" / "agents"
+    if src_agents.is_dir():
+        dst_agents = agent_root / "agents"
+        agent_count = _copy_commands_tree(src_agents, dst_agents, dry_run)
+        if agent_count:
+            results[f"agents/ ({agent_count} files)"] = str(dst_agents)
+
+    # 5) project-profile.yaml — 그대로 복사
     src_profile = project_root / ".claude" / "project-profile.yaml"
     if src_profile.is_file():
         dst_profile = agent_root / "project-profile.yaml"
