@@ -25,7 +25,7 @@ from . import console, main
 @click.option(
     "--skills-include",
     multiple=True,
-    help="추가할 팀 스킬 디렉토리 (기본은 .claude/skills만 동기화, 예: --skills-include cde-skills). 여러 번 사용 가능.",
+    help="추가/강제 포함할 팀 스킬 디렉토리 (예: --skills-include cde-extra-skills). 여러 번 사용 가능.",
 )
 @click.option(
     "--skills-exclude",
@@ -51,10 +51,11 @@ def sync(
         effective_include = None
         effective_exclude = []
 
+    project_root = get_project_root()
+
     # 팀 스킬 레포 최신화 (include/exclude/all 옵션이 있을 때만)
     _has_team_skills = effective_include is not None or effective_exclude is not None
     if _has_team_skills and not dry_run:
-        project_root = get_project_root()
         pull_results = _update_team_skill_repos(
             project_root,
             skills_include=effective_include,
@@ -73,8 +74,6 @@ def sync(
         from ..core.codex_skills import copy_skill_tree_for_codex
         from ..core.sync import _sync_skills_merged
 
-        if not _has_team_skills:
-            project_root = get_project_root()
         action = "Would sync" if dry_run else "Synced"
         console.print("[bold]🔄 Skills-only sync...[/bold]")
         # ~/.agents/skills/는 Codex 0.125+ 통합 스킬 위치이므로 정규화 사본 필요

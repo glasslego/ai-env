@@ -38,20 +38,33 @@ class OutputsConfig(BaseModel):
     shell_exports: str = "./generated/shell_exports.sh"
 
 
+class ExtraEnvKey(BaseModel):
+    """추가 환경변수 — mcp_servers.yaml/providers 외 코드 직접 사용용 (예: GOOGLE_API_KEY, ECOS_API_KEY).
+
+    `.env.example` 자동 생성 시 'Extra Credentials' 섹션에 포함된다.
+    실제 값은 절대 git 에 커밋되지 않는 `.env` 에서 관리.
+    """
+
+    key: str
+    description: str = ""
+
+
 class Settings(BaseModel):
     """메인 설정"""
 
     version: str = "1.0"
     default_agent: str = "codex"
     env_file: str = ".env"
-    codex_model: str = "gpt-5.4"
-    codex_model_reasoning_effort: str = "high"
+    codex_model: str = "gpt-5.5"
+    codex_model_reasoning_effort: str = "xhigh"
     cmux_enabled: bool = True
     agent_priority: list[str] = Field(default_factory=lambda: ["claude", "codex"])
     fallback_log_dir: str | None = None
     obsidian_base: str | None = None
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
+    # mcp/providers 가 직접 안 쓰지만 코드 어딘가에서 .env 로 읽는 키들
+    extra_env_keys: list[ExtraEnvKey] = Field(default_factory=list)
 
 
 class MCPServerConfig(BaseModel):

@@ -39,9 +39,6 @@ class MCPConfigGenerator:
         "WebFetch",
         "mcp__*",
     ]
-    # Codex 0.113+ config.toml에 주입할 환경변수 (teammate mode 호환용).
-    CODEX_PERMISSION_ENV_DEFAULTS = {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}
-
     # 환경변수 키 매핑 (프로바이더별 키 이름 차이 흡수)
     ENV_KEY_MAPPING = {
         "GITHUB_GLASSLEGO_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -138,25 +135,11 @@ class MCPConfigGenerator:
             "mcpServers": self._generate_mcp_servers_for_target("claude_local"),
         }
 
-    def _resolve_codex_env(self) -> dict[str, str]:
-        """Codex env 값을 .env 오버라이드 지원으로 해석"""
-        resolved = {}
-        for key, default in self.CODEX_PERMISSION_ENV_DEFAULTS.items():
-            resolved[key] = self.secrets.get(key, default)
-        return resolved
-
     def generate_codex(self) -> str:
         """Codex CLI용 config.toml 생성."""
-        codex_env = self._resolve_codex_env()
         lines = [
             f'model = "{self.settings.codex_model}"',
             f'model_reasoning_effort = "{self.settings.codex_model_reasoning_effort}"',
-            "",
-            "[env]",
-            *[f'{key} = "{value}"' for key, value in codex_env.items()],
-            "",
-            "[features]",
-            "rmcp_client = true",
             "",
         ]
 
@@ -164,6 +147,127 @@ class MCPConfigGenerator:
             lines.extend(self._codex_server_block(name, config))
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _split_toml_sections(text: str) -> tuple[list[str], dict[str, list[str]], list[str]]:
+        """TOML을 top-level 라인과 section 블록으로 느슨하게 분리."""
+        preamble: list[str] = []
+        sections: dict[str, list[str]] = {}
+        order: list[str] = []
+        current: str | None = None
+
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+                current = stripped.strip("[]")
+                sections[current] = [line]
+                order.append(current)
+                continue
+
+            if current is None:
+                preamble.append(line)
+            else:
+                sections[current].append(line)
+
+        return preamble, sections, order
+
+    @staticmethod
+    def _toml_key(line: str) -> str | None:
+        """단일 라인 TOML key=value의 key 추출."""
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            return None
+        return stripped.split("=", 1)[0].strip()
+
+    @classmethod
+    def _merge_key_lines(cls, existing: list[str], generated: list[str]) -> list[str]:
+        """generated의 key=value 라인을 existing에 덮어쓰되 다른 라인은 보존."""
+        generated_by_key = {
+            key: line for line in generated if (key := cls._toml_key(line)) is not None
+        }
+        if not generated_by_key:
+            return existing
+
+        merged: list[str] = []
+        written: set[str] = set()
+
+        for line in existing:
+            key = cls._toml_key(line)
+            if key in generated_by_key:
+                merged.append(generated_by_key[key])
+                written.add(key)
+            else:
+                merged.append(line)
+
+        for key, line in generated_by_key.items():
+            if key not in written:
+                merged.append(line)
+
+        return merged
+
+    @staticmethod
+    def _codex_mcp_server_name(section_name: str) -> str | None:
+        """mcp_servers.<name> 또는 mcp_servers.<name>.env 섹션의 name 추출."""
+        prefix = "mcp_servers."
+        if not section_name.startswith(prefix):
+            return None
+        rest = section_name[len(prefix) :]
+        if rest.endswith(".env"):
+            rest = rest[: -len(".env")]
+        return rest or None
+
+    @classmethod
+    def merge_codex_config(cls, existing: str, generated: str) -> str:
+        """기존 Codex config.toml에 ai-env 관리 블록만 병합.
+
+        Codex Desktop/CLI가 직접 관리하는 plugins, marketplaces, desktop,
+        project trust, node_repl 같은 섹션을 보존하면서 ai-env가 생성하는
+        모델, env, features.rmcp_client, MCP 서버 설정만 갱신한다.
+        """
+        if not existing.strip():
+            return generated
+
+        existing_pre, existing_sections, existing_order = cls._split_toml_sections(existing)
+        generated_pre, generated_sections, generated_order = cls._split_toml_sections(generated)
+
+        generated_mcp_names = {
+            name
+            for section in generated_sections
+            if (name := cls._codex_mcp_server_name(section)) is not None
+        }
+        generated_mcp_sections = [
+            section
+            for section in generated_order
+            if cls._codex_mcp_server_name(section) in generated_mcp_names
+        ]
+
+        merged_lines = cls._merge_key_lines(existing_pre, generated_pre)
+
+        for section in ("env", "features"):
+            if section not in generated_sections:
+                continue
+            if merged_lines and merged_lines[-1] != "":
+                merged_lines.append("")
+            existing_block = existing_sections.get(section, [f"[{section}]"])
+            merged_lines.extend(cls._merge_key_lines(existing_block, generated_sections[section]))
+
+        if merged_lines and merged_lines[-1] != "":
+            merged_lines.append("")
+
+        for section in generated_mcp_sections:
+            merged_lines.extend(generated_sections[section])
+
+        for section in existing_order:
+            if section in {"env", "features"}:
+                continue
+            server_name = cls._codex_mcp_server_name(section)
+            if server_name in generated_mcp_names:
+                continue
+            if merged_lines and merged_lines[-1] != "":
+                merged_lines.append("")
+            merged_lines.extend(existing_sections[section])
+
+        return "\n".join(merged_lines).rstrip() + "\n"
 
     @staticmethod
     def _codex_server_block(name: str, config: dict[str, Any]) -> list[str]:
@@ -223,6 +327,8 @@ class MCPConfigGenerator:
         if not dry_run:
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
+                if name == "codex_global" and isinstance(content, str) and path.exists():
+                    content = self.merge_codex_config(path.read_text(), content)
                 with open(path, "w") as f:
                     if isinstance(content, dict | list):
                         json.dump(content, f, indent=2)

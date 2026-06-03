@@ -10,6 +10,13 @@ import yaml
 _FRONTMATTER_PATTERN = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 
 
+def _strip_wrapping_quotes(value: str) -> str:
+    """Remove a single matching quote pair from a scalar frontmatter value."""
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
 def _extract_frontmatter_value(frontmatter: str, key: str) -> list[str]:
     """Extract a loose frontmatter value as normalized lines."""
     lines = frontmatter.splitlines()
@@ -23,7 +30,7 @@ def _extract_frontmatter_value(frontmatter: str, key: str) -> list[str]:
         value_lines: list[str] = []
 
         if raw_value and raw_value != "|":
-            value_lines.append(raw_value)
+            value_lines.append(_strip_wrapping_quotes(raw_value))
 
         for next_line in lines[index + 1 :]:
             if re.match(r"^[A-Za-z0-9_-]+:\s*", next_line):
@@ -79,9 +86,9 @@ def normalize_skill_markdown_for_codex(content: str, skill_name: str) -> str:
 
 def copy_skill_tree_for_codex(source: Path, target: Path) -> None:
     """Copy a skill directory or skills root and normalize every SKILL.md file."""
-    from .sync import safe_copytree
+    from .sync import safe_copy_skill_tree
 
-    safe_copytree(source, target)
+    safe_copy_skill_tree(source, target)
 
     for skill_md in target.rglob("SKILL.md"):
         normalized = normalize_skill_markdown_for_codex(

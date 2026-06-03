@@ -71,13 +71,6 @@ _ai_env_sync_skills_run() {{
         unset VIRTUAL_ENV
         # nullglob: 매칭 없으면 빈 배열 (zsh no-match 에러 방지)
         setopt nullglob 2>/dev/null || shopt -s nullglob 2>/dev/null || true
-        for d in cde-*skills; do
-            # develop 브랜치일 때만 pull, 작업 브랜치는 현재 상태 그대로 sync
-            if [[ -d "$d/.git" ]]; then
-                _branch=$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)
-                [[ "$_branch" == "develop" ]] && git -C "$d" pull --ff-only --quiet 2>/dev/null || true
-            fi
-        done
         uv run ai-env sync --skills-only --skills-all 2>/dev/null
     )
 }}
@@ -270,14 +263,32 @@ claude() {{
             hf=$(mktemp -t "claude-fb-handoff-${{_direction}}.XXXXXX.md")
         fi
 
+        # cross-cwd guard 용 메타 (SPEC-014 AC-1)
+        local _hf_cwd=""
+        local _hf_branch=""
+        if git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+            _hf_cwd=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+            _hf_branch=$(git branch --show-current 2>/dev/null || echo "N/A")
+        else
+            _hf_cwd="$PWD"
+        fi
+        local _hf_date
+        _hf_date=$(date '+%Y-%m-%d %H:%M')
+
         {{
             if [[ "$_from_base" == "claude" ]]; then
                 echo "# Handoff: Claude Code → Fallback Agent"
-                echo ""
-                echo "Claude Code가 rate-limit으로 중단되었습니다. 아래 컨텍스트를 참고하여 이어서 작업하세요."
             else
                 echo "# Handoff: $from_agent → Claude Code"
-                echo ""
+            fi
+            # SPEC-014: cwd 헤더는 다음 세션의 cross-cwd 일치 검증에 필수
+            echo "- cwd: $_hf_cwd"
+            [[ -n "$_hf_branch" ]] && echo "- Branch: $_hf_branch"
+            echo "- Date: $_hf_date"
+            echo ""
+            if [[ "$_from_base" == "claude" ]]; then
+                echo "Claude Code가 rate-limit으로 중단되었습니다. 아래 컨텍스트를 참고하여 이어서 작업하세요."
+            else
                 echo "$from_agent 세션이 종료되고 Claude 제한이 해제되어 복귀합니다. 아래 컨텍스트를 참고하여 이어서 작업하세요."
             fi
             echo ""
@@ -928,4 +939,5 @@ claude() {{
 codex() {{
     _ai_env_sync_skills
     command codex "$@"
+    return $?
 }}"""

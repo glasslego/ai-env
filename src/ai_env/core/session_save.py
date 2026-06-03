@@ -16,7 +16,7 @@ from pathlib import Path
 
 from .config import expand_path, load_settings
 
-DEFAULT_VAULT = "~/Documents/Obsidian/PARA-2025"
+DEFAULT_VAULT = "~/Documents/Obsidian Vault"
 DEFAULT_SUBDIR = "00_Sessions"
 MAX_SLUG_SUFFIX_TRIES = 100
 
@@ -230,7 +230,7 @@ def save_session(
         note: 사용자가 명시한 메모 (스킬/CLI에서 전달).
         title: 노트 제목. 미지정 시 시간 + 브랜치 prefix로 자동 생성.
         vault: Obsidian vault 루트. 미지정 시 settings.yaml `obsidian_base` 또는
-            `~/Documents/Obsidian/PARA-2025` 사용.
+            `~/Documents/Obsidian Vault` 사용.
         subdir: vault 내 저장 디렉토리. 기본 `00_Sessions`.
         extras: 추가로 본문에 포함할 섹션 (`{헤더: 내용}`).
         cwd: git 스냅샷을 수집할 디렉토리.

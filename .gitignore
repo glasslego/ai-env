@@ -23,6 +23,7 @@ build/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.coverage
 
 # Other tool configs
 .specify/
@@ -50,6 +51,7 @@ generated/
 .claude/logs/
 .claude/worktrees/
 .codex/config.toml
+.codex/*.bak
 
 # 디렉토리 구조 유지
 !.claude/

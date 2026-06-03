@@ -76,14 +76,14 @@ class TestGenerateCodexConfig:
         with patch("ai_env.mcp.generator.load_mcp_config") as mock_mcp:
             mock_mcp.return_value = MagicMock(mcp_servers={})
             mock_settings.return_value = Settings(
-                codex_model="gpt-5.4", codex_model_reasoning_effort="high"
+                codex_model="gpt-5.5", codex_model_reasoning_effort="xhigh"
             )
             gen = MCPConfigGenerator(secrets)
 
         result = gen.generate_codex()
 
-        assert 'model = "gpt-5.4"' in result
-        assert 'model_reasoning_effort = "high"' in result
+        assert 'model = "gpt-5.5"' in result
+        assert 'model_reasoning_effort = "xhigh"' in result
 
     def test_custom_startup_timeout_for_codex_sse(self):
         """SSE 서버도 startup_timeout_sec 반영."""
@@ -115,10 +115,62 @@ class TestGenerateCodexConfig:
         assert "trust_level" not in result
         assert "[permissions]" not in result
         # 필수 필드 존재
-        assert 'model = "gpt-5.4"' in result
-        assert "[env]" in result
+        assert 'model = "gpt-5.5"' in result
+        assert "[env]" not in result
+        assert "[features]" not in result
+        assert "rmcp_client" not in result
         assert "teammateMode" not in result  # teammateMode는 제거됨
-        assert 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1"' in result
+
+    def test_merge_codex_config_preserves_app_managed_sections(self):
+        """전역 Codex config 저장 시 앱/플러그인 관리 섹션은 보존."""
+        existing = """model = "old"
+notify = ["app", "turn-ended"]
+
+[env]
+EXISTING_ENV = "1"
+
+[features]
+rmcp_client = false
+js_repl = false
+
+[mcp_servers.brave-search]
+command = "old"
+args = ["old-package"]
+
+[mcp_servers.node_repl]
+command = "/Applications/Codex.app/node_repl"
+args = []
+
+[projects."~/work/glasslego/ai-env"]
+trust_level = "trusted"
+
+[plugins."browser@openai-bundled"]
+enabled = true
+"""
+        generated = """model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+
+[mcp_servers.brave-search]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-brave-search"]
+startup_timeout_sec = 30
+"""
+
+        result = MCPConfigGenerator.merge_codex_config(existing, generated)
+
+        assert 'model = "gpt-5.5"' in result
+        assert 'model_reasoning_effort = "xhigh"' in result
+        assert 'notify = ["app", "turn-ended"]' in result
+        assert "[env]" not in result
+        assert 'EXISTING_ENV = "1"' not in result
+        assert "[features]" not in result
+        assert "rmcp_client" not in result
+        assert "js_repl" not in result
+        assert 'command = "old"' not in result
+        assert "@modelcontextprotocol/server-brave-search" in result
+        assert "[mcp_servers.node_repl]" in result
+        assert '[projects."~/work/glasslego/ai-env"]' in result
+        assert '[plugins."browser@openai-bundled"]' in result
 
 
 class TestSaveAllTargets:

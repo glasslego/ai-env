@@ -68,6 +68,18 @@ def generate_env_example() -> str:
 
         lines.append("")
 
+    # 3. Extra credentials (mcp/providers 외부에서 코드가 직접 읽는 키)
+    if settings.extra_env_keys:
+        lines.append("# === Extra Credentials ===")
+        provider_and_mcp_keys = provider_key_set | set(mcp_keys.keys()) | set(mcp_url_keys.keys())
+        for entry in settings.extra_env_keys:
+            if entry.key in provider_and_mcp_keys:
+                continue  # 중복 제거
+            if entry.description:
+                lines.append(f"# {entry.description}")
+            lines.append(f"{entry.key}=")
+        lines.append("")
+
     lines.append("# === Optional ===")
     lines.append("# CLAUDE_FALLBACK_LOG_DIR=.claude/logs")
     lines.append("# CLAUDE_FALLBACK_RETRY_MINUTES=15")

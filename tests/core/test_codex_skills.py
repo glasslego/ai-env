@@ -42,6 +42,22 @@ def test_normalize_skill_markdown_for_codex_adds_missing_frontmatter() -> None:
     assert "# /service-onboard" in normalized
 
 
+def test_normalize_skill_markdown_for_codex_unquotes_scalar_description() -> None:
+    """따옴표로 감싼 YAML scalar description은 값 내부 quote 없이 정규화한다."""
+    raw_content = """---
+name: data
+description: "Trino, Kafka, and Elasticsearch triggers."
+---
+
+# Data
+"""
+
+    normalized = normalize_skill_markdown_for_codex(raw_content, "data")
+
+    assert 'description: "Trino' not in normalized
+    assert "description: Trino, Kafka, and Elasticsearch triggers." in normalized
+
+
 def test_copy_skill_tree_for_codex_rewrites_skill_md(tmp_path: Path) -> None:
     """skill 트리 복사 시 모든 SKILL.md를 정규화한다."""
     source = tmp_path / "source-skill"

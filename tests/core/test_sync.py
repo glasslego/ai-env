@@ -1,5 +1,6 @@
 """Tests for sync logic."""
 
+import json
 import stat
 from unittest.mock import MagicMock, patch
 
@@ -10,6 +11,7 @@ from ai_env.core.sync import (
     _extract_skill_summary,
     _sync_file_or_dir,
     _sync_skills_merged,
+    safe_copy_skill_tree,
     sync_claude_global_config,
     sync_codex_global_config,
 )
@@ -182,6 +184,41 @@ def test_collect_skill_sources_with_cde_skills_subdir_layout(tmp_path):
     assert "_shared" not in names
 
 
+def test_collect_skill_sources_with_cde_skills_plugin_layout(tmp_path):
+    """plugins/<name>/skills 레이아웃의 cde-skills 카테고리 스킬을 포함."""
+    project_root = tmp_path / "ai-env"
+    skills_dir = project_root / ".claude" / "skills"
+
+    (skills_dir / "git-worktree").mkdir(parents=True)
+    (skills_dir / "git-worktree" / "SKILL.md").write_text("# git worktree")
+
+    cde_real = tmp_path / "cde-skills-repo"
+    (cde_real / "skills" / "legacy-trino").mkdir(parents=True)
+    (cde_real / "skills" / "legacy-trino" / "_SKILL.md").write_text("# legacy")
+    plugin_skills = cde_real / "plugins" / "cde-skills" / "skills"
+    (plugin_skills / "data" / "trino").mkdir(parents=True)
+    (plugin_skills / "data" / "SKILL.md").write_text("# data")
+    (plugin_skills / "data" / "trino" / "_SKILL.md").write_text("# trino")
+    (plugin_skills / "orchestration").mkdir()
+    (plugin_skills / "orchestration" / "SKILL.md").write_text("# orchestration")
+    (plugin_skills / "_shared").mkdir()
+    (plugin_skills / "_shared" / "README.md").write_text("shared")
+
+    # repo root의 템플릿 SKILL.md는 실제 team skill 컨테이너가 아니므로 수집되면 안 된다.
+    (cde_real / "templates").mkdir(parents=True)
+    (cde_real / "templates" / "SKILL.md").write_text("# template")
+    (project_root / "cde-skills").symlink_to(cde_real)
+
+    sources = _collect_skill_sources(project_root)
+    names = [s.name for s in sources]
+
+    assert "git-worktree" in names
+    assert "data" in names
+    assert "orchestration" in names
+    assert "templates" not in names
+    assert "_shared" not in names
+
+
 def test_sync_skills_merged(tmp_path):
     """--skills-include 사용 시 personal + team 스킬이 합쳐지는지 확인."""
     project_root = tmp_path / "ai-env"
@@ -238,7 +275,7 @@ def _setup_multi_team_skills(tmp_path):
 
 
 def test_collect_skills_include(tmp_path):
-    """--skills-include로 특정 팀 스킬만 포함.
+    """--skills-include로 특정 팀 스킬 추가 + ALWAYS 팀 스킬은 항상 동행.
 
     팀 레포 layout(flat / subdir) 자체의 처리는
     test_collect_skill_sources_with_cde_skills(_subdir_layout)에서 별도로 검증한다.
@@ -250,35 +287,74 @@ def test_collect_skills_include(tmp_path):
 
     assert "my-skill" in names  # personal은 항상 포함
     assert "es-query" in names  # cde-skills 포함
-    assert "ranking-lookup" not in names  # cde-ranking-skills 제외
-    assert "score-drilldown" not in names
+    # cde-ranking-skills 는 ALWAYS_TEAM_SKILLS 정책으로 항상 포함
+    assert "ranking-lookup" in names
+    assert "score-drilldown" in names
 
 
 def test_collect_skills_exclude(tmp_path):
-    """--skills-exclude로 특정 팀 스킬 제외."""
+    """--skills-exclude=cde-ranking-skills 로 ALWAYS 정책을 옵트아웃."""
     project_root = _setup_multi_team_skills(tmp_path)
 
     sources = _collect_skill_sources(project_root, skills_exclude=["cde-ranking-skills"])
     names = [s.name for s in sources]
 
     assert "my-skill" in names  # personal은 항상 포함
-    assert "es-query" in names  # cde-skills 포함
-    assert "ranking-lookup" not in names  # cde-ranking-skills 제외
+    assert "es-query" in names  # cde-skills 포함 (filter 모드)
+    assert "ranking-lookup" not in names  # 명시적 제외로 ALWAYS 옵트아웃
     assert "score-drilldown" not in names
 
 
 def test_collect_skills_no_filter(tmp_path):
-    """필터 없으면 personal 스킬만 포함."""
+    """필터 없어도 personal + own + ALWAYS 팀 스킬은 포함."""
     project_root = _setup_multi_team_skills(tmp_path)
 
     sources = _collect_skill_sources(project_root)
     names = [s.name for s in sources]
 
-    assert len(names) == 1  # personal only
-    assert "my-skill" in names
-    assert "es-query" not in names
-    assert "ranking-lookup" not in names
-    assert "score-drilldown" not in names
+    assert "my-skill" in names  # personal
+    assert "es-query" in names  # cde-skills (ALWAYS)
+    assert "ranking-lookup" in names  # cde-ranking-skills (ALWAYS)
+    assert "score-drilldown" in names
+
+
+def test_collect_skills_always_no_double_include(tmp_path):
+    """--skills-all 같이 ALWAYS 팀 스킬이 include 에 들어와도 dedup 보장."""
+    project_root = _setup_multi_team_skills(tmp_path)
+
+    sources = _collect_skill_sources(
+        project_root, skills_include=["cde-skills", "cde-ranking-skills"]
+    )
+    names = [s.name for s in sources]
+
+    # 중복 없이 한 번씩만
+    assert names.count("ranking-lookup") == 1
+    assert names.count("score-drilldown") == 1
+    assert names.count("es-query") == 1
+
+
+def test_safe_copy_skill_tree_prunes_large_generated_artifacts(tmp_path):
+    """스킬 복사 시 큰 생성 산출물은 제외하고 문서/스크립트는 보존."""
+    source = tmp_path / "source-skill"
+    target = tmp_path / "target-skill"
+    (source / "scripts").mkdir(parents=True)
+    (source / "docs").mkdir()
+    (source / "SKILL.md").write_text("# skill")
+    (source / "scripts" / "helper.py").write_text("print('ok')\n")
+    (source / "docs" / "small.html").write_text("<p>small</p>")
+    large_artifact = source / "ontology.db"
+    with large_artifact.open("wb") as f:
+        f.truncate(6 * 1024 * 1024)
+    (source / ".pytest_cache").mkdir()
+    (source / ".pytest_cache" / "README").write_text("cache")
+
+    safe_copy_skill_tree(source, target)
+
+    assert (target / "SKILL.md").exists()
+    assert (target / "scripts" / "helper.py").exists()
+    assert (target / "docs" / "small.html").exists()
+    assert not (target / "ontology.db").exists()
+    assert not (target / ".pytest_cache").exists()
 
 
 def test_sync_codex_global_config(tmp_path, mock_secrets_manager):
@@ -328,6 +404,69 @@ def test_sync_codex_global_config_dry_run(tmp_path, mock_secrets_manager):
     assert "AGENTS.md" in results
     assert not (target_dir / "AGENTS.md").exists()
     assert not (target_dir / "skills").exists()
+
+
+def test_sync_codex_global_config_removes_unsupported_async_hooks(tmp_path, mock_secrets_manager):
+    """Codex hooks.json에서 아직 지원하지 않는 async 필드를 제거한다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    target_dir = tmp_path / "home" / ".codex"
+    target_dir.mkdir(parents=True)
+    hooks_json = target_dir / "hooks.json"
+    hooks_json.write_text(
+        json.dumps(
+            {
+                "SessionStart": [
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "bash ~/.codex/hooks/start.sh",
+                                "async": True,
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+    )
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config()
+
+    assert "hooks.json (removed unsupported async fields)" in results
+    content = hooks_json.read_text()
+    assert '"async"' not in content
+    assert "bash ~/.codex/hooks/start.sh" in content
+
+
+def test_sync_codex_global_config_skips_invalid_hooks_json(tmp_path, mock_secrets_manager):
+    """깨진 hooks.json이 있어도 Codex 동기화 전체는 계속 진행한다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    target_dir = tmp_path / "home" / ".codex"
+    target_dir.mkdir(parents=True)
+    hooks_json = target_dir / "hooks.json"
+    hooks_json.write_text("{not-json")
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config()
+
+    assert "AGENTS.md" in results
+    assert "hooks.json (removed unsupported async fields)" not in results
+    assert hooks_json.read_text() == "{not-json"
 
 
 def test_sync_codex_no_source(tmp_path, mock_secrets_manager):

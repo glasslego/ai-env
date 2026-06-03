@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from .codex_skills import copy_skill_tree_for_codex
 from .config import get_project_root, load_settings
@@ -245,40 +246,139 @@ def _update_team_skill_repos(
     return results
 
 
+# 정책상 무조건 동기화하는 핵심 팀 스킬 (skills_exclude 로만 옵트아웃 가능)
+ALWAYS_TEAM_SKILLS = ("cde-skills", "cde-ranking-skills")
+
+_SKILL_COPY_IGNORED_DIRS = frozenset(
+    {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+        "build",
+        "dist",
+        "node_modules",
+    }
+)
+_SKILL_COPY_LARGE_ARTIFACT_SUFFIXES = frozenset(
+    {".db", ".sqlite", ".sqlite3", ".parquet", ".zip", ".html", ".json"}
+)
+_SKILL_COPY_MAX_ARTIFACT_BYTES = 5 * 1024 * 1024
+
+
+def _strip_wrapping_quotes(value: str) -> str:
+    """frontmatter scalar 값의 바깥 quote 한 겹을 제거."""
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def _skill_copy_ignore(directory: str, names: list[str]) -> set[str]:
+    """스킬 복사 시 캐시/빌드 산출물과 큰 생성 파일을 제외."""
+    ignored: set[str] = set()
+    base = Path(directory)
+
+    for name in names:
+        path = base / name
+        if path.is_dir():
+            if name in _SKILL_COPY_IGNORED_DIRS:
+                ignored.add(name)
+            continue
+
+        if path.suffix in {".pyc", ".pyo"}:
+            ignored.add(name)
+            continue
+
+        if path.suffix in _SKILL_COPY_LARGE_ARTIFACT_SUFFIXES:
+            try:
+                if path.stat().st_size > _SKILL_COPY_MAX_ARTIFACT_BYTES:
+                    ignored.add(name)
+            except OSError:
+                continue
+
+    return ignored
+
+
+def safe_copy_skill_tree(src: Path, dst: Path) -> None:
+    """스킬 디렉토리를 복사하되 캐시와 큰 생성 산출물은 제외."""
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst, ignore=_skill_copy_ignore)
+
+
 def _collect_skill_sources(
     project_root: Path,
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
 ) -> list[Path]:
-    """스킬 소스 디렉토리 수집 (personal + team)
+    """스킬 소스 디렉토리 수집 (personal + own + always-team + optional team)
 
-    personal 소스는 ai-env/.claude/skills/ 이다.
-    team 스킬(cde-*skills)은 명시적으로 include/exclude 옵션을 준 경우에만 수집한다.
+    수집 순서:
+      1) personal: ai-env/.claude/skills/<skill>/
+      2) own:      ai-env/megan-skills/skills/<category>/<skill>/
+      3) always:   ALWAYS_TEAM_SKILLS — skills_exclude 로만 제외
+      4) team:     skills_include / skills_exclude 옵션이 있을 때만 cde-*skills 스캔
 
     Args:
         project_root: ai-env 프로젝트 루트
         skills_include: 포함할 팀 스킬 디렉토리 이름 (예: ["cde-skills"])
-            지정 시 이 목록에 있는 디렉토리만 포함.
-        skills_exclude: 제외할 팀 스킬 디렉토리 이름 (예: ["cde-ranking-skills"])
-            skills_include 없이 지정하면 team 전체에서 제외 필터로 동작.
+        skills_exclude: 제외할 팀 스킬 디렉토리 이름.
+            ALWAYS_TEAM_SKILLS 도 이 목록에 있으면 제외된다.
 
     Returns:
-        스킬 서브디렉토리 경로 리스트
+        스킬 서브디렉토리 경로 리스트 (resolve 기준 dedup)
     """
     sources: list[Path] = []
+    seen: set[Path] = set()
 
-    # 1) personal skills — ai-env/.claude/skills/ (항상 포함)
+    def _add(skill: Path) -> None:
+        key = skill.resolve()
+        if key in seen:
+            return
+        seen.add(key)
+        sources.append(skill)
+
+    # 1) personal skills — ai-env/.claude/skills/
     personal_dir = project_root / ".claude" / "skills"
     if personal_dir.is_dir():
         for d in sorted(personal_dir.iterdir()):
             if d.is_dir() and not d.name.startswith("."):
-                sources.append(d)
+                _add(d)
 
-    # 옵션이 없으면 기본은 personal만 동기화
+    # 2) own skills — ai-env/megan-skills/skills/{category}/{skill}/
+    # 카테고리(obsidian/work/data/code/meta) 한 단계가 더 있다.
+    own_dir = project_root / "megan-skills" / "skills"
+    if own_dir.is_dir():
+        for category in sorted(own_dir.iterdir()):
+            if not category.is_dir() or category.name.startswith((".", "_")):
+                continue
+            for skill in sorted(category.iterdir()):
+                if not skill.is_dir() or skill.name.startswith((".", "_")):
+                    continue
+                if (skill / "SKILL.md").exists():
+                    _add(skill)
+
+    # 3) ALWAYS 팀 스킬 (skills_exclude 로만 옵트아웃)
+    for always_name in ALWAYS_TEAM_SKILLS:
+        if skills_exclude is not None and always_name in skills_exclude:
+            continue
+        link = project_root / always_name
+        if not link.exists():
+            continue
+        scan_dir = _resolve_team_skill_root(link.resolve())
+        for d in sorted(scan_dir.iterdir()):
+            if not d.is_dir() or d.name.startswith((".", "_")):
+                continue
+            if (d / "SKILL.md").exists():
+                _add(d)
+
+    # 옵션이 없으면 personal + own + always 만
     if skills_include is None and skills_exclude is None:
         return sources
 
-    # 2) team skills — cde-*skills 심링크에서 수집 (예: cde-skills, cde-ranking-skills)
+    # 4) 옵션 지정 시 team 스킬 추가 스캔 (cde-*skills 심링크)
     for item in sorted(project_root.iterdir()):
         if not _is_team_skill_link(item, skills_include, skills_exclude):
             continue
@@ -287,7 +387,7 @@ def _collect_skill_sources(
             if not d.is_dir() or d.name.startswith((".", "_")):
                 continue
             if (d / "SKILL.md").exists():
-                sources.append(d)
+                _add(d)
 
     return sources
 
@@ -309,17 +409,38 @@ def _is_team_skill_link(
     return True
 
 
+def _has_skill_children(container: Path) -> bool:
+    """컨테이너 바로 아래에 유효한 SKILL.md 기반 스킬이 있는지 확인."""
+    try:
+        children = container.iterdir()
+    except OSError:
+        return False
+
+    return any(
+        child.is_dir() and not child.name.startswith((".", "_")) and (child / "SKILL.md").is_file()
+        for child in children
+    )
+
+
 def _resolve_team_skill_root(team_repo: Path) -> Path:
     """팀 스킬 레포 내부의 스킬 컨테이너 디렉토리 결정.
 
     지원 layout (우선순위):
       1) nested: <repo>/.claude/skills/<skill>/SKILL.md
       2) subdir: <repo>/skills/<skill>/SKILL.md
-      3) flat:   <repo>/<skill>/SKILL.md
+      3) plugin: <repo>/plugins/<plugin-name>/skills/<skill>/SKILL.md
+      4) flat:   <repo>/<skill>/SKILL.md
     """
     for candidate in (team_repo / ".claude" / "skills", team_repo / "skills"):
-        if candidate.is_dir():
+        if candidate.is_dir() and _has_skill_children(candidate):
             return candidate
+
+    plugins_dir = team_repo / "plugins"
+    if plugins_dir.is_dir():
+        for candidate in sorted(plugins_dir.glob("*/skills")):
+            if candidate.is_dir() and _has_skill_children(candidate):
+                return candidate
+
     return team_repo
 
 
@@ -339,7 +460,7 @@ def _sync_skills_merged(
         dry_run: True면 실제 복사하지 않음
         skills_include: 포함할 팀 스킬 디렉토리 이름
         skills_exclude: 제외할 팀 스킬 디렉토리 이름
-        copy_fn: 스킬 디렉토리 복사 함수 (기본: safe_copytree).
+        copy_fn: 스킬 디렉토리 복사 함수 (기본: safe_copy_skill_tree).
             signature: (src: Path, dst: Path) -> None
 
     Returns:
@@ -351,7 +472,7 @@ def _sync_skills_merged(
         제거한다. dotfile/`_`-prefix 디렉토리(`.system` 등)는 보존한다.
     """
     if copy_fn is None:
-        copy_fn = safe_copytree
+        copy_fn = safe_copy_skill_tree
 
     skill_dirs = _collect_skill_sources(project_root, skills_include, skills_exclude)
 
@@ -412,6 +533,47 @@ def _strip_cmux_hooks(settings_json: str) -> str:
         del hooks[event_name]
 
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+def _remove_async_fields(value: Any) -> Any:
+    """Codex hooks.json에서 아직 지원하지 않는 async 필드를 재귀적으로 제거."""
+    if isinstance(value, dict):
+        return {key: _remove_async_fields(item) for key, item in value.items() if key != "async"}
+    if isinstance(value, list):
+        return [_remove_async_fields(item) for item in value]
+    return value
+
+
+def _sync_codex_hooks_json_compat(target: Path, dry_run: bool) -> bool:
+    """기존 Codex hooks.json을 현재 Codex CLI가 지원하는 형태로 정리.
+
+    Codex CLI는 아직 hook 엔트리의 `async` 필드를 지원하지 않아 시작할 때마다
+    "skipping async hook" 경고를 반복 출력한다. ai-env가 관리하지 않는 hook 구조는
+    유지하고, 호환되지 않는 `async` 필드만 제거한다.
+
+    Args:
+        target: Codex hooks.json 경로
+        dry_run: True면 실제 파일을 수정하지 않음
+
+    Returns:
+        `async` 필드를 제거했으면 True, 변경할 내용이 없으면 False.
+    """
+    if not target.is_file():
+        return False
+
+    try:
+        data = json.loads(target.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    sanitized = _remove_async_fields(data)
+    if sanitized == data:
+        return False
+
+    if not dry_run:
+        target.write_text(
+            json.dumps(sanitized, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+    return True
 
 
 def sync_claude_global_config(
@@ -516,16 +678,16 @@ def _extract_skill_summary(skill_dir: Path) -> tuple[str, str] | None:
 
     # name 추출
     name_match = re.search(r"^name:\s*(.+)$", fm_text, re.MULTILINE)
-    name = name_match.group(1).strip() if name_match else skill_dir.name
+    name = _strip_wrapping_quotes(name_match.group(1).strip()) if name_match else skill_dir.name
 
     # description 추출 (첫 줄만, | 블록이면 다음 줄)
     desc_match = re.search(r"^description:\s*\|?\s*\n?\s*(.+)$", fm_text, re.MULTILINE)
     if desc_match:
-        desc = desc_match.group(1).strip()
+        desc = _strip_wrapping_quotes(desc_match.group(1).strip())
     else:
         # 인라인 description
         desc_inline = re.search(r"^description:\s*(.+)$", fm_text, re.MULTILINE)
-        desc = desc_inline.group(1).strip() if desc_inline else name
+        desc = _strip_wrapping_quotes(desc_inline.group(1).strip()) if desc_inline else name
 
     return name, desc
 
@@ -630,6 +792,10 @@ def sync_codex_global_config(
         agents_md.write_text(content, encoding="utf-8")
 
     results: dict[str, str] = {"AGENTS.md": str(agents_md)}
+
+    hooks_json = agent_root / "hooks.json"
+    if _sync_codex_hooks_json_compat(hooks_json, dry_run):
+        results["hooks.json (removed unsupported async fields)"] = str(hooks_json)
 
     # 2) skills/ — Codex 호환 frontmatter로 정규화하여 ~/.codex/skills 와
     #    ~/.agents/skills (Codex 0.125+ 통합 위치) 두 곳에 복사
