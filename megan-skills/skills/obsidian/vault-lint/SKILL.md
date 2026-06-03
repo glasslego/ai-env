@@ -47,7 +47,7 @@ Exempt (orphan 검사 제외): `_meta/`, `90_journal/`, `99_archive/`, `attachme
 | missing frontmatter | 2 |
 
 ## Broken wikilinks
-- `00_Sessions/2026-05/foo.md` — `[[bar]]` 미발견
+- `00_session/2026-05/foo.md` — `[[bar]]` 미발견
 
 ## Orphan notes
 - `01_Inbox/idea.md`

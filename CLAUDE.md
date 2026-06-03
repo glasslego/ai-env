@@ -201,7 +201,7 @@ API 키: `.env`의 `GOOGLE_API_KEY`, `OPENAI_API_KEY` 사용.
 `/handoff`(다음 세션 인계용)와 달리 외부 vault에 영구 저장되어 검색·연결이 가능하다.
 
 ```bash
-ai-env session save --note "이번 세션 메모"        # 기본: ~/Documents/Obsidian/PARA-2025/00_Sessions/
+ai-env session save --note "이번 세션 메모"        # 기본: ~/Documents/Obsidian Vault/00_session/
 ai-env session save --note "..." --subdir 01_Inbox  # 다른 디렉토리
 ai-env session save --note "..." --dry-run          # 본문 미리보기
 ```

@@ -49,7 +49,7 @@ description: |
 uv run ai-env session save \
     --note "이번 세션 메모 내용 (한 단락)" \
     --title "이번 세션 제목 (옵션)" \
-    --subdir 00_Sessions
+    --subdir 00_session
 ```
 
 옵션:
@@ -59,7 +59,7 @@ uv run ai-env session save \
 | `--note` / `-n` | (없음) | 본문에 들어가는 사용자 메모. 권장. |
 | `--title` / `-t` | `{HHMM} {branch}` | 노트 제목 |
 | `--vault` | `settings.yaml`의 `obsidian_base` | Obsidian vault 루트 |
-| `--subdir` | `00_Sessions` | vault 내부 디렉토리 |
+| `--subdir` | `00_session` | vault 내부 디렉토리 |
 | `--dry-run` | false | 본문만 미리보기 |
 
 ### Step 4: 결과 보고

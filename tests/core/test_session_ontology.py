@@ -103,7 +103,7 @@ def test_extract_session_ontology_uses_exact_heading_and_flexible_indent(
 
 
 def test_collect_session_ontology(tmp_path: Path) -> None:
-    session_dir = tmp_path / "00_Sessions"
+    session_dir = tmp_path / "00_session"
     session_dir.mkdir()
     (session_dir / "a.md").write_text("## Ontology Seeds\n\n- entities: [A]\n", encoding="utf-8")
     (session_dir / "b.md").write_text("## Ontology Seeds\n\n- entities: [B]\n", encoding="utf-8")

@@ -54,7 +54,7 @@ Every coding-agent session should produce:
 - Project latest handoff: `.claude/handoff/latest.md`
 - Project archive: `.claude/handoff/archive/*.md`
 - Global index: `~/.claude/handoffs/index.jsonl`
-- Obsidian note: `{obsidian_base}/00_Sessions/YYYY-MM-DD-*.md`
+- Obsidian note: `{obsidian_base}/00_session/YYYY-MM-DD-*.md`
 
 The Obsidian note should include:
 

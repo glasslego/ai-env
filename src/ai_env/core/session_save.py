@@ -17,7 +17,7 @@ from pathlib import Path
 from .config import expand_path, load_settings
 
 DEFAULT_VAULT = "~/Documents/Obsidian Vault"
-DEFAULT_SUBDIR = "00_Sessions"
+DEFAULT_SUBDIR = "00_session"
 MAX_SLUG_SUFFIX_TRIES = 100
 
 _SLUG_CLEAN = re.compile(r"[^a-zA-Z0-9가-힣\-_]+")
@@ -239,7 +239,7 @@ def save_session(
         title: 노트 제목. 미지정 시 시간 + 브랜치 prefix로 자동 생성.
         vault: Obsidian vault 루트. 미지정 시 settings.yaml `obsidian_base` 또는
             `~/Documents/Obsidian Vault` 사용.
-        subdir: vault 내 저장 디렉토리. 기본 `00_Sessions`.
+        subdir: vault 내 저장 디렉토리. 기본 `00_session`.
         extras: 추가로 본문에 포함할 섹션 (`{헤더: 내용}`).
         cwd: git 스냅샷을 수집할 디렉토리.
         dry_run: True면 파일을 쓰지 않고 본문만 반환.

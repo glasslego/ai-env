@@ -100,7 +100,7 @@ ai-env pipeline scaffold <topic_id>      # Obsidian 워크스페이스 생성
 ai-env pipeline workflow <topic_id>      # 워크플로우 진행 상태
 
 # Obsidian 세션 저장 (SPEC-013)
-ai-env session save --note "<메모>"                      # 기본 vault의 00_Sessions/에 저장
+ai-env session save --note "<메모>"                      # 기본 vault의 00_session/에 저장
 ai-env session save --note "..." --subdir 01_Inbox      # 다른 디렉토리
 ai-env session save --note "..." --vault ~/Vaults/Other  # 다른 vault
 ai-env session save --note "..." --dry-run               # 본문 미리보기
@@ -141,7 +141,7 @@ ai-env project sync-codex
 `/handoff`(다음 세션 인계용)와 달리 외부 vault에 영구 저장되어 검색·연결 가능합니다.
 
 ```bash
-ai-env session save --note "메모"                            # 기본 vault/00_Sessions/
+ai-env session save --note "메모"                            # 기본 vault/00_session/
 ai-env session save --note "..." --title "회의 결정"          # 제목 지정
 ai-env session save --note "..." --subdir 01_Inbox           # 다른 폴더
 ai-env session save --note "..." --vault ~/Vaults/Other      # 다른 vault

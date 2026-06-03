@@ -48,7 +48,7 @@ def test_session_save_dry_run(runner: CliRunner, tmp_path: Path, fresh_repo: Pat
     assert "dry-run" in result.output
     assert "iteration test" in result.output
     # dry-run이므로 파일은 생성되지 않아야 함
-    assert not (vault / "00_Sessions").exists()
+    assert not (vault / "00_session").exists()
 
 
 def test_session_save_writes_file(runner: CliRunner, tmp_path: Path, fresh_repo: Path) -> None:
@@ -69,7 +69,7 @@ def test_session_save_writes_file(runner: CliRunner, tmp_path: Path, fresh_repo:
         ],
     )
     assert result.exit_code == 0, result.output
-    target_dir = vault / "00_Sessions"
+    target_dir = vault / "00_session"
     files = list(target_dir.glob("*.md"))
     assert len(files) == 1
     body = files[0].read_text(encoding="utf-8")

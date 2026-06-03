@@ -1,7 +1,7 @@
 """ai-env session — Obsidian 세션 노트 저장 명령.
 
 사용 예:
-    ai-env session save --note "리뷰 1차 완료" --subdir 00_Sessions
+    ai-env session save --note "리뷰 1차 완료" --subdir 00_session
     ai-env session save --note "메모" --vault ~/Vaults/Other --dry-run
 """
 

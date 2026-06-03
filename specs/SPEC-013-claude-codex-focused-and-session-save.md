@@ -49,7 +49,7 @@ AI 도구를 동시에 지원한다. 실제 활용은 **Claude Code + Codex** �
 ### AC-3 (Obsidian 저장 — 코어)
 - `ai_env.core.session_save.save_session(...)` 함수가 다음 입력을 받아 결과 경로를 반환:
   - `vault: Path` (Obsidian 루트, 미지정 시 `settings.yaml` → `obsidian.base` → `~/Documents/Obsidian/PARA-2025`)
-  - `subdir: str` (기본 `00_Sessions`)
+  - `subdir: str` (기본 `00_session`)
   - `note: str | None` (사용자가 명시한 메모)
   - `title: str | None` (파일 제목, 미지정 시 시간+브랜치+세션 prefix)
   - `extras: dict[str, str] | None` (추가 섹션)

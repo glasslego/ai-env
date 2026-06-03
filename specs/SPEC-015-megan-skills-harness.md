@@ -59,6 +59,7 @@ clear ownership boundaries:
 - [x] Task-07: Compact top cde-ranking wrapper skills into references-backed
   summaries.
 - [x] Task-08: Add Claude agent definitions for Megan harness roles.
+- [x] Task-09: Store coding-agent session notes in Obsidian `00_session`.
 
 ## Notes
 
