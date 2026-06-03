@@ -535,47 +535,6 @@ def _strip_cmux_hooks(settings_json: str) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
-def _remove_async_fields(value: Any) -> Any:
-    """Codex hooks.json에서 아직 지원하지 않는 async 필드를 재귀적으로 제거."""
-    if isinstance(value, dict):
-        return {key: _remove_async_fields(item) for key, item in value.items() if key != "async"}
-    if isinstance(value, list):
-        return [_remove_async_fields(item) for item in value]
-    return value
-
-
-def _sync_codex_hooks_json_compat(target: Path, dry_run: bool) -> bool:
-    """기존 Codex hooks.json을 현재 Codex CLI가 지원하는 형태로 정리.
-
-    Codex CLI는 아직 hook 엔트리의 `async` 필드를 지원하지 않아 시작할 때마다
-    "skipping async hook" 경고를 반복 출력한다. ai-env가 관리하지 않는 hook 구조는
-    유지하고, 호환되지 않는 `async` 필드만 제거한다.
-
-    Args:
-        target: Codex hooks.json 경로
-        dry_run: True면 실제 파일을 수정하지 않음
-
-    Returns:
-        `async` 필드를 제거했으면 True, 변경할 내용이 없으면 False.
-    """
-    if not target.is_file():
-        return False
-
-    try:
-        data = json.loads(target.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return False
-    sanitized = _remove_async_fields(data)
-    if sanitized == data:
-        return False
-
-    if not dry_run:
-        target.write_text(
-            json.dumps(sanitized, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
-    return True
-
-
 def _codex_hook(command: str) -> dict[str, str]:
     """Codex hooks.json command hook entry."""
     return {"type": "command", "command": command}
@@ -623,7 +582,7 @@ def _codex_hooks_json(hooks_dir: Path, *, cmux_enabled: bool) -> str:
             "Notification": [_codex_matcher(*notify_hooks)],
         }
     }
-    return json.dumps(_remove_async_fields(data), indent=2, ensure_ascii=False) + "\n"
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def _sync_codex_hooks(

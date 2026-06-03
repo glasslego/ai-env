@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from ai_env.core.session_ontology import collect_session_ontology, extract_session_ontology
+from ai_env.core.session_ontology import (
+    SessionOntologyRecord,
+    collect_session_ontology,
+    extract_session_ontology,
+    render_session_ontology_jsonl,
+    render_session_ontology_markdown,
+)
 
 
 def test_extract_session_ontology_inline_lists(tmp_path: Path) -> None:
@@ -104,3 +111,22 @@ def test_collect_session_ontology(tmp_path: Path) -> None:
     records = collect_session_ontology(tmp_path)
 
     assert [record.entities for record in records] == [["A"], ["B"]]
+
+
+def test_render_session_ontology_jsonl_and_markdown_escape(tmp_path: Path) -> None:
+    record = SessionOntologyRecord(
+        source=tmp_path / "session.md",
+        title="ranking|session\nreview",
+        project="ai-env",
+        branch="feature",
+        entities=["Gift|Ranking", "ForMe\nSlot"],
+    )
+
+    jsonl = render_session_ontology_jsonl([record])
+    data = json.loads(jsonl)
+    markdown = render_session_ontology_markdown([record])
+
+    assert data["source"] == str(tmp_path / "session.md")
+    assert data["entities"] == ["Gift|Ranking", "ForMe\nSlot"]
+    assert "ranking\\|session review" in markdown
+    assert "Gift\\|Ranking, ForMe Slot" in markdown

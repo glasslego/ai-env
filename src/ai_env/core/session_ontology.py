@@ -1,10 +1,12 @@
-"""Extract ontology seed records from saved session notes."""
+"""Extract and render ontology seed records from saved session notes."""
 
 from __future__ import annotations
 
+import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from .session_save import DEFAULT_SUBDIR
 
@@ -126,3 +128,51 @@ def collect_session_ontology(
     if not session_dir.is_dir():
         return []
     return [extract_session_ontology(path) for path in sorted(session_dir.glob("*.md"))]
+
+
+def _record_to_jsonable(record: SessionOntologyRecord) -> dict[str, Any]:
+    """Convert a record to a JSON-serializable dictionary."""
+    data = asdict(record)
+    data["source"] = str(record.source)
+    return data
+
+
+def render_session_ontology_jsonl(records: list[SessionOntologyRecord]) -> str:
+    """Render ontology seed records as JSONL."""
+    return "\n".join(
+        json.dumps(_record_to_jsonable(record), ensure_ascii=False) for record in records
+    ) + ("\n" if records else "")
+
+
+def _markdown_cell(value: str) -> str:
+    """Escape a value for a compact markdown table cell."""
+    normalized = value.replace("\r\n", "\n").replace("\r", "\n").replace("\n", " ")
+    return normalized.replace("|", r"\|").strip()
+
+
+def _markdown_list_cell(values: list[str]) -> str:
+    """Render list values as one escaped markdown table cell."""
+    return _markdown_cell(", ".join(values))
+
+
+def render_session_ontology_markdown(records: list[SessionOntologyRecord]) -> str:
+    """Render ontology seed records as a compact markdown table."""
+    lines = [
+        "# Session Ontology Seeds",
+        "",
+        "| created | project | branch | title | entities | tools | decisions | todos |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for record in records:
+        cells = [
+            _markdown_cell(record.created),
+            _markdown_cell(record.project),
+            _markdown_cell(record.branch),
+            _markdown_cell(record.title),
+            _markdown_list_cell(record.entities),
+            _markdown_list_cell(record.tools),
+            _markdown_list_cell(record.decisions),
+            _markdown_list_cell(record.todos),
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n"
