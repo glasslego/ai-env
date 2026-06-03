@@ -66,6 +66,35 @@ title: nested
     assert record.decisions == ["delegate to cde-ranking-skills"]
 
 
+def test_extract_session_ontology_uses_exact_heading_and_flexible_indent(
+    tmp_path: Path,
+) -> None:
+    note = tmp_path / "session.md"
+    note.write_text(
+        """## Ontology Seeds Extra
+
+- entities: [Wrong]
+
+## Ontology Seeds
+
+- entities:
+    - "ForMe Slot"
+    - 'Gift Ranking'
+- tools: [codex]
+
+## Next
+
+- entities: [Ignored]
+""",
+        encoding="utf-8",
+    )
+
+    record = extract_session_ontology(note)
+
+    assert record.entities == ["ForMe Slot", "Gift Ranking"]
+    assert record.tools == ["codex"]
+
+
 def test_collect_session_ontology(tmp_path: Path) -> None:
     session_dir = tmp_path / "00_Sessions"
     session_dir.mkdir()

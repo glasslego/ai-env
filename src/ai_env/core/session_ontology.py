@@ -9,7 +9,9 @@ from pathlib import Path
 from .session_save import DEFAULT_SUBDIR
 
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
-_HEADING_RE = re.compile(r"^##\s+", re.MULTILINE)
+_SECTION_HEADING_RE = re.compile(r"^##\s+(?P<title>.+?)\s*$", re.MULTILINE)
+_SEED_KEY_RE = re.compile(r"^-\s+(?P<key>[A-Za-z_][\w-]*):")
+_NESTED_ITEM_RE = re.compile(r"^\s+-\s+(?P<value>.+?)\s*$")
 
 
 @dataclass(frozen=True)
@@ -44,16 +46,19 @@ def _parse_frontmatter(text: str) -> dict[str, str]:
 
 def _extract_section(text: str, heading: str) -> str:
     """Extract a level-2 markdown section body by heading text."""
-    marker = f"## {heading}"
-    start = text.find(marker)
-    if start < 0:
-        return ""
-    body_start = text.find("\n", start)
-    if body_start < 0:
-        return ""
-    next_heading = _HEADING_RE.search(text, body_start + 1)
-    end = next_heading.start() if next_heading else len(text)
-    return text[body_start:end].strip()
+    headings = list(_SECTION_HEADING_RE.finditer(text))
+    for index, match in enumerate(headings):
+        if match.group("title").strip() != heading:
+            continue
+        start = match.end()
+        end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+        return text[start:end].strip()
+    return ""
+
+
+def _clean_seed_item(value: str) -> str:
+    """Normalize one ontology seed item."""
+    return value.strip().strip("'\"")
 
 
 def _parse_inline_list(value: str) -> list[str]:
@@ -65,7 +70,7 @@ def _parse_inline_list(value: str) -> list[str]:
         value = value[1:-1]
     if not value:
         return []
-    return [item.strip().strip("'\"") for item in value.split(",") if item.strip()]
+    return [_clean_seed_item(item) for item in value.split(",") if item.strip()]
 
 
 def _parse_seed_values(section: str, key: str) -> list[str]:
@@ -84,12 +89,11 @@ def _parse_seed_values(section: str, key: str) -> list[str]:
 
         for child in lines[index + 1 :]:
             child_stripped = child.strip()
-            if child_stripped.startswith(f"- {key}:"):
+            if _SEED_KEY_RE.match(child_stripped):
                 break
-            if re.match(r"^- [a-z_]+:", child_stripped):
-                break
-            if child.startswith("  - "):
-                values.append(child_stripped[2:].strip())
+            nested = _NESTED_ITEM_RE.match(child)
+            if nested:
+                values.append(_clean_seed_item(nested.group("value")))
         break
 
     return values

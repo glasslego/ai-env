@@ -1,7 +1,7 @@
 ---
 id: SPEC-015
 title: Megan Skills Harness — Claude/Codex compatible personal automation
-status: in_progress
+status: done
 ---
 
 # SPEC-015: Megan Skills Harness

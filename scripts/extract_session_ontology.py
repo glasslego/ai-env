@@ -26,6 +26,17 @@ def render_jsonl(records: list[SessionOntologyRecord]) -> str:
     ) + ("\n" if records else "")
 
 
+def _markdown_cell(value: str) -> str:
+    """Escape a value for a compact markdown table cell."""
+    normalized = value.replace("\r\n", "\n").replace("\r", "\n").replace("\n", " ")
+    return normalized.replace("|", r"\|").strip()
+
+
+def _markdown_list_cell(values: list[str]) -> str:
+    """Render list values as one escaped markdown table cell."""
+    return _markdown_cell(", ".join(values))
+
+
 def render_markdown(records: list[SessionOntologyRecord]) -> str:
     """Render records as a compact markdown table."""
     lines = [
@@ -35,18 +46,17 @@ def render_markdown(records: list[SessionOntologyRecord]) -> str:
         "|---|---|---|---|---|---|---|---|",
     ]
     for record in records:
-        lines.append(
-            "| {created} | {project} | {branch} | {title} | {entities} | {tools} | {decisions} | {todos} |".format(
-                created=record.created,
-                project=record.project,
-                branch=record.branch,
-                title=record.title,
-                entities=", ".join(record.entities),
-                tools=", ".join(record.tools),
-                decisions=", ".join(record.decisions),
-                todos=", ".join(record.todos),
-            )
-        )
+        cells = [
+            _markdown_cell(record.created),
+            _markdown_cell(record.project),
+            _markdown_cell(record.branch),
+            _markdown_cell(record.title),
+            _markdown_list_cell(record.entities),
+            _markdown_list_cell(record.tools),
+            _markdown_list_cell(record.decisions),
+            _markdown_list_cell(record.todos),
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"
 
 
