@@ -16,6 +16,11 @@ from .secrets import get_secrets_manager
 
 # cmux 훅 스크립트 파일명
 _CMUX_HOOK_SCRIPT = "cmux_notify.sh"
+CDE_RANKING_SKILLS = "cde-ranking-skills"
+CDE_RANKING_BASE_BRANCH = "develop"
+CDE_RANKING_BASE_REMOTE = "origin"
+CDE_RANKING_REMOTE_BASE_REF = f"refs/remotes/{CDE_RANKING_BASE_REMOTE}/{CDE_RANKING_BASE_BRANCH}"
+CDE_RANKING_SYNC_WORKTREE = "cde-ranking-skills-rebased"
 
 
 def safe_copytree(src: Path, dst: Path) -> None:
@@ -238,6 +243,10 @@ def _update_team_skill_repos(
                     results[item.name] = "already up to date"
                 else:
                     results[item.name] = "updated"
+            elif item.name == CDE_RANKING_SKILLS:
+                results[item.name] = (
+                    f"on branch '{current_branch}', sync uses develop-rebased worktree"
+                )
             else:
                 results[item.name] = f"on branch '{current_branch}', skipped pull"
         except subprocess.CalledProcessError as e:
@@ -308,10 +317,152 @@ def safe_copy_skill_tree(src: Path, dst: Path) -> None:
     shutil.copytree(src, dst, ignore=_skill_copy_ignore)
 
 
+def _git_stdout(repo: Path, args: list[str]) -> str:
+    """Run git in repo and return stripped stdout."""
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _git_ref_exists(repo: Path, ref: str) -> bool:
+    """Return whether a git ref exists in repo."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", ref],
+        cwd=repo,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _fetch_git_remote_branch(repo: Path, remote: str, branch: str, target_ref: str) -> bool:
+    """Fetch a remote branch into a local ref without checking it out."""
+    if (
+        subprocess.run(
+            ["git", "remote", "get-url", remote],
+            cwd=repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        != 0
+    ):
+        return False
+
+    result = subprocess.run(
+        ["git", "fetch", "--quiet", remote, f"{branch}:{target_ref}"],
+        cwd=repo,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _cde_ranking_base_ref_for_sync(repo: Path) -> str | None:
+    """Return the best available develop ref for cde-ranking sync."""
+    _fetch_git_remote_branch(
+        repo,
+        CDE_RANKING_BASE_REMOTE,
+        CDE_RANKING_BASE_BRANCH,
+        CDE_RANKING_REMOTE_BASE_REF,
+    )
+    if _git_ref_exists(repo, CDE_RANKING_REMOTE_BASE_REF):
+        return CDE_RANKING_REMOTE_BASE_REF
+    if _git_ref_exists(repo, CDE_RANKING_BASE_BRANCH):
+        return CDE_RANKING_BASE_BRANCH
+    return None
+
+
+def _remove_git_worktree(repo: Path, worktree: Path) -> None:
+    """Remove a git worktree path if registered, then delete leftovers."""
+    subprocess.run(
+        ["git", "worktree", "remove", "--force", str(worktree)],
+        cwd=repo,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    shutil.rmtree(worktree, ignore_errors=True)
+
+
+def _prepare_cde_ranking_skills_for_sync(project_root: Path, repo: Path) -> Path:
+    """Return cde-ranking-skills repo path rebased onto develop for sync.
+
+    The source repo worktree is never rebased in place. If the current branch is
+    not develop, a detached temporary worktree is created under
+    `.claude/worktrees/` and rebased onto `origin/develop` when available, with
+    local `develop` as the fallback.
+    """
+    if not (repo / ".git").exists():
+        return repo
+
+    try:
+        current_branch = _git_stdout(repo, ["rev-parse", "--abbrev-ref", "HEAD"])
+    except subprocess.CalledProcessError:
+        return repo
+
+    if current_branch == CDE_RANKING_BASE_BRANCH:
+        return repo
+    base_ref = _cde_ranking_base_ref_for_sync(repo)
+    if base_ref is None:
+        return repo
+
+    worktree = project_root / ".claude" / "worktrees" / CDE_RANKING_SYNC_WORKTREE
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    _remove_git_worktree(repo, worktree)
+
+    try:
+        subprocess.run(
+            ["git", "worktree", "add", "--detach", str(worktree), "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "rebase", base_ref],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        subprocess.run(
+            ["git", "rebase", "--abort"],
+            cwd=worktree,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        _remove_git_worktree(repo, worktree)
+        detail = (e.stderr or e.stdout or str(e)).strip()
+        raise RuntimeError(
+            f"failed to prepare {CDE_RANKING_SKILLS} rebased on {CDE_RANKING_BASE_BRANCH}: {detail}"
+        ) from e
+
+    return worktree
+
+
+def _team_repo_for_sync(project_root: Path, link: Path) -> Path:
+    """Resolve a team skill repo path, applying sync-time overlays if needed."""
+    repo = link.resolve()
+    if link.name == CDE_RANKING_SKILLS:
+        return _prepare_cde_ranking_skills_for_sync(project_root, repo)
+    return repo
+
+
 def _collect_skill_sources(
     project_root: Path,
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
+    prepare_team_rebase: bool = True,
 ) -> list[Path]:
     """스킬 소스 디렉토리 수집 (personal + own + always-team + optional team)
 
@@ -326,6 +477,7 @@ def _collect_skill_sources(
         skills_include: 포함할 팀 스킬 디렉토리 이름 (예: ["cde-skills"])
         skills_exclude: 제외할 팀 스킬 디렉토리 이름.
             ALWAYS_TEAM_SKILLS 도 이 목록에 있으면 제외된다.
+        prepare_team_rebase: True면 cde-ranking 작업 브랜치용 rebase worktree를 준비한다.
 
     Returns:
         스킬 서브디렉토리 경로 리스트 (resolve 기준 dedup)
@@ -367,7 +519,8 @@ def _collect_skill_sources(
         link = project_root / always_name
         if not link.exists():
             continue
-        scan_dir = _resolve_team_skill_root(link.resolve())
+        repo = _team_repo_for_sync(project_root, link) if prepare_team_rebase else link.resolve()
+        scan_dir = _resolve_team_skill_root(repo)
         for d in sorted(scan_dir.iterdir()):
             if not d.is_dir() or d.name.startswith((".", "_")):
                 continue
@@ -382,7 +535,8 @@ def _collect_skill_sources(
     for item in sorted(project_root.iterdir()):
         if not _is_team_skill_link(item, skills_include, skills_exclude):
             continue
-        scan_dir = _resolve_team_skill_root(item.resolve())
+        repo = _team_repo_for_sync(project_root, item) if prepare_team_rebase else item.resolve()
+        scan_dir = _resolve_team_skill_root(repo)
         for d in sorted(scan_dir.iterdir()):
             if not d.is_dir() or d.name.startswith((".", "_")):
                 continue
@@ -474,7 +628,12 @@ def _sync_skills_merged(
     if copy_fn is None:
         copy_fn = safe_copy_skill_tree
 
-    skill_dirs = _collect_skill_sources(project_root, skills_include, skills_exclude)
+    skill_dirs = _collect_skill_sources(
+        project_root,
+        skills_include,
+        skills_exclude,
+        prepare_team_rebase=not dry_run,
+    )
 
     if not dry_run:
         dst.mkdir(parents=True, exist_ok=True)
@@ -752,6 +911,7 @@ def _build_skills_index(
     project_root: Path,
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
+    prepare_team_rebase: bool = True,
 ) -> str:
     """스킬 인덱스 Markdown 섹션 생성.
 
@@ -761,11 +921,17 @@ def _build_skills_index(
         project_root: ai-env 프로젝트 루트
         skills_include: 포함할 팀 스킬 디렉토리 이름
         skills_exclude: 제외할 팀 스킬 디렉토리 이름
+        prepare_team_rebase: True면 cde-ranking 작업 브랜치용 rebase worktree를 준비한다.
 
     Returns:
         Markdown 섹션 문자열 (스킬 없으면 빈 문자열)
     """
-    skill_dirs = _collect_skill_sources(project_root, skills_include, skills_exclude)
+    skill_dirs = _collect_skill_sources(
+        project_root,
+        skills_include,
+        skills_exclude,
+        prepare_team_rebase=prepare_team_rebase,
+    )
     if not skill_dirs:
         return ""
 
@@ -837,7 +1003,12 @@ def sync_codex_global_config(
 
     # 1) AGENTS.md = CLAUDE.md + 스킬 인덱스
     content = source.read_text(encoding="utf-8")
-    skills_index = _build_skills_index(project_root, skills_include, skills_exclude)
+    skills_index = _build_skills_index(
+        project_root,
+        skills_include,
+        skills_exclude,
+        prepare_team_rebase=not dry_run,
+    )
     if skills_index:
         content = content.rstrip() + "\n" + skills_index
 

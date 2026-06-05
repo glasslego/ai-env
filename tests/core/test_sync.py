@@ -2,6 +2,8 @@
 
 import json
 import stat
+import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -266,6 +268,106 @@ def test_sync_skills_merged(tmp_path):
     assert count == 2
     assert (dst / "mcp-config" / "SKILL.md").exists()
     assert (dst / "trino-analyst" / "SKILL.md").exists()
+
+
+def _git(cwd: Path, *args: str) -> None:
+    """Run git for sync tests."""
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+
+
+def _configure_git_user(repo: Path) -> None:
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Tester")
+
+
+def _write_skill(root: Path, name: str, body: str) -> None:
+    skill_dir = root / ".claude" / "skills" / name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(body)
+
+
+def test_collect_cde_ranking_skills_uses_develop_rebased_worktree(tmp_path):
+    """cde-ranking 작업 브랜치는 develop 위에 rebase한 skill view를 동기화."""
+    project_root = tmp_path / "ai-env"
+    project_root.mkdir()
+    repo = tmp_path / "cde-ranking-repo"
+    repo.mkdir()
+
+    _git(repo, "init", "-q")
+    _configure_git_user(repo)
+
+    _write_skill(repo, "base-skill", "# base")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "base")
+    _git(repo, "branch", "-M", "develop")
+
+    _git(repo, "checkout", "-q", "-b", "feature-ranking")
+    _write_skill(repo, "feature-skill", "# feature")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "feature")
+
+    _git(repo, "checkout", "-q", "develop")
+    _write_skill(repo, "develop-skill", "# develop")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "develop update")
+    _git(repo, "checkout", "-q", "feature-ranking")
+
+    (project_root / "cde-ranking-skills").symlink_to(repo)
+
+    sources = _collect_skill_sources(project_root)
+    names = {source.name for source in sources}
+    sync_worktree = project_root / ".claude" / "worktrees" / "cde-ranking-skills-rebased"
+
+    assert {"base-skill", "develop-skill", "feature-skill"} <= names
+    assert (
+        subprocess.check_output(["git", "branch", "--show-current"], cwd=repo, text=True).strip()
+        == "feature-ranking"
+    )
+    assert any(source.is_relative_to(sync_worktree) for source in sources)
+
+
+def test_collect_cde_ranking_skills_fetches_origin_develop_for_rebase(tmp_path):
+    """동기화 전 origin/develop을 fetch해 최신 develop 위의 skill view를 만든다."""
+    project_root = tmp_path / "ai-env"
+    project_root.mkdir()
+    remote = tmp_path / "remote.git"
+    upstream = tmp_path / "upstream"
+    repo = tmp_path / "cde-ranking-repo"
+
+    _git(tmp_path, "init", "--bare", "-q", str(remote))
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _configure_git_user(repo)
+
+    _write_skill(repo, "base-skill", "# base")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "base")
+    _git(repo, "branch", "-M", "develop")
+    _git(repo, "remote", "add", "origin", str(remote))
+    _git(repo, "push", "-q", "-u", "origin", "develop")
+
+    _git(repo, "checkout", "-q", "-b", "feature-ranking")
+    _write_skill(repo, "feature-skill", "# feature")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "feature")
+
+    _git(tmp_path, "clone", "-q", "--branch", "develop", str(remote), str(upstream))
+    _configure_git_user(upstream)
+    _write_skill(upstream, "remote-develop-skill", "# remote develop")
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "remote develop update")
+    _git(upstream, "push", "-q", "origin", "develop")
+
+    (project_root / "cde-ranking-skills").symlink_to(repo)
+
+    sources = _collect_skill_sources(project_root)
+    names = {source.name for source in sources}
+
+    assert {"base-skill", "feature-skill", "remote-develop-skill"} <= names
+    assert (
+        subprocess.check_output(["git", "branch", "--show-current"], cwd=repo, text=True).strip()
+        == "feature-ranking"
+    )
 
 
 def _setup_multi_team_skills(tmp_path):
