@@ -160,15 +160,19 @@ description: |
 
 ```
 ai-env repo 구조:
-  .claude/global/settings.json.template   ← git 추적 (토큰 = 플레이스홀더)
+  .claude/global/settings.json.template            ← enterprise 기본 프로필
+  .claude/global/settings.personal.json.template   ← 개인 프로필
 
 동기화 후:
-  ~/.claude/settings.json                 ← git 미추적 (실제 토큰)
+  ~/.claude/settings.json                         ← enterprise 기본 프로필
+  ~/.claude/settings.enterprise.json              ← enterprise 명시 프로필
+  ~/.claude/settings.personal.json                ← 개인 프로필
 ```
 
 - 토큰은 `config/secrets.yaml` (gitignore) 또는 환경변수로 주입
 - `.template`에는 `"${GITHUB_TOKEN}"` 같은 플레이스홀더 사용
 - `ai-env sync`가 secrets 치환하여 최종 settings.json 생성
+- `claude`는 enterprise 기본 프로필을 사용하고, `claude personal`은 개인 프로필을 사용
 
 ## 소스 관리 흐름 (ai-env)
 
@@ -176,7 +180,7 @@ ai-env repo 구조:
 ai-env repo (git)                    ~/.claude/ (로컬, git 미추적)
 ─────────────────                    ──────────────────────────────
 .claude/global/CLAUDE.md        →    CLAUDE.md
-.claude/global/settings.json    →    settings.json (토큰 치환)
+.claude/global/settings*.json   →    settings.json / settings.enterprise.json / settings.personal.json
 .claude/commands/               →    commands/
 .claude/skills/ (개인)          ─┐
 cde-skills/ (팀 symlink)       ─┤→  skills/ (머지 결과)

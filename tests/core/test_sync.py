@@ -86,6 +86,46 @@ def test_sync_claude_global_config(tmp_path, mock_secrets_manager):
         assert '{"key": "test_key"}' in settings_dst.read_text()
 
 
+def test_sync_claude_global_config_writes_profile_settings(tmp_path, mock_secrets_manager):
+    """Claude 설정 동기화 시 enterprise/personal 프로필 파일도 생성."""
+    project_root = tmp_path / "ai-env"
+    source_dir = project_root / ".claude"
+    global_dir = source_dir / "global"
+    global_dir.mkdir(parents=True)
+
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+    (global_dir / "settings.json.template").write_text(
+        '{"model": "enterprise", "key": "${API_KEY}"}'
+    )
+    (global_dir / "settings.personal.json.template").write_text(
+        '{"model": "personal", "key": "${API_KEY}"}'
+    )
+
+    target_dir = tmp_path / "home" / ".claude"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_claude_global_config()
+
+    assert "settings.json" in results
+    assert "settings.enterprise.json" in results
+    assert "settings.personal.json" in results
+    assert json.loads((target_dir / "settings.json").read_text()) == {
+        "model": "enterprise",
+        "key": "test_key",
+    }
+    assert json.loads((target_dir / "settings.enterprise.json").read_text()) == {
+        "model": "enterprise",
+        "key": "test_key",
+    }
+    assert json.loads((target_dir / "settings.personal.json").read_text()) == {
+        "model": "personal",
+        "key": "test_key",
+    }
+
+
 def test_sync_claude_global_config_includes_agents(tmp_path, mock_secrets_manager):
     """Claude 동기화 시 .claude/agents markdown 정의도 미러."""
     project_root = tmp_path / "ai-env"

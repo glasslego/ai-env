@@ -119,16 +119,50 @@ _ai_env_sync_skills() {{
 #        claude --fallback --auto [args...]      - 모든 에이전트 자동 승인 모드 (권한 확인 건너뜀)
 #        claude --fallback -l                   - 에이전트 우선순위 목록 출력
 #        claude [args...]                       - 일반 claude 실행 (passthrough)
+#        claude personal [args...]              - 개인 Claude Code 설정으로 실행
+#        claude enterprise [args...]            - 엔터프라이즈 설정 파일을 명시해 실행
 # Model: "agent:model" 형식으로 모델 지정 가능 (예: claude:sonnet → claude --model sonnet)
 # Env:   CLAUDE_FALLBACK_RETRY_MINUTES (default: 15)
 #        CLAUDE_FALLBACK_AUTO (default: 0) - 1이면 --auto 모드 기본 활성화
 #        CLAUDE_FALLBACK_LOG_DIR - 세션 로그/핸드오프 저장 경로
+#        CLAUDE_CODE_PROFILE - enterprise(default) 또는 personal
 claude() {{
     # 팀 스킬 동기화 (백그라운드)
     _ai_env_sync_skills
+
+    local _claude_profile="${{CLAUDE_CODE_PROFILE:-enterprise}}"
+    local _claude_profile_explicit=0
+    case "${{1:-}}" in
+        personal|--personal)
+            _claude_profile="personal"
+            _claude_profile_explicit=1
+            shift
+            ;;
+        enterprise|--enterprise|bedrock|--bedrock)
+            _claude_profile="enterprise"
+            _claude_profile_explicit=1
+            shift
+            ;;
+    esac
+
+    local -a _claude_settings_args
+    _claude_settings_args=()
+    if [[ "$_claude_profile" == "personal" ]]; then
+        local _claude_personal_settings="$HOME/.claude/settings.personal.json"
+        if [[ ! -f "$_claude_personal_settings" ]]; then
+            printf '\\033[31m❌ personal Claude settings not found: %s\\033[0m\\n' "$_claude_personal_settings" >&2
+            return 1
+        fi
+        _claude_settings_args=("--settings" "$_claude_personal_settings")
+    elif [[ $_claude_profile_explicit -eq 1 ]]; then
+        local _claude_enterprise_settings="$HOME/.claude/settings.enterprise.json"
+        [[ -f "$_claude_enterprise_settings" ]] || _claude_enterprise_settings="$HOME/.claude/settings.json"
+        _claude_settings_args=("--settings" "$_claude_enterprise_settings")
+    fi
+
     # --fallback 없으면 원본 claude 바이너리로 passthrough
     if [[ "$1" != "--fallback" ]]; then
-        command claude "$@"
+        command claude "${{_claude_settings_args[@]}}" "$@"
         return $?
     fi
     shift  # --fallback 소비
@@ -678,6 +712,9 @@ claude() {{
             # Model suffix → --model 플래그 주입 (예: claude:sonnet → --model sonnet)
             if [[ -n "$model_suffix" && "$base_agent" == "claude" ]]; then
                 run_args=("--model" "$model_suffix" "${{run_args[@]}}")
+            fi
+            if [[ "$base_agent" == "claude" && ${{#_claude_settings_args[@]}} -gt 0 ]]; then
+                run_args=("${{_claude_settings_args[@]}}" "${{run_args[@]}}")
             fi
 
             local log_file=$(mktemp -t "claude-fb-${{base_agent}}.XXXXXX")

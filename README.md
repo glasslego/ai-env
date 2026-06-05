@@ -160,7 +160,9 @@ claude --fallback              # claude → claude:sonnet → codex 자동 전�
 claude --fallback -2           # 2순위부터 시작
 claude --fallback --auto       # 모든 에이전트 자동 승인 모드
 claude --fallback -l           # 우선순위 목록 출력
-claude                         # 일반 실행 (passthrough)
+claude                         # 회사 Bedrock enterprise 설정으로 일반 실행
+claude personal                # 기존 개인 Claude Code 설정으로 실행
+claude enterprise              # enterprise 프로필 파일을 명시해 실행
 ```
 
 | 옵션 | 설명 |
@@ -169,6 +171,9 @@ claude                         # 일반 실행 (passthrough)
 | `--dangerously-skip-permissions` | `--auto`와 동일 (wrapper가 소비) |
 | `-N` | N순위부터 시작 (예: `-2`) |
 
+- `~/.claude/settings.json`, `settings.enterprise.json`: Claude Code on Bedrock enterprise 프로필
+- `~/.claude/settings.personal.json`: 기존 개인 Claude Code 프로필
+- `CLAUDE_CODE_PROFILE=personal claude ...`로도 개인 프로필을 기본 선택 가능
 - `/exit`으로 종료 시 다음 에이전트로 전환하지 않고 깨끗하게 종료
 - 새 세션 시작 시 항상 Claude(Opus)부터 시도 (이전 cooldown 무시)
 

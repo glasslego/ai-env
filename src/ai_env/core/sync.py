@@ -694,6 +694,23 @@ def _strip_cmux_hooks(settings_json: str) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
+def _render_settings_template(template: Path, *, cmux_enabled: bool) -> str:
+    """Render a Claude Code settings template with secrets and hook policy."""
+    sm = get_secrets_manager()
+    content = sm.substitute(template.read_text())
+
+    if not cmux_enabled:
+        content = _strip_cmux_hooks(content)
+
+    return content
+
+
+def _write_settings_json(path: Path, content: str) -> None:
+    """Write rendered Claude Code settings JSON."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
 def _codex_hook(command: str) -> dict[str, str]:
     """Codex hooks.json command hook entry."""
     return {"type": "command", "command": command}
@@ -826,19 +843,29 @@ def sync_claude_global_config(
     settings_template = global_dir / "settings.json.template"
     settings_dst = target_dir / "settings.json"
     if settings_template.exists():
-        sm = get_secrets_manager()
-        with open(settings_template) as f:
-            content = sm.substitute(f.read())
-
-        # cmux 비활성화 시 settings.json에서 cmux 훅 제거
-        if not cmux_enabled:
-            content = _strip_cmux_hooks(content)
+        content = _render_settings_template(settings_template, cmux_enabled=cmux_enabled)
 
         if not dry_run:
-            settings_dst.parent.mkdir(parents=True, exist_ok=True)
-            with open(settings_dst, "w") as f:
-                f.write(content)
+            _write_settings_json(settings_dst, content)
         results["settings.json"] = str(settings_dst)
+
+        # 명시적인 enterprise 프로필도 같은 내용으로 생성한다. 기본 실행은
+        # settings.json을 쓰고, wrapper의 `claude enterprise ...`는 이 파일을 쓴다.
+        enterprise_dst = target_dir / "settings.enterprise.json"
+        if not dry_run:
+            _write_settings_json(enterprise_dst, content)
+        results["settings.enterprise.json"] = str(enterprise_dst)
+
+    personal_settings_template = global_dir / "settings.personal.json.template"
+    personal_settings_dst = target_dir / "settings.personal.json"
+    if personal_settings_template.exists():
+        personal_content = _render_settings_template(
+            personal_settings_template,
+            cmux_enabled=cmux_enabled,
+        )
+        if not dry_run:
+            _write_settings_json(personal_settings_dst, personal_content)
+        results["settings.personal.json"] = str(personal_settings_dst)
 
     # 3. commands/ 동기화 (.claude/commands → ~/.claude/commands)
     desc, _ = _sync_file_or_dir(source_dir / "commands", target_dir / "commands", dry_run)

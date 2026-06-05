@@ -116,8 +116,9 @@ class TestGenerateShellFunctions:
         gen = self._make_generator(["claude", "codex"])
         result = gen.generate_shell_functions()
 
-        assert 'command claude "$@"' in result
+        assert 'command claude "${_claude_settings_args[@]}" "$@"' in result
         assert '"--fallback"' in result
+        assert "claude personal [args...]" in result
 
     def test_contains_resolve_bin_helper(self):
         """_resolve_bin 헬퍼 함수로 실제 바이너리 경로 확인"""
@@ -198,6 +199,130 @@ class TestGenerateShellFunctions:
 
         assert result.returncode == 0, result.stdout + result.stderr
         assert trace_file.read_text().strip() == "passthrough:--resume session-id"
+
+    def test_passthrough_personal_profile_uses_personal_settings(self, tmp_path):
+        """claude personal 호출 시 개인 settings 파일을 명시적으로 사용."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        settings_dir = home_dir / ".claude"
+        settings_dir.mkdir(parents=True)
+        personal_settings = settings_dir / "settings.personal.json"
+        personal_settings.write_text('{"model": "personal"}')
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            '#!/usr/bin/env bash\necho "passthrough:$*" > "$TRACE_FILE"\nexit 0\n'
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude personal --resume session-id"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert (
+            trace_file.read_text().strip()
+            == f"passthrough:--settings {personal_settings} --resume session-id"
+        )
+
+    def test_passthrough_enterprise_profile_uses_enterprise_settings(self, tmp_path):
+        """claude enterprise 호출 시 enterprise settings 파일을 명시적으로 사용."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        settings_dir = home_dir / ".claude"
+        settings_dir.mkdir(parents=True)
+        enterprise_settings = settings_dir / "settings.enterprise.json"
+        enterprise_settings.write_text('{"model": "enterprise"}')
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            '#!/usr/bin/env bash\necho "passthrough:$*" > "$TRACE_FILE"\nexit 0\n'
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude enterprise --resume session-id"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert (
+            trace_file.read_text().strip()
+            == f"passthrough:--settings {enterprise_settings} --resume session-id"
+        )
+
+    def test_personal_fallback_injects_personal_settings_for_claude(self, tmp_path):
+        """claude personal --fallback도 Claude 실행에 개인 settings 파일을 전달."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        settings_dir = home_dir / ".claude"
+        settings_dir.mkdir(parents=True)
+        personal_settings = settings_dir / "settings.personal.json"
+        personal_settings.write_text('{"model": "personal"}')
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        claude_script = bin_dir / "claude"
+        claude_script.write_text('#!/usr/bin/env bash\necho "args:$*" > "$TRACE_FILE"\nexit 0\n')
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CLAUDECODE", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude personal --fallback hello"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert trace_file.read_text().strip() == f"args:--settings {personal_settings} hello"
 
     def test_interactive_sync_finishes_before_claude_starts(self, tmp_path):
         """인터랙티브 TTY에서는 sync 출력이 끝난 뒤 Claude가 시작되어야 한다."""
