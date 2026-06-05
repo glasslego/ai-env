@@ -62,6 +62,9 @@ ai-env는 Claude + Codex 두 타겟만 지원한다 (SPEC-013).
 ```bash
 # 설정 관리
 ai-env setup                   # 초기 설정 점검 가이드
+ai-env bedrock setup           # Claude Code on Bedrock AWS SSO 프로필 자동 구성
+ai-env bedrock status          # Bedrock SSO 설정 상태 확인
+ai-env bedrock login           # AWS SSO 브라우저 로그인
 ai-env status                  # 전체 상태 확인
 ai-env doctor [--json]         # 환경 건강 검사
 ai-env secrets [--show]        # 환경변수 목록 (--show로 값 표시)
@@ -176,6 +179,26 @@ claude enterprise              # enterprise 프로필 파일을 명시해 실행
 - `CLAUDE_CODE_PROFILE=personal claude ...`로도 개인 프로필을 기본 선택 가능
 - `/exit`으로 종료 시 다음 에이전트로 전환하지 않고 깨끗하게 종료
 - 새 세션 시작 시 항상 Claude(Opus)부터 시도 (이전 cooldown 무시)
+
+## Claude Code on Bedrock
+
+회사 Bedrock enterprise 프로필은 `ai-env bedrock` 명령으로 관리합니다. 수동
+`aws configure sso` 대신 AWS config의 Bedrock section만 생성/갱신합니다.
+
+```bash
+ai-env bedrock setup --dry-run     # ~/.aws/config 변경 미리보기
+ai-env bedrock setup               # bedrock-gateway SSO profile 생성/갱신
+ai-env bedrock login               # aws sso login --profile bedrock-gateway
+ai-env bedrock status --verify-auth
+ai-env bedrock status --verify-auth --verify-token
+```
+
+기본값:
+
+- profile/session: `bedrock-gateway`
+- SSO start URL: `https://d-9067b92cea.awsapps.com/start`
+- SSO region: `us-east-1`
+- account/role: `673981388588` / `BEDROCK`
 
 ## 워크플로우 파이프라인
 

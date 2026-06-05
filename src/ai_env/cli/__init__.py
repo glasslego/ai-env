@@ -197,6 +197,7 @@ def config_show() -> None:
 
 # 서브 명령어 모듈 등록
 from . import (  # noqa: E402, F401
+    bedrock_cmd,
     doctor_cmd,
     generate_cmd,
     pipeline_cmd,

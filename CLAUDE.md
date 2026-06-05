@@ -59,6 +59,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `mcp/vibe.py` | Agent Fallback 셸 함수 생성 (`claude()` wrapper) |
 | `core/env_example.py` | `.env.example` 자동 생성 — mcp_servers.yaml + settings.yaml 기반 |
 | `core/session_ontology.py` | Extract ontology seed records from saved session notes. |
+| `core/bedrock.py` | Claude Code on Bedrock setup helpers. |
 | `cli/` | Click CLI + Rich UI (doctor, generate, project, session, status, sync, pipeline) |
 
 ### 환경변수 치환
