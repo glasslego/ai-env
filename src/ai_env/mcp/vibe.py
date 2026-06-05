@@ -119,50 +119,52 @@ _ai_env_sync_skills() {{
 #        claude --fallback --auto [args...]      - 모든 에이전트 자동 승인 모드 (권한 확인 건너뜀)
 #        claude --fallback -l                   - 에이전트 우선순위 목록 출력
 #        claude [args...]                       - 일반 claude 실행 (passthrough)
-#        claude personal [args...]              - 개인 Claude Code 설정으로 실행
-#        claude enterprise [args...]            - 엔터프라이즈 설정 파일을 명시해 실행
+#        claude personal [args...]              - 개인 Claude Code 프로필(개인 Anthropic 로그인)로 실행
+#        claude enterprise [args...]            - 엔터프라이즈(회사 Bedrock) 프로필로 실행
 # Model: "agent:model" 형식으로 모델 지정 가능 (예: claude:sonnet → claude --model sonnet)
 # Env:   CLAUDE_FALLBACK_RETRY_MINUTES (default: 15)
 #        CLAUDE_FALLBACK_AUTO (default: 0) - 1이면 --auto 모드 기본 활성화
 #        CLAUDE_FALLBACK_LOG_DIR - 세션 로그/핸드오프 저장 경로
 #        CLAUDE_CODE_PROFILE - enterprise(default) 또는 personal
+# Profile: enterprise는 기본 ~/.claude(회사 Bedrock)를 사용하고, personal은
+#          CLAUDE_CONFIG_DIR=~/.claude-personal로 user-level config 디렉토리 자체를
+#          교체한다. --settings는 User 계층을 대체하지 못해 Bedrock env/apiKeyHelper가
+#          남기 때문에, 프로필 격리는 CLAUDE_CONFIG_DIR로만 가능하다.
 claude() {{
     # 팀 스킬 동기화 (백그라운드)
     _ai_env_sync_skills
 
     local _claude_profile="${{CLAUDE_CODE_PROFILE:-enterprise}}"
-    local _claude_profile_explicit=0
     case "${{1:-}}" in
         personal|--personal)
             _claude_profile="personal"
-            _claude_profile_explicit=1
             shift
             ;;
         enterprise|--enterprise|bedrock|--bedrock)
             _claude_profile="enterprise"
-            _claude_profile_explicit=1
             shift
             ;;
     esac
 
-    local -a _claude_settings_args
-    _claude_settings_args=()
+    # personal 프로필은 별도 config 디렉토리로 user-level 설정 전체를 교체한다.
+    # enterprise/기본은 CLAUDE_CONFIG_DIR을 설정하지 않아 ~/.claude를 그대로 쓴다.
+    local _claude_config_dir=""
     if [[ "$_claude_profile" == "personal" ]]; then
-        local _claude_personal_settings="$HOME/.claude/settings.personal.json"
-        if [[ ! -f "$_claude_personal_settings" ]]; then
-            printf '\\033[31m❌ personal Claude settings not found: %s\\033[0m\\n' "$_claude_personal_settings" >&2
+        _claude_config_dir="$HOME/.claude-personal"
+        if [[ ! -d "$_claude_config_dir" ]]; then
+            printf '\\033[31m❌ personal Claude config dir not found: %s (run: ai-env sync)\\033[0m\\n' "$_claude_config_dir" >&2
             return 1
         fi
-        _claude_settings_args=("--settings" "$_claude_personal_settings")
-    elif [[ $_claude_profile_explicit -eq 1 ]]; then
-        local _claude_enterprise_settings="$HOME/.claude/settings.enterprise.json"
-        [[ -f "$_claude_enterprise_settings" ]] || _claude_enterprise_settings="$HOME/.claude/settings.json"
-        _claude_settings_args=("--settings" "$_claude_enterprise_settings")
     fi
 
     # --fallback 없으면 원본 claude 바이너리로 passthrough
-    if [[ "$1" != "--fallback" ]]; then
-        command claude "${{_claude_settings_args[@]}}" "$@"
+    # ("${{1:-}}"로 가드 — set -u 셸에서 인자 없이 호출해도 안전, profile shift 후 포함)
+    if [[ "${{1:-}}" != "--fallback" ]]; then
+        if [[ -n "$_claude_config_dir" ]]; then
+            CLAUDE_CONFIG_DIR="$_claude_config_dir" command claude "$@"
+        else
+            command claude "$@"
+        fi
         return $?
     fi
     shift  # --fallback 소비
@@ -480,12 +482,13 @@ claude() {{
             _ampm=$(echo "$_time" | command grep -oEi '[ap]m$' | tr '[:lower:]' '[:upper:]')
             [[ ${{#_hour}} -eq 1 ]] && _hour="0$_hour"
             _year=$(date +%Y)
-            _reset_ep=$(date -j -f "%b %d %I%p %Y" "$_month $_day ${{_hour}}${{_ampm}} $_year" +%s 2>/dev/null)
+            # LC_ALL=C: 영어 월/AM·PM 토큰을 사용자 로케일(예: ko_KR)과 무관하게 파싱
+            _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y" "$_month $_day ${{_hour}}${{_ampm}} $_year" +%s 2>/dev/null)
             if [[ -n "$_reset_ep" ]]; then
                 local _now=$(date +%s)
                 # 이미 1일 이상 지난 시각이면 내년으로 보정
                 if [[ $((_now - _reset_ep)) -gt 86400 ]]; then
-                    _reset_ep=$(date -j -f "%b %d %I%p %Y" "$_month $_day ${{_hour}}${{_ampm}} $((_year + 1))" +%s 2>/dev/null)
+                    _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y" "$_month $_day ${{_hour}}${{_ampm}} $((_year + 1))" +%s 2>/dev/null)
                 fi
                 [[ -n "$_reset_ep" ]] && echo "$_reset_ep" && return 0
             fi
@@ -499,7 +502,8 @@ claude() {{
             _hour=$(echo "$_time" | command grep -oE '^[0-9]+')
             _ampm=$(echo "$_time" | command grep -oEi '[ap]m$' | tr '[:lower:]' '[:upper:]')
             [[ ${{#_hour}} -eq 1 ]] && _hour="0$_hour"
-            _reset_ep=$(date -j -f "%b %d %I%p %Y" "$(date '+%b %d') ${{_hour}}${{_ampm}} $(date +%Y)" +%s 2>/dev/null)
+            # LC_ALL=C: 영어 월/AM·PM 토큰을 사용자 로케일과 무관하게 생성·파싱
+            _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y" "$(LC_ALL=C date '+%b %d') ${{_hour}}${{_ampm}} $(date +%Y)" +%s 2>/dev/null)
             if [[ -n "$_reset_ep" ]]; then
                 local _now=$(date +%s)
                 [[ $_reset_ep -lt $_now ]] && _reset_ep=$((_reset_ep + 86400))
@@ -713,8 +717,11 @@ claude() {{
             if [[ -n "$model_suffix" && "$base_agent" == "claude" ]]; then
                 run_args=("--model" "$model_suffix" "${{run_args[@]}}")
             fi
-            if [[ "$base_agent" == "claude" && ${{#_claude_settings_args[@]}} -gt 0 ]]; then
-                run_args=("${{_claude_settings_args[@]}}" "${{run_args[@]}}")
+            # personal 프로필이면 claude 실행에만 CLAUDE_CONFIG_DIR을 주입한다.
+            # (codex 등 다른 에이전트에는 전달하지 않음)
+            local _run_env_prefix=()
+            if [[ "$base_agent" == "claude" && -n "$_claude_config_dir" ]]; then
+                _run_env_prefix=("env" "CLAUDE_CONFIG_DIR=$_claude_config_dir")
             fi
 
             local log_file=$(mktemp -t "claude-fb-${{base_agent}}.XXXXXX")
@@ -757,7 +764,7 @@ claude() {{
             # (백그라운드 실행 시 script가 raw mode 전환 불가 → 입력 깨짐)
             # macOS script PTY 초기화 시 커서 column offset 방지
             printf '\\r' 2>/dev/null
-            script -qF "$log_file" "$agent_bin" "${{run_args[@]}}"
+            script -qF "$log_file" "${{_run_env_prefix[@]}}" "$agent_bin" "${{run_args[@]}}"
             exit_code=$?
 
             # 터미널 상태 복원 (script PTY 종료 직후, 다른 출력보다 먼저)
@@ -971,10 +978,39 @@ claude() {{
     done
 }}
 
-# === Codex wrapper (skills sync) ===
-# codex 직접 실행 시에도 팀 스킬 자동 동기화
+# === Codex wrapper (skills sync + profile) ===
+# codex 직접 실행 시에도 팀 스킬 자동 동기화.
+# Claude의 enterprise/personal 프로필과 대칭으로, personal은 CODEX_HOME으로
+# config 디렉토리(auth.json 포함)를 통째로 교체한다.
+#   codex personal [args...]    - 개인 계정(~/.codex-personal)으로 실행
+#   codex enterprise [args...]  - 기본 ~/.codex로 실행 (회사 계정)
+#   codex [args...]             - 기본 passthrough
+# Env: CODEX_CODE_PROFILE - enterprise(default) 또는 personal
 codex() {{
     _ai_env_sync_skills
+
+    local _codex_profile="${{CODEX_CODE_PROFILE:-enterprise}}"
+    case "${{1:-}}" in
+        personal|--personal)
+            _codex_profile="personal"
+            shift
+            ;;
+        enterprise|--enterprise)
+            _codex_profile="enterprise"
+            shift
+            ;;
+    esac
+
+    if [[ "$_codex_profile" == "personal" ]]; then
+        local _codex_home="$HOME/.codex-personal"
+        if [[ ! -d "$_codex_home" ]]; then
+            printf '\\033[31m❌ personal Codex config dir not found: %s (run: ai-env sync)\\033[0m\\n' "$_codex_home" >&2
+            return 1
+        fi
+        CODEX_HOME="$_codex_home" command codex "$@"
+        return $?
+    fi
+
     command codex "$@"
     return $?
 }}"""

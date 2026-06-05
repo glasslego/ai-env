@@ -711,6 +711,58 @@ def _write_settings_json(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def _ensure_symlink(
+    target: Path,
+    link: Path,
+    *,
+    dry_run: bool = False,
+    allow_missing_target: bool = False,
+) -> bool:
+    """Ensure ``link`` is a symlink pointing at ``target``.
+
+    Used to share common Claude assets (CLAUDE.md, commands, skills, ...) into
+    the personal config directory without duplicating them. The ``CLAUDE_CONFIG_DIR``
+    personal profile replaces the whole user-level config dir, so assets not present
+    there would be invisible — symlinks reuse the canonical ``~/.claude`` copies.
+
+    Args:
+        target: Path the symlink should point to.
+        link: Symlink path to create or repair.
+        dry_run: If True, do not touch the filesystem.
+        allow_missing_target: If True, create the link even when ``target`` does not
+            yet exist. Use for managed paths written later in the same sync run
+            (e.g. ``~/.codex/config.toml`` produced by the MCP generator step) — the
+            dangling symlink resolves once the target is created.
+
+    Returns:
+        True if the link already pointed at ``target`` (or would after creation),
+        False if ``target`` is missing (and ``allow_missing_target`` is False) so
+        nothing was linked.
+    """
+    if not target.exists() and not allow_missing_target:
+        return False
+
+    if dry_run:
+        return True
+
+    # 이미 올바른 심링크면 그대로 둔다.
+    if link.is_symlink():
+        try:
+            # 타깃이 아직 없을 수 있으므로 strict=False로 비교한다.
+            if link.resolve(strict=False) == target.resolve(strict=False):
+                return True
+        except OSError:
+            pass  # 깨진 심링크 → 아래에서 교체
+        link.unlink()
+    elif link.exists():
+        # 심링크가 아닌 실제 파일/디렉토리가 있으면 건드리지 않고 건너뛴다.
+        return False
+
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(target, target_is_directory=target.is_dir())
+    return True
+
+
 def _codex_hook(command: str) -> dict[str, str]:
     """Codex hooks.json command hook entry."""
     return {"type": "command", "command": command}
@@ -856,9 +908,14 @@ def sync_claude_global_config(
             _write_settings_json(enterprise_dst, content)
         results["settings.enterprise.json"] = str(enterprise_dst)
 
+    # personal 프로필은 별도 config 디렉토리(~/.claude-personal)로 분리한다.
+    # `claude personal`은 CLAUDE_CONFIG_DIR로 이 디렉토리를 user-level 설정으로 쓰며,
+    # Bedrock env/apiKeyHelper가 없는 settings.json만 둬 개인 Anthropic 로그인을 쓴다.
+    # (공용 자산 심링크는 모든 자산을 ~/.claude에 동기화한 뒤 함수 끝에서 건다.)
     personal_settings_template = global_dir / "settings.personal.json.template"
-    personal_settings_dst = target_dir / "settings.personal.json"
     if personal_settings_template.exists():
+        personal_dir = Path.home() / ".claude-personal"
+        personal_settings_dst = personal_dir / "settings.json"
         personal_content = _render_settings_template(
             personal_settings_template,
             cmux_enabled=cmux_enabled,
@@ -892,6 +949,14 @@ def sync_claude_global_config(
     )
     if desc:
         results[desc] = str(target_dir / "skills")
+
+    # 공용 자산을 personal config 디렉토리에 심링크로 재사용한다.
+    # (settings.json은 위에서 personal 전용 내용으로 이미 기록함)
+    if (global_dir / "settings.personal.json.template").exists():
+        personal_dir = Path.home() / ".claude-personal"
+        for asset in ("CLAUDE.md", "commands", "skills", "agents", "hooks"):
+            if _ensure_symlink(target_dir / asset, personal_dir / asset, dry_run=dry_run):
+                results[f"personal:{asset}"] = str(personal_dir / asset)
 
     return results
 
@@ -1090,5 +1155,34 @@ def sync_codex_global_config(
             dst_profile.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_profile, dst_profile)
         results["project-profile.yaml"] = str(dst_profile)
+
+    # 6) personal 프로필 미러 (~/.codex-personal)
+    # `codex personal`은 CODEX_HOME=~/.codex-personal로 별도 auth.json(개인 계정)만
+    # 분리하고, 공용 자산(AGENTS.md/skills/commands/agents/config.toml 등)은 ~/.codex를
+    # 심링크로 재사용한다. auth.json은 절대 심링크하지 않아 계정이 섞이지 않게 한다.
+    #
+    # config.toml은 이 함수가 아니라 이후 단계(MCP generator의 save_all)에서 생성되므로,
+    # 첫 sync 시점엔 아직 없을 수 있다. allow_missing_target로 dangling 심링크를 먼저 만들어
+    # 두면 generator가 config.toml을 쓰는 순간 자동으로 해석되어 첫 sync에서도 동작한다.
+    personal_root = Path.home() / ".codex-personal"
+    # 같은 sync 실행 안에서 나중에 생성되는 managed 경로 (generator가 기록)
+    generated_later = {"config.toml"}
+    for asset in (
+        "AGENTS.md",
+        "skills",
+        "commands",
+        "agents",
+        "project-profile.yaml",
+        "config.toml",
+        "hooks",
+        "hooks.json",
+    ):
+        if _ensure_symlink(
+            agent_root / asset,
+            personal_root / asset,
+            dry_run=dry_run,
+            allow_missing_target=asset in generated_later,
+        ):
+            results[f"codex-personal:{asset}"] = str(personal_root / asset)
 
     return results

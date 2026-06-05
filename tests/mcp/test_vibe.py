@@ -116,9 +116,10 @@ class TestGenerateShellFunctions:
         gen = self._make_generator(["claude", "codex"])
         result = gen.generate_shell_functions()
 
-        assert 'command claude "${_claude_settings_args[@]}" "$@"' in result
+        assert 'command claude "$@"' in result
         assert '"--fallback"' in result
         assert "claude personal [args...]" in result
+        assert "CLAUDE_CONFIG_DIR" in result
 
     def test_contains_resolve_bin_helper(self):
         """_resolve_bin 헬퍼 함수로 실제 바이너리 경로 확인"""
@@ -200,16 +201,10 @@ class TestGenerateShellFunctions:
         assert result.returncode == 0, result.stdout + result.stderr
         assert trace_file.read_text().strip() == "passthrough:--resume session-id"
 
-    def test_passthrough_personal_profile_uses_personal_settings(self, tmp_path):
-        """claude personal 호출 시 개인 settings 파일을 명시적으로 사용."""
+    def test_passthrough_under_nounset_no_args(self, tmp_path):
+        """set -u 셸에서 인자 없이 claude 호출해도 unbound 에러 없이 passthrough."""
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
-
-        home_dir = tmp_path / "home"
-        settings_dir = home_dir / ".claude"
-        settings_dir.mkdir(parents=True)
-        personal_settings = settings_dir / "settings.personal.json"
-        personal_settings.write_text('{"model": "personal"}')
 
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir()
@@ -224,10 +219,55 @@ class TestGenerateShellFunctions:
         fn_file.write_text(shell_fn)
 
         env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CLAUDECODE", None)
+
+        # set -u 활성화 + 인자 없는 claude 호출 (profile shift 후 빈 인자 경로와 동치)
+        for shell in ("bash", "zsh"):
+            trace_file.unlink(missing_ok=True)
+            result = subprocess.run(
+                [shell, "-c", f"set -u; source {fn_file} && claude"],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            assert result.returncode == 0, f"{shell}: {result.stdout + result.stderr}"
+            assert "unbound" not in result.stderr.lower(), result.stderr
+            assert trace_file.read_text().strip() == "passthrough:"
+
+    def test_passthrough_personal_profile_uses_config_dir(self, tmp_path):
+        """claude personal 호출 시 CLAUDE_CONFIG_DIR로 개인 config 디렉토리를 사용."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        # 개인 config 디렉토리가 존재해야 personal 프로필이 동작한다.
+        personal_dir = home_dir / ".claude-personal"
+        personal_dir.mkdir(parents=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        # CLAUDE_CONFIG_DIR가 자식 환경에 전달됐는지 함께 기록한다.
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "passthrough:$*|CFG=${CLAUDE_CONFIG_DIR:-}" > "$TRACE_FILE"\n'
+            "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
         env["HOME"] = str(home_dir)
         env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
         env["TRACE_FILE"] = str(trace_file)
         env.pop("CLAUDECODE", None)
+        env.pop("CLAUDE_CONFIG_DIR", None)
 
         result = subprocess.run(
             ["bash", "-c", f"source {fn_file} && claude personal --resume session-id"],
@@ -238,21 +278,18 @@ class TestGenerateShellFunctions:
         )
 
         assert result.returncode == 0, result.stdout + result.stderr
+        # personal은 settings 인자를 주입하지 않고 CLAUDE_CONFIG_DIR만 교체한다.
         assert (
-            trace_file.read_text().strip()
-            == f"passthrough:--settings {personal_settings} --resume session-id"
+            trace_file.read_text().strip() == f"passthrough:--resume session-id|CFG={personal_dir}"
         )
 
-    def test_passthrough_enterprise_profile_uses_enterprise_settings(self, tmp_path):
-        """claude enterprise 호출 시 enterprise settings 파일을 명시적으로 사용."""
+    def test_passthrough_personal_profile_missing_dir_fails(self, tmp_path):
+        """개인 config 디렉토리가 없으면 personal 프로필 실행은 실패한다."""
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
 
         home_dir = tmp_path / "home"
-        settings_dir = home_dir / ".claude"
-        settings_dir.mkdir(parents=True)
-        enterprise_settings = settings_dir / "settings.enterprise.json"
-        enterprise_settings.write_text('{"model": "enterprise"}')
+        home_dir.mkdir(parents=True)
 
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir()
@@ -271,6 +308,48 @@ class TestGenerateShellFunctions:
         env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
         env["TRACE_FILE"] = str(trace_file)
         env.pop("CLAUDECODE", None)
+        env.pop("CLAUDE_CONFIG_DIR", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude personal --resume session-id"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode != 0
+        # claude 바이너리는 실행되지 않아야 한다.
+        assert not trace_file.exists() or trace_file.read_text().strip() == ""
+
+    def test_passthrough_enterprise_profile_uses_default_config(self, tmp_path):
+        """claude enterprise 호출 시 기본 ~/.claude를 그대로 쓰고 CLAUDE_CONFIG_DIR를 설정하지 않는다."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        (home_dir / ".claude").mkdir(parents=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "passthrough:$*|CFG=${CLAUDE_CONFIG_DIR:-unset}" > "$TRACE_FILE"\n'
+            "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CLAUDECODE", None)
+        env.pop("CLAUDE_CONFIG_DIR", None)
 
         result = subprocess.run(
             ["bash", "-c", f"source {fn_file} && claude enterprise --resume session-id"],
@@ -281,21 +360,17 @@ class TestGenerateShellFunctions:
         )
 
         assert result.returncode == 0, result.stdout + result.stderr
-        assert (
-            trace_file.read_text().strip()
-            == f"passthrough:--settings {enterprise_settings} --resume session-id"
-        )
+        # enterprise는 별도 인자 주입 없이 기본 config 디렉토리를 사용한다.
+        assert trace_file.read_text().strip() == "passthrough:--resume session-id|CFG=unset"
 
-    def test_personal_fallback_injects_personal_settings_for_claude(self, tmp_path):
-        """claude personal --fallback도 Claude 실행에 개인 settings 파일을 전달."""
+    def test_personal_fallback_injects_config_dir_for_claude(self, tmp_path):
+        """claude personal --fallback도 Claude 실행에 CLAUDE_CONFIG_DIR를 전달."""
         gen = self._make_generator(["claude", "codex"])
         shell_fn = gen.generate_shell_functions()
 
         home_dir = tmp_path / "home"
-        settings_dir = home_dir / ".claude"
-        settings_dir.mkdir(parents=True)
-        personal_settings = settings_dir / "settings.personal.json"
-        personal_settings.write_text('{"model": "personal"}')
+        personal_dir = home_dir / ".claude-personal"
+        personal_dir.mkdir(parents=True)
 
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir()
@@ -303,7 +378,11 @@ class TestGenerateShellFunctions:
         fn_file = tmp_path / "claude_fn.sh"
 
         claude_script = bin_dir / "claude"
-        claude_script.write_text('#!/usr/bin/env bash\necho "args:$*" > "$TRACE_FILE"\nexit 0\n')
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "args:$*|CFG=${CLAUDE_CONFIG_DIR:-}" > "$TRACE_FILE"\n'
+            "exit 0\n"
+        )
         claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
         fn_file.write_text(shell_fn)
 
@@ -312,6 +391,7 @@ class TestGenerateShellFunctions:
         env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
         env["TRACE_FILE"] = str(trace_file)
         env.pop("CLAUDECODE", None)
+        env.pop("CLAUDE_CONFIG_DIR", None)
 
         result = subprocess.run(
             ["bash", "-c", f"source {fn_file} && claude personal --fallback hello"],
@@ -322,7 +402,154 @@ class TestGenerateShellFunctions:
         )
 
         assert result.returncode == 0, result.stdout + result.stderr
-        assert trace_file.read_text().strip() == f"args:--settings {personal_settings} hello"
+        assert trace_file.read_text().strip() == f"args:hello|CFG={personal_dir}"
+
+    def test_codex_personal_profile_uses_codex_home(self, tmp_path):
+        """codex personal 호출 시 CODEX_HOME으로 개인 config 디렉토리를 사용."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        personal_dir = home_dir / ".codex-personal"
+        personal_dir.mkdir(parents=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text(
+            '#!/usr/bin/env bash\necho "RAN:$*|HOME=${CODEX_HOME:-unset}" > "$TRACE_FILE"\nexit 0\n'
+        )
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CODEX_HOME", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && codex personal exec hi"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert trace_file.read_text().strip() == f"RAN:exec hi|HOME={personal_dir}"
+
+    def test_codex_enterprise_profile_uses_default_home(self, tmp_path):
+        """codex enterprise/기본 호출 시 CODEX_HOME을 설정하지 않고 ~/.codex를 쓴다."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        (home_dir / ".codex").mkdir(parents=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text(
+            '#!/usr/bin/env bash\necho "RAN:$*|HOME=${CODEX_HOME:-unset}" > "$TRACE_FILE"\nexit 0\n'
+        )
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CODEX_HOME", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && codex enterprise exec hi"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert trace_file.read_text().strip() == "RAN:exec hi|HOME=unset"
+
+    def test_codex_default_passthrough_no_codex_home(self, tmp_path):
+        """프로필 미지정 codex는 인자 변형 없이 그대로 passthrough."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        home_dir.mkdir(parents=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text(
+            '#!/usr/bin/env bash\necho "RAN:$*|HOME=${CODEX_HOME:-unset}" > "$TRACE_FILE"\nexit 0\n'
+        )
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CODEX_HOME", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && codex exec hi"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert trace_file.read_text().strip() == "RAN:exec hi|HOME=unset"
+
+    def test_codex_personal_missing_dir_fails(self, tmp_path):
+        """개인 Codex config 디렉토리가 없으면 codex personal 실행은 실패한다."""
+        gen = self._make_generator(["claude", "codex"])
+        shell_fn = gen.generate_shell_functions()
+
+        home_dir = tmp_path / "home"
+        home_dir.mkdir(parents=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+
+        codex_script = bin_dir / "codex"
+        codex_script.write_text('#!/usr/bin/env bash\necho "RAN:$*" > "$TRACE_FILE"\nexit 0\n')
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(shell_fn)
+
+        env = os.environ.copy()
+        env["HOME"] = str(home_dir)
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CODEX_HOME", None)
+
+        result = subprocess.run(
+            ["bash", "-c", f"source {fn_file} && codex personal exec hi"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode != 0
+        assert not trace_file.exists() or trace_file.read_text().strip() == ""
 
     def test_interactive_sync_finishes_before_claude_starts(self, tmp_path):
         """인터랙티브 TTY에서는 sync 출력이 끝난 뒤 Claude가 시작되어야 한다."""

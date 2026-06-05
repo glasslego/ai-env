@@ -163,9 +163,9 @@ claude --fallback              # claude → claude:sonnet → codex 자동 전�
 claude --fallback -2           # 2순위부터 시작
 claude --fallback --auto       # 모든 에이전트 자동 승인 모드
 claude --fallback -l           # 우선순위 목록 출력
-claude                         # 회사 Bedrock enterprise 설정으로 일반 실행
-claude personal                # 기존 개인 Claude Code 설정으로 실행
-claude enterprise              # enterprise 프로필 파일을 명시해 실행
+claude                         # 회사 Bedrock enterprise 프로필로 일반 실행 (~/.claude)
+claude personal                # 개인 Anthropic 로그인 프로필로 실행 (~/.claude-personal)
+claude enterprise              # enterprise(회사 Bedrock) 프로필 명시 실행
 ```
 
 | 옵션 | 설명 |
@@ -174,11 +174,42 @@ claude enterprise              # enterprise 프로필 파일을 명시해 실행
 | `--dangerously-skip-permissions` | `--auto`와 동일 (wrapper가 소비) |
 | `-N` | N순위부터 시작 (예: `-2`) |
 
-- `~/.claude/settings.json`, `settings.enterprise.json`: Claude Code on Bedrock enterprise 프로필
-- `~/.claude/settings.personal.json`: 기존 개인 Claude Code 프로필
+**프로필 전환 (enterprise / personal)**
+
+`--settings`는 User 계층(`~/.claude/settings.json`)을 *대체*하지 못해 Bedrock
+`env`/`apiKeyHelper`가 남는다. 그래서 프로필 격리는 `CLAUDE_CONFIG_DIR`로 user-level
+config 디렉토리 자체를 바꾸는 방식으로 동작한다.
+
+- enterprise(기본): `~/.claude`를 그대로 사용 — 회사 Bedrock(`apiKeyHelper` 게이트웨이 토큰)
+- personal: `CLAUDE_CONFIG_DIR=~/.claude-personal` — Bedrock 설정이 전혀 없는
+  `settings.json`만 두고, 개인 Anthropic 로그인(OAuth 토큰은 이 디렉토리에 별도 저장)
+- 권한(`permissions`)·`skipDangerousModePermissionPrompt`·hooks·MCP는 두 프로필 모두 동일
+  (오직 **로그인/백엔드만 분리** — Bedrock env/apiKeyHelper 제거, 모델 ID는 direct-API 형식으로 변환)
+- 모델 버전도 동일하되 ID 형식만 백엔드에 맞춤. 단 Opus 기본은 백엔드 기본을 따른다:
+  enterprise(회사 Bedrock)=Opus 4.7 기본, personal(개인 API)=Opus 4.8 기본 — picker엔 둘 다 노출
+- 공용 자산(CLAUDE.md/commands/skills/agents/hooks)은 `~/.claude`를 가리키는 심링크로 재사용
+- `ai-env sync`가 `~/.claude-personal/settings.json` + 심링크를 생성한다
+- 첫 personal 실행 시 `claude personal`로 개인 계정 로그인이 필요하다
 - `CLAUDE_CODE_PROFILE=personal claude ...`로도 개인 프로필을 기본 선택 가능
 - `/exit`으로 종료 시 다음 에이전트로 전환하지 않고 깨끗하게 종료
 - 새 세션 시작 시 항상 Claude(Opus)부터 시도 (이전 cooldown 무시)
+
+**Codex 프로필 (CODEX_HOME 대칭 분리)**
+
+Claude의 enterprise/personal과 대칭으로 Codex도 계정을 분리한다. Codex는 회사
+Bedrock 같은 별도 백엔드가 없어 **로그인 계정(auth.json)만** 분리하면 된다.
+
+```bash
+codex                  # 기본 ~/.codex (회사 계정)
+codex personal         # CODEX_HOME=~/.codex-personal (개인 ChatGPT 계정)
+codex enterprise       # 기본 ~/.codex 명시
+```
+
+- personal: `CODEX_HOME=~/.codex-personal` — `auth.json`(개인 로그인)만 분리 저장
+- 공용 자산(AGENTS.md/skills/commands/agents/config.toml/hooks)은 `~/.codex` 심링크로 재사용
+- `ai-env sync`가 `~/.codex-personal/` 심링크를 생성한다 (auth.json은 절대 심링크 안 함)
+- 첫 personal 실행 시 `codex personal login`으로 개인 계정 로그인 필요
+- `CODEX_CODE_PROFILE=personal codex ...`로도 개인 프로필을 기본 선택 가능
 
 ## Claude Code on Bedrock
 

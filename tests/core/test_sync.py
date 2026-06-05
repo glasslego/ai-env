@@ -101,11 +101,13 @@ def test_sync_claude_global_config_writes_profile_settings(tmp_path, mock_secret
         '{"model": "personal", "key": "${API_KEY}"}'
     )
 
-    target_dir = tmp_path / "home" / ".claude"
+    home_dir = tmp_path / "home"
+    target_dir = home_dir / ".claude"
+    personal_dir = home_dir / ".claude-personal"
 
     with (
         patch("ai_env.core.sync.get_project_root", return_value=project_root),
-        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+        patch("pathlib.Path.home", return_value=home_dir),
     ):
         results = sync_claude_global_config()
 
@@ -120,10 +122,17 @@ def test_sync_claude_global_config_writes_profile_settings(tmp_path, mock_secret
         "model": "enterprise",
         "key": "test_key",
     }
-    assert json.loads((target_dir / "settings.personal.json").read_text()) == {
+    # personal 프로필은 별도 config 디렉토리(~/.claude-personal)의 settings.json으로 기록된다.
+    assert json.loads((personal_dir / "settings.json").read_text()) == {
         "model": "personal",
         "key": "test_key",
     }
+    # 평면 ~/.claude/settings.personal.json은 더 이상 생성하지 않는다.
+    assert not (target_dir / "settings.personal.json").exists()
+    # 공용 자산은 personal 디렉토리에 심링크로 재사용된다.
+    claude_md_link = personal_dir / "CLAUDE.md"
+    assert claude_md_link.is_symlink()
+    assert claude_md_link.resolve() == (target_dir / "CLAUDE.md").resolve()
 
 
 def test_sync_claude_global_config_includes_agents(tmp_path, mock_secrets_manager):
@@ -570,6 +579,89 @@ def test_sync_codex_global_config_dry_run(tmp_path, mock_secrets_manager):
     assert "AGENTS.md" in results
     assert not (target_dir / "AGENTS.md").exists()
     assert not (target_dir / "skills").exists()
+
+
+def test_sync_codex_global_config_mirrors_personal_home(tmp_path, mock_secrets_manager):
+    """Codex 동기화 시 ~/.codex-personal에 공용 자산 심링크를 만든다.
+
+    `codex personal`(CODEX_HOME=~/.codex-personal)은 별도 auth.json만 분리하고
+    AGENTS.md/skills/commands/agents 등 자산은 ~/.codex를 심링크로 재사용한다.
+    """
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+    skills_dir = project_root / ".claude" / "skills"
+    (skills_dir / "spec-manager").mkdir(parents=True)
+    (skills_dir / "spec-manager" / "SKILL.md").write_text("# spec")
+
+    home_dir = tmp_path / "home"
+    codex_dir = home_dir / ".codex"
+    personal_dir = home_dir / ".codex-personal"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        results = sync_codex_global_config()
+
+    # AGENTS.md는 personal 디렉토리에 심링크로 재사용된다.
+    agents_link = personal_dir / "AGENTS.md"
+    assert agents_link.is_symlink()
+    assert agents_link.resolve() == (codex_dir / "AGENTS.md").resolve()
+    # skills도 심링크
+    skills_link = personal_dir / "skills"
+    assert skills_link.is_symlink()
+    assert skills_link.resolve() == (codex_dir / "skills").resolve()
+    # auth.json은 절대 심링크하지 않는다(계정 분리 보장).
+    assert not (personal_dir / "auth.json").exists()
+    assert any("codex-personal" in key for key in results)
+
+
+def test_sync_codex_global_config_config_toml_symlink_survives_first_sync(
+    tmp_path, mock_secrets_manager
+):
+    """config.toml은 generator가 나중에 생성하므로, 첫 sync에서도 dangling 심링크로 만들어 둔다.
+
+    이렇게 하면 같은 sync 실행에서 generator가 ~/.codex/config.toml을 쓰는 순간
+    ~/.codex-personal/config.toml 심링크가 자동으로 해석된다(첫 sync 갭 제거).
+    """
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    home_dir = tmp_path / "home"
+    codex_dir = home_dir / ".codex"
+    personal_dir = home_dir / ".codex-personal"
+
+    # 첫 sync: ~/.codex/config.toml이 아직 없는 상태 (generator 미실행)
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        sync_codex_global_config()
+
+    config_link = personal_dir / "config.toml"
+    # 타깃이 아직 없어도 심링크 자체는 만들어져야 한다(dangling 허용).
+    assert config_link.is_symlink()
+    assert config_link.readlink() == (codex_dir / "config.toml")
+    # 아직 타깃이 없으므로 해석되지 않는다.
+    assert not config_link.exists()
+
+    # generator가 config.toml을 쓰면 동일 심링크가 즉시 해석된다.
+    (codex_dir / "config.toml").write_text('model = "gpt-5.5"\n')
+    assert config_link.exists()
+    assert config_link.read_text() == 'model = "gpt-5.5"\n'
+
+    # 두 번째 sync도 idempotent (심링크 churn 없음)
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        sync_codex_global_config()
+    assert config_link.is_symlink()
+    assert config_link.read_text() == 'model = "gpt-5.5"\n'
 
 
 def test_sync_codex_global_config_writes_codex_hooks_json(tmp_path, mock_secrets_manager):
