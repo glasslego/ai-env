@@ -32,7 +32,17 @@
       "Bash(*)",
       "WebSearch",
       "WebFetch",
-      "mcp__*",
+      "mcp__github",
+      "mcp__github-kakao",
+      "mcp__jira-wiki-mcp",
+      "mcp__playwright",
+      "mcp__brave-search",
+      "mcp__context7",
+      "mcp__mem0",
+      "mcp__sequential-thinking",
+      "mcp__browseract",
+      "mcp__kkoto-mcp",
+      "mcp__cdp-mcp-server",
       "mcp__ide__getDiagnostics"
     ],
     "deny": [
