@@ -14,6 +14,13 @@ ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 *
 - 커밋 메시지 권장 형식: `<type>(spec-<id>/task-<id>): <summary>`
 - 공용 정책 변경 후 동기화: `uv run ai-env sync --claude-only`
 
+### spec/task 식별자 운용 (이 repo 한정)
+
+- ai-env는 개인 repo이므로 `spec-<id>`/`task-<id>`는 **반드시 `specs/`에 문서가 있어야 하는 건 아니다.** 작업 묶음을 가리키는 라벨로 느슨하게 쓴다.
+- `specs/SPEC-0XX-*.md` 처럼 문서가 있으면 그 번호를 식별자로 쓰고(`spec-013`), 문서 없이 진행하는 작업 묶음은 의미 있는 라벨을 직접 만들어 쓴다(선례: `spec-claude-bedrock`).
+- `task-<id>`는 그 묶음 안의 개별 구현 단계를 가리키는 자유 라벨이다(예: `task-sso-automation`, `task-mcp-permissions`).
+- 핵심은 "어느 작업 묶음의 어느 단계인지" 추적 가능하게 만드는 것. 문서화 강제보다 라벨 일관성을 우선한다.
+
 ## 개발 명령어
 
 ```bash
