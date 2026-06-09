@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -77,6 +78,52 @@ def test_session_save_writes_file(runner: CliRunner, tmp_path: Path, fresh_repo:
     assert "title: my-test" in body
 
 
+def test_session_save_accepts_transcript_metadata(
+    runner: CliRunner,
+    tmp_path: Path,
+    fresh_repo: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text(
+        json.dumps(
+            {"role": "user", "content": "tests/cli/test_session_cmd.py 확인"}, ensure_ascii=False
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "session",
+            "save",
+            "--note",
+            "metadata save",
+            "--vault",
+            str(vault),
+            "--cwd",
+            str(fresh_repo),
+            "--session-id",
+            "abcdef123456",
+            "--agent",
+            "codex",
+            "--transcript-path",
+            str(transcript),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    files = list((vault / "00_session").glob("*.md"))
+    assert len(files) == 1
+    assert files[0].name.startswith("202")
+    assert "repo-session-abcdef12" in files[0].name
+    body = files[0].read_text(encoding="utf-8")
+    assert "session_id: abcdef123456" in body
+    assert "agent: codex" in body
+    assert "Compressed Conversation" in body
+    assert "tests/cli/test_session_cmd.py" in body
+
+
 def test_session_save_custom_subdir(runner: CliRunner, tmp_path: Path, fresh_repo: Path) -> None:
     vault = tmp_path / "vault"
     result = runner.invoke(
@@ -100,7 +147,63 @@ def test_session_save_custom_subdir(runner: CliRunner, tmp_path: Path, fresh_rep
     assert len(files) == 1
 
 
+def test_session_latest_outputs_project_context(
+    runner: CliRunner,
+    tmp_path: Path,
+    fresh_repo: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    save_result = runner.invoke(
+        main,
+        [
+            "session",
+            "save",
+            "--note",
+            "latest cli context",
+            "--vault",
+            str(vault),
+            "--cwd",
+            str(fresh_repo),
+            "--session-id",
+            "latest123",
+        ],
+    )
+    assert save_result.exit_code == 0, save_result.output
+
+    latest = runner.invoke(
+        main,
+        [
+            "session",
+            "latest",
+            "--vault",
+            str(vault),
+            "--cwd",
+            str(fresh_repo),
+        ],
+    )
+
+    assert latest.exit_code == 0, latest.output
+    assert "# Latest Session Context: repo" in latest.output
+    assert "latest cli context" in latest.output
+
+
+def test_session_latest_path_only_when_missing(runner: CliRunner, tmp_path: Path) -> None:
+    result = runner.invoke(
+        main,
+        [
+            "session",
+            "latest",
+            "--vault",
+            str(tmp_path / "vault"),
+            "--path-only",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert result.output == ""
+
+
 def test_session_help(runner: CliRunner) -> None:
     result = runner.invoke(main, ["session", "--help"])
     assert result.exit_code == 0
     assert "save" in result.output
+    assert "latest" in result.output

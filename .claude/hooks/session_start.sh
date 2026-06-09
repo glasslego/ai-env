@@ -3,6 +3,7 @@
 # 1) 팀 스킬 git pull + 동기화 (백그라운드)
 # 2) .claude/handoff/latest.md 로드 (프로젝트 로컬 — 우선)
 # 3) ai-agent-log 이전 세션 요약 로드 (fallback)
+# 4) Obsidian 00_session 최신 프로젝트 세션 로드
 # Hook event: SessionStart (matcher: "startup|resume")
 
 set -euo pipefail
@@ -79,5 +80,38 @@ if [[ "$HANDOFF_LOADED" = false ]]; then
         echo ""
         echo "---"
         echo "_Loaded from ${SUMMARY_FILE}_"
+    fi
+fi
+
+# --- 3) Obsidian latest session context ---
+# Claude Code 시작 컨텍스트에 현재 프로젝트의 최신 00_session 노트를 주입한다.
+# handoff는 "직전 중단 상태", Obsidian 세션은 "압축된 장기 컨텍스트" 역할이다.
+AI_ENV_BIN=( )
+if command -v ai-env >/dev/null 2>&1; then
+    AI_ENV_BIN=(ai-env)
+elif command -v uv >/dev/null 2>&1; then
+    AI_ENV_HOME="${AI_ENV_HOME:-${HOME}/work/glasslego/ai-env}"
+    if [[ -d "$AI_ENV_HOME" ]]; then
+        AI_ENV_BIN=(uv --directory "$AI_ENV_HOME" run ai-env)
+    fi
+fi
+
+if [[ ${#AI_ENV_BIN[@]} -gt 0 && "${AI_ENV_SESSION_CONTEXT_DISABLE:-0}" != "1" ]]; then
+    OBSIDIAN_VAULT="${OBSIDIAN_VAULT:-${HOME}/Documents/Obsidian Vault}"
+    OBSIDIAN_SESSION_SUBDIR="${OBSIDIAN_SESSION_SUBDIR:-00_session}"
+    LATEST_CONTEXT="$("${AI_ENV_BIN[@]}" session latest \
+        --vault "$OBSIDIAN_VAULT" \
+        --subdir "$OBSIDIAN_SESSION_SUBDIR" \
+        --cwd "$PROJECT_ROOT" \
+        --max-chars "${AI_ENV_SESSION_CONTEXT_MAX_CHARS:-12000}" \
+        2>/dev/null || true)"
+
+    if [[ -n "$LATEST_CONTEXT" && "$LATEST_CONTEXT" != 최신\ 세션\ 노트\ 없음* ]]; then
+        echo ""
+        echo "## Obsidian Latest Session Context (${PROJECT_NAME})"
+        echo ""
+        printf '%s\n' "$LATEST_CONTEXT"
+        echo "---"
+        echo "_Loaded from Obsidian ${OBSIDIAN_SESSION_SUBDIR}_"
     fi
 fi

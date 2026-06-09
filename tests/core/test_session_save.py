@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -11,8 +13,11 @@ from ai_env.core.session_save import (
     DEFAULT_SUBDIR,
     GitSnapshot,
     _next_available_path,
+    build_latest_session_context,
     build_session_note,
     collect_git_snapshot,
+    compress_transcript,
+    find_latest_session,
     save_session,
     slugify,
 )
@@ -208,7 +213,7 @@ class TestSaveSession:
         assert second.path.exists()
         assert second.path.name.endswith("-2.md")
 
-    def test_auto_title_uses_time_and_branch(self, tmp_path: Path, fresh_repo: Path) -> None:
+    def test_auto_title_uses_project_and_branch(self, tmp_path: Path, fresh_repo: Path) -> None:
         result = save_session(
             note="t",
             vault=tmp_path / "vault",
@@ -216,5 +221,178 @@ class TestSaveSession:
             dry_run=True,
             now=datetime(2026, 4, 30, 18, 30),
         )
-        # 자동 제목은 'HHMM <branch>' 형식
-        assert "1830" in result.title
+        assert result.title.startswith("repo session ")
+        assert result.path.name.startswith("2026-04-30 18 repo-session-")
+
+    def test_auto_filename_uses_date_hour_project_session_prefix(
+        self,
+        tmp_path: Path,
+        fresh_repo: Path,
+    ) -> None:
+        result = save_session(
+            note="t",
+            vault=tmp_path / "vault",
+            cwd=fresh_repo,
+            session_id="abcdef123456",
+            agent="claude",
+            dry_run=True,
+            now=datetime(2026, 4, 30, 18, 30),
+        )
+        assert result.title == "repo session abcdef12"
+        assert result.path.name == "2026-04-30 18 repo-session-abcdef12.md"
+        assert "session_id: abcdef123456" in result.body
+        assert "agent: claude" in result.body
+
+    def test_transcript_summary_is_embedded(self, tmp_path: Path, fresh_repo: Path) -> None:
+        transcript = tmp_path / "session.jsonl"
+        events = [
+            {
+                "message": {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "src/ai_env/core/session_save.py 고쳐줘"}],
+                }
+            },
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "세션 압축 저장을 추가하기로 결정"}],
+                }
+            },
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "functions.exec_command",
+                            "input": {"cmd": "uv run pytest tests/core/test_session_save.py"},
+                        }
+                    ],
+                }
+            },
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "is_error": True,
+                            "content": "ERROR: one test failed",
+                        }
+                    ],
+                }
+            },
+        ]
+        transcript.write_text(
+            "\n".join(json.dumps(event, ensure_ascii=False) for event in events),
+            encoding="utf-8",
+        )
+
+        result = save_session(
+            note="with transcript",
+            vault=tmp_path / "vault",
+            cwd=fresh_repo,
+            transcript_path=transcript,
+            dry_run=True,
+            now=datetime(2026, 4, 30, 18, 30),
+        )
+
+        assert "### Compressed Conversation" in result.body
+        assert "### User Requests" in result.body
+        assert "src/ai_env/core/session_save.py" in result.body
+        assert "functions.exec_command" in result.body
+        assert "ERROR: one test failed" in result.body
+
+
+class TestTranscriptCompression:
+    def test_compress_transcript_returns_empty_for_missing_file(self, tmp_path: Path) -> None:
+        assert compress_transcript(tmp_path / "missing.jsonl") == ""
+
+    def test_compress_transcript_extracts_context(self, tmp_path: Path) -> None:
+        transcript = tmp_path / "codex.jsonl"
+        transcript.write_text(
+            "\n".join(
+                [
+                    json.dumps({"role": "user", "content": "README.md 문서 업데이트해줘"}),
+                    json.dumps(
+                        {
+                            "role": "assistant",
+                            "content": [
+                                {"type": "text", "text": "README.md와 src/app.py를 확인함"},
+                                {
+                                    "type": "tool_use",
+                                    "name": "functions.exec_command",
+                                    "input": {"cmd": "rg session README.md"},
+                                },
+                            ],
+                        }
+                    ),
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        body = compress_transcript(transcript)
+        assert "### User Requests" in body
+        assert "README.md" in body
+        assert "src/app.py" in body
+        assert "functions.exec_command" in body
+
+
+class TestLatestSession:
+    def test_find_latest_session_filters_by_project(self, tmp_path: Path, fresh_repo: Path) -> None:
+        vault = tmp_path / "vault"
+        first = save_session(
+            note="old",
+            vault=vault,
+            cwd=fresh_repo,
+            session_id="11111111",
+            now=datetime(2026, 4, 30, 18, 0),
+        )
+        second = save_session(
+            note="new",
+            vault=vault,
+            cwd=fresh_repo,
+            session_id="22222222",
+            now=datetime(2026, 4, 30, 19, 0),
+        )
+        other_repo = tmp_path / "other"
+        other_repo.mkdir()
+        other = save_session(
+            note="other",
+            vault=vault,
+            cwd=other_repo,
+            session_id="33333333",
+            now=datetime(2026, 4, 30, 20, 0),
+        )
+        os.utime(first.path, (1000, 1000))
+        os.utime(second.path, (2000, 2000))
+        os.utime(other.path, (3000, 3000))
+
+        result = find_latest_session(vault=vault, cwd=fresh_repo)
+
+        assert result.found is True
+        assert result.path == second.path
+        assert "new" in result.body
+
+    def test_build_latest_session_context_renders_header(
+        self,
+        tmp_path: Path,
+        fresh_repo: Path,
+    ) -> None:
+        vault = tmp_path / "vault"
+        saved = save_session(
+            note="latest context",
+            vault=vault,
+            cwd=fresh_repo,
+            session_id="abcdef12",
+            now=datetime(2026, 4, 30, 18, 0),
+        )
+
+        result = build_latest_session_context(vault=vault, cwd=fresh_repo)
+
+        assert result.found is True
+        assert result.path == saved.path
+        assert "# Latest Session Context: repo" in result.body
+        assert str(saved.path) in result.body
+        assert "latest context" in result.body

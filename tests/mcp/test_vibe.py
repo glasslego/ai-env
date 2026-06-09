@@ -167,6 +167,17 @@ class TestGenerateShellFunctions:
         assert "-t 0 && -t 1" in result
         assert ") >/dev/null 2>&1 &" in result
 
+    def test_contains_session_context_helper(self):
+        """Claude/Codex wrapper가 Obsidian 최신 세션 컨텍스트 조회를 포함."""
+        gen = self._make_generator(["claude", "codex"])
+        result = gen.generate_shell_functions()
+
+        assert "_ai_env_session_context()" in result
+        assert "ai-env session latest" in result
+        assert "AI_ENV_SESSION_CONTEXT_DISABLE" in result
+        assert '_ai_env_session_context "claude-${_claude_profile}"' in result
+        assert '_ai_env_session_context "codex-${_codex_profile}"' in result
+
     def test_passthrough_without_fallback_flag(self, tmp_path):
         """--fallback 없이 claude 호출 시 원본 바이너리로 passthrough 확인"""
         gen = self._make_generator(["claude", "codex"])

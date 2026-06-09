@@ -27,6 +27,27 @@ When unsure about implementation details, ALWAYS ask the developer.
 글로벌 인덱스 `~/.claude/handoffs/index.jsonl` 에 최근 SessionEnd 메타가
 한 줄씩 append 되므로, 다른 cwd 의 최근 끊김 내역을 빠르게 조회할 수 있다.
 
+### Obsidian 세션 컨텍스트
+
+Claude Code와 Codex는 새 세션을 시작할 때 현재 프로젝트의 최신 Obsidian
+세션 노트를 먼저 확인한다.
+
+- 기본 저장 위치: `~/Documents/Obsidian Vault/00_session`
+- 파일명 규칙: `YYYY-MM-DD HH {project}-session-{session-prefix}.md`
+- 조회 명령:
+  ```bash
+  ai-env session latest --cwd "$PWD"
+  ```
+- `ai-env`가 PATH에 없으면:
+  ```bash
+  uv --directory ~/work/glasslego/ai-env run ai-env session latest --cwd "$PWD"
+  ```
+
+세션 노트에는 transcript JSONL을 규칙 기반으로 압축한 사용자 요청, 진행/결정,
+도구 호출, 파일 경로, 오류 신호, 최근 타임라인이 포함된다. `.claude/handoff`
+는 직전 중단 상태를, Obsidian `00_session`은 프로젝트별 장기 맥락을 담당한다.
+둘 다 있으면 handoff를 먼저 읽고 Obsidian 최신 세션으로 배경 맥락을 보강한다.
+
 ---
 
 ## 📐 Spec-Task-Test-Commit (공용 필수 워크플로우)

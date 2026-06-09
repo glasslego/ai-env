@@ -190,9 +190,11 @@ EOF
     )
     "${AI_ENV_BIN[@]}" session save \
         --note "$AI_ENV_SESSION_NOTE" \
-        --title "${PROJECT_NAME} agent ${SHORT_ID}" \
         --vault "$OBSIDIAN_VAULT" \
         --subdir "$OBSIDIAN_SESSION_SUBDIR" \
         --cwd "$PROJECT_ROOT" \
+        --agent "${AI_ENV_AGENT_NAME:-claude}" \
+        --session-id "$SESSION_ID" \
+        --transcript-path "$TRANSCRIPT_PATH" \
         >/dev/null 2>&1 || true
 fi

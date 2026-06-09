@@ -104,6 +104,8 @@ ai-env pipeline workflow <topic_id>      # 워크플로우 진행 상태
 
 # Obsidian 세션 저장 (SPEC-013)
 ai-env session save --note "<메모>"                      # 기본 vault의 00_session/에 저장
+ai-env session save --note "..." --transcript-path ~/.claude/projects/...jsonl
+ai-env session latest --cwd "$PWD"                       # 현재 프로젝트 최신 세션 컨텍스트 출력
 ai-env session save --note "..." --subdir 01_Inbox      # 다른 디렉토리
 ai-env session save --note "..." --vault ~/Vaults/Other  # 다른 vault
 ai-env session save --note "..." --dry-run               # 본문 미리보기
@@ -145,14 +147,24 @@ ai-env project sync-codex
 
 ```bash
 ai-env session save --note "메모"                            # 기본 vault/00_session/
+ai-env session save --note "..." --session-id abcdef --agent claude
+ai-env session save --note "..." --transcript-path ~/.claude/projects/...jsonl
+ai-env session latest --cwd "$PWD"                           # 프로젝트 최신 세션 출력
 ai-env session save --note "..." --title "회의 결정"          # 제목 지정
 ai-env session save --note "..." --subdir 01_Inbox           # 다른 폴더
 ai-env session save --note "..." --vault ~/Vaults/Other      # 다른 vault
 ai-env session save --note "..." --dry-run                   # 본문 미리보기
 ```
 
-vault 기본 경로는 `config/settings.yaml`의 `obsidian_base`로 설정합니다.
-스킬은 `.claude/skills/session-save/SKILL.md`이며 Codex CLI에서도 동일하게 동작합니다.
+기본 저장 경로는 `config/settings.yaml`의 `obsidian_base` 아래 `00_session/`입니다.
+자동 파일명은 `YYYY-MM-DD HH {project}-session-{prefix}.md` 형식입니다.
+`--transcript-path`가 있으면 JSONL transcript에서 사용자 요청, 진행/결정, 도구 호출,
+파일 경로, 오류 신호, 최근 타임라인을 규칙 기반으로 압축해 저장합니다.
+
+Claude Code hook은 SessionStart에 `session latest`를 읽고, SessionEnd/PreCompact에
+현재 세션을 저장합니다. `ai-env sync`가 생성하는 `claude()`/`codex()` wrapper도
+대화형 TTY에서 최신 Obsidian 세션을 표시합니다. 출력이 필요 없으면
+`AI_ENV_SESSION_CONTEXT_DISABLE=1`을 설정합니다.
 
 ## claude --fallback
 

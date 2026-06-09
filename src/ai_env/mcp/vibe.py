@@ -111,6 +111,40 @@ _ai_env_sync_skills() {{
     fi
 }}
 
+_ai_env_session_context() {{
+    # Claude/Codex 시작 시 현재 프로젝트의 최신 Obsidian 세션을 짧게 표시한다.
+    # 비대화형 실행에서는 stdout 오염을 피하기 위해 조용히 스킵한다.
+    local _agent="${{1:-agent}}"
+    [[ "${{AI_ENV_SESSION_CONTEXT_DISABLE:-0}}" == "1" ]] && return 0
+    [[ ! -t 1 ]] && return 0
+
+    local _cwd="$PWD"
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        _cwd="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    fi
+
+    local _vault="${{OBSIDIAN_VAULT:-$HOME/Documents/Obsidian Vault}}"
+    local _subdir="${{OBSIDIAN_SESSION_SUBDIR:-00_session}}"
+    local _max_chars="${{AI_ENV_SESSION_CONTEXT_MAX_CHARS:-12000}}"
+    local _ai_env_dir="{ai_env_dir}"
+    local _context=""
+
+    if command -v ai-env >/dev/null 2>&1; then
+        _context="$(ai-env session latest --vault "$_vault" --subdir "$_subdir" --cwd "$_cwd" --max-chars "$_max_chars" 2>/dev/null || true)"
+    elif [[ -d "$_ai_env_dir" ]] && command -v uv >/dev/null 2>&1; then
+        _context="$(uv --directory "$_ai_env_dir" run ai-env session latest --vault "$_vault" --subdir "$_subdir" --cwd "$_cwd" --max-chars "$_max_chars" 2>/dev/null || true)"
+    fi
+
+    [[ -z "$_context" ]] && return 0
+    case "$_context" in
+        "최신 세션 노트 없음"*) return 0 ;;
+    esac
+
+    printf '\\033[36m📌 %s latest session context loaded from Obsidian/%s\\033[0m\\n' "$_agent" "$_subdir"
+    printf '%s\\n' "$_context"
+    printf '%s\\n' '---'
+}}
+
 # === AI Agent Fallback (claude --fallback) ===
 # Priority: {priority_display}
 # Usage: claude --fallback [args...]           - 우선순위대로 에이전트 시도, 실패 시 자동 전환
@@ -156,6 +190,8 @@ claude() {{
             return 1
         fi
     fi
+
+    _ai_env_session_context "claude-${{_claude_profile}}"
 
     # --fallback 없으면 원본 claude 바이너리로 passthrough
     # ("${{1:-}}"로 가드 — set -u 셸에서 인자 없이 호출해도 안전, profile shift 후 포함)
@@ -1000,6 +1036,8 @@ codex() {{
             shift
             ;;
     esac
+
+    _ai_env_session_context "codex-${{_codex_profile}}"
 
     if [[ "$_codex_profile" == "personal" ]]; then
         local _codex_home="$HOME/.codex-personal"
