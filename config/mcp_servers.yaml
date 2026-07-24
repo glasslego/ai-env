@@ -132,7 +132,9 @@ mcp_servers:
       - codex
 
   mem0:
-    enabled: true
+    # npm 레지스트리에 @mem0/mcp 패키지가 존재하지 않아(404) 연결 불가.
+    # 올바른 패키지명(예: mem0ai 계열)을 확인한 뒤 enabled:true 로 재활성화할 것.
+    enabled: false
     type: stdio
     startup_timeout_sec: 30
     command: npx
@@ -260,10 +262,12 @@ mcp_servers:
       - claude_local
 
   cdp-mcp-server:
+    # 기존 SSE 엔드포인트(CDP_MCP_URL=/app/cdp-mcp-server/sse)는 404로 폐기됨.
+    # 현행 엔드포인트는 CBT streamable-http(CDP_MCP_CBT_URL=/stream).
     enabled: true
-    type: sse
+    type: http
     startup_timeout_sec: 30
-    url_env: CDP_MCP_URL
+    url_env: CDP_MCP_CBT_URL
     targets:
       - codex_desktop
       - claude_local

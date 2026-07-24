@@ -1,29 +1,23 @@
 {
-  "apiKeyHelper": "/Users/megan/claude-code-gateway/scripts/get-gateway-token.sh",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_ENABLE_AUTO_MODE": "1",
-    "CLAUDE_CODE_USE_BEDROCK": "1",
-    "ANTHROPIC_BEDROCK_BASE_URL": "https://llm-dashboard.onkakao.net/bedrock",
-    "CLAUDE_CODE_SKIP_BEDROCK_AUTH": "1",
     "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1",
-    "AWS_PROFILE": "bedrock-gateway",
-    "AWS_REGION": "ap-northeast-2",
     "API_TIMEOUT_MS": "1800000",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-7[1m]",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "Opus 4.7 (1M)",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Opus 4.7 - 1M context, most capable",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "Opus 4.8 (1M)",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Opus 4.8 - 1M context, most capable",
     "ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES": "effort,xhigh_effort,max_effort,thinking,adaptive_thinking,interleaved_thinking",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-4-6[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
     "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "Sonnet 4.6 (1M)",
     "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Sonnet 4.6 - 1M context for large codebases",
     "ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES": "effort,max_effort,thinking,adaptive_thinking,interleaved_thinking",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20251001",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "Haiku 4.5",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Haiku 4.5 - Fastest for quick answers",
-    "ANTHROPIC_CUSTOM_MODEL_OPTION": "global.anthropic.claude-opus-4-8[1m]",
-    "ANTHROPIC_CUSTOM_MODEL_OPTION_NAME": "Opus 4.8 (1M)",
-    "ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION": "Opus 4.8 - 1M context, most capable",
+    "ANTHROPIC_CUSTOM_MODEL_OPTION": "claude-opus-4-7",
+    "ANTHROPIC_CUSTOM_MODEL_OPTION_NAME": "Opus 4.7 (1M)",
+    "ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION": "Opus 4.7 - 1M context, most capable",
     "ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES": "effort,xhigh_effort,max_effort,thinking,adaptive_thinking,interleaved_thinking"
   },
   "skipDangerousModePermissionPrompt": true,
@@ -40,7 +34,6 @@
       "mcp__context7",
       "mcp__mem0",
       "mcp__sequential-thinking",
-      "mcp__browseract",
       "mcp__kkoto-mcp",
       "mcp__cdp-mcp-server",
       "mcp__ide__getDiagnostics"
@@ -58,7 +51,7 @@
     "ask": [],
     "defaultMode": "acceptEdits"
   },
-  "model": "global.anthropic.claude-sonnet-4-6[1m]",
+  "model": "claude-sonnet-4-6",
   "hooks": {
     "SessionStart": [
       {
@@ -186,87 +179,5 @@
         ]
       }
     ]
-  },
-  "mcpServers": {
-    "github": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server",
-        "stdio"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_GLASSLEGO_TOKEN}"
-      }
-    },
-    "github-kakao": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "-e", "GITHUB_HOST=https://github.daumkakao.com",
-        "ghcr.io/github/github-mcp-server",
-        "stdio"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-      }
-    },
-    "jira-wiki-mcp": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "JIRA_URL=${JIRA_URL}",
-        "-e", "JIRA_TOKEN=${JIRA_TOKEN}",
-        "-e", "WIKI_BASE_URL=${WIKI_BASE_URL}",
-        "-e", "WIKI_TOKEN=${WIKI_TOKEN}",
-        "ghcr.io/sooperset/mcp-atlassian:latest"
-      ],
-      "env": {
-        "JIRA_URL": "${JIRA_URL}",
-        "JIRA_TOKEN": "${JIRA_TOKEN}",
-        "WIKI_BASE_URL": "${WIKI_BASE_URL}",
-        "WIKI_TOKEN": "${WIKI_TOKEN}"
-      }
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@executeautomation/playwright-mcp-server"]
-    },
-    "brave-search": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-      "env": {
-        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
-      }
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"]
-    },
-    "mem0": {
-      "command": "npx",
-      "args": ["-y", "@mem0/mcp"],
-      "env": {
-        "MEM0_API_KEY": "${MEM0_API_KEY}"
-      }
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-    },
-    "browseract": {
-      "type": "sse",
-      "url": "${BROWSERACT_MCP_URL}"
-    },
-    "kkoto-mcp": {
-      "type": "sse",
-      "url": "${KKOTO_MCP_URL}"
-    },
-    "cdp-mcp-server": {
-      "type": "sse",
-      "url": "${CDP_MCP_URL}"
-    }
   }
 }

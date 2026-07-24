@@ -21,7 +21,6 @@ def _format_entry(entry: str) -> str:
 def generate_shell_functions(
     agent_priority: list[str],
     fallback_log_dir: str | None = None,
-    ai_env_dir: str | None = None,
 ) -> str:
     """에이전트 우선순위 기반 claude --fallback 쉘 함수 생성
 
@@ -38,7 +37,6 @@ def generate_shell_functions(
         agent_priority: 에이전트 우선순위 리스트
             (예: ["claude", "claude:sonnet", "codex"])
         fallback_log_dir: 세션 로그/핸드오프 저장 디렉토리 (None이면 temp 사용)
-        ai_env_dir: ai-env 프로젝트 루트 경로 (None이면 get_project_root() 사용)
 
     Returns:
         bash 함수 문자열
@@ -46,10 +44,9 @@ def generate_shell_functions(
     if not agent_priority:
         return ""
 
-    if ai_env_dir is None:
-        from ..core.config import get_project_root
+    from ..core.config import get_project_root
 
-        ai_env_dir = str(get_project_root())
+    ai_env_dir = str(get_project_root())
 
     agents_str = " ".join(f'"{a}"' for a in agent_priority)
     priority_display = " → ".join(_format_entry(a) for a in agent_priority)
@@ -111,40 +108,6 @@ _ai_env_sync_skills() {{
     fi
 }}
 
-_ai_env_session_context() {{
-    # Claude/Codex 시작 시 현재 프로젝트의 최신 Obsidian 세션을 짧게 표시한다.
-    # 비대화형 실행에서는 stdout 오염을 피하기 위해 조용히 스킵한다.
-    local _agent="${{1:-agent}}"
-    [[ "${{AI_ENV_SESSION_CONTEXT_DISABLE:-0}}" == "1" ]] && return 0
-    [[ ! -t 1 ]] && return 0
-
-    local _cwd="$PWD"
-    if git rev-parse --show-toplevel >/dev/null 2>&1; then
-        _cwd="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-    fi
-
-    local _vault="${{OBSIDIAN_VAULT:-$HOME/Documents/Obsidian Vault}}"
-    local _subdir="${{OBSIDIAN_SESSION_SUBDIR:-00_session}}"
-    local _max_chars="${{AI_ENV_SESSION_CONTEXT_MAX_CHARS:-12000}}"
-    local _ai_env_dir="{ai_env_dir}"
-    local _context=""
-
-    if command -v ai-env >/dev/null 2>&1; then
-        _context="$(ai-env session latest --vault "$_vault" --subdir "$_subdir" --cwd "$_cwd" --max-chars "$_max_chars" 2>/dev/null || true)"
-    elif [[ -d "$_ai_env_dir" ]] && command -v uv >/dev/null 2>&1; then
-        _context="$(uv --directory "$_ai_env_dir" run ai-env session latest --vault "$_vault" --subdir "$_subdir" --cwd "$_cwd" --max-chars "$_max_chars" 2>/dev/null || true)"
-    fi
-
-    [[ -z "$_context" ]] && return 0
-    case "$_context" in
-        "최신 세션 노트 없음"*) return 0 ;;
-    esac
-
-    printf '\\033[36m📌 %s latest session context loaded from Obsidian/%s\\033[0m\\n' "$_agent" "$_subdir"
-    printf '%s\\n' "$_context"
-    printf '%s\\n' '---'
-}}
-
 # === AI Agent Fallback (claude --fallback) ===
 # Priority: {priority_display}
 # Usage: claude --fallback [args...]           - 우선순위대로 에이전트 시도, 실패 시 자동 전환
@@ -152,36 +115,39 @@ _ai_env_session_context() {{
 #        claude --fallback -2 [args...]         - 2순위 에이전트부터 시작 (예: codex)
 #        claude --fallback --auto [args...]      - 모든 에이전트 자동 승인 모드 (권한 확인 건너뜀)
 #        claude --fallback -l                   - 에이전트 우선순위 목록 출력
-#        claude [args...]                       - 일반 claude 실행 (passthrough)
+#        claude [args...]                       - 팀 플랜 Claude Code 프로필로 일반 실행
+#        claude team [args...]                  - 팀 플랜 Claude Code 프로필 명시 실행
 #        claude personal [args...]              - 개인 Claude Code 프로필(개인 Anthropic 로그인)로 실행
-#        claude enterprise [args...]            - 엔터프라이즈(회사 Bedrock) 프로필로 실행
+#        claude enterprise [args...]            - legacy alias: 팀 플랜 프로필로 실행
 # Model: "agent:model" 형식으로 모델 지정 가능 (예: claude:sonnet → claude --model sonnet)
 # Env:   CLAUDE_FALLBACK_RETRY_MINUTES (default: 15)
 #        CLAUDE_FALLBACK_AUTO (default: 0) - 1이면 --auto 모드 기본 활성화
 #        CLAUDE_FALLBACK_LOG_DIR - 세션 로그/핸드오프 저장 경로
-#        CLAUDE_CODE_PROFILE - enterprise(default) 또는 personal
-# Profile: enterprise는 기본 ~/.claude(회사 Bedrock)를 사용하고, personal은
-#          CLAUDE_CONFIG_DIR=~/.claude-personal로 user-level config 디렉토리 자체를
-#          교체한다. --settings는 User 계층을 대체하지 못해 Bedrock env/apiKeyHelper가
-#          남기 때문에, 프로필 격리는 CLAUDE_CONFIG_DIR로만 가능하다.
+#        CLAUDE_CODE_PROFILE - team(default) 또는 personal
+# Profile: team은 기본 ~/.claude를 사용하고, personal은 CLAUDE_CONFIG_DIR=~/.claude-personal로
+#          user-level config 디렉토리 자체를 교체한다.
 claude() {{
     # 팀 스킬 동기화 (백그라운드)
     _ai_env_sync_skills
 
-    local _claude_profile="${{CLAUDE_CODE_PROFILE:-enterprise}}"
+    local _claude_profile="${{CLAUDE_CODE_PROFILE:-team}}"
     case "${{1:-}}" in
+        team|--team)
+            _claude_profile="team"
+            shift
+            ;;
         personal|--personal)
             _claude_profile="personal"
             shift
             ;;
         enterprise|--enterprise|bedrock|--bedrock)
-            _claude_profile="enterprise"
+            _claude_profile="team"
             shift
             ;;
     esac
 
     # personal 프로필은 별도 config 디렉토리로 user-level 설정 전체를 교체한다.
-    # enterprise/기본은 CLAUDE_CONFIG_DIR을 설정하지 않아 ~/.claude를 그대로 쓴다.
+    # team/기본은 CLAUDE_CONFIG_DIR을 설정하지 않아 ~/.claude를 그대로 쓴다.
     local _claude_config_dir=""
     if [[ "$_claude_profile" == "personal" ]]; then
         _claude_config_dir="$HOME/.claude-personal"
@@ -190,8 +156,6 @@ claude() {{
             return 1
         fi
     fi
-
-    _ai_env_session_context "claude-${{_claude_profile}}"
 
     # --fallback 없으면 원본 claude 바이너리로 passthrough
     # ("${{1:-}}"로 가드 — set -u 셸에서 인자 없이 호출해도 안전, profile shift 후 포함)
@@ -1036,8 +1000,6 @@ codex() {{
             shift
             ;;
     esac
-
-    _ai_env_session_context "codex-${{_codex_profile}}"
 
     if [[ "$_codex_profile" == "personal" ]]; then
         local _codex_home="$HOME/.codex-personal"

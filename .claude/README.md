@@ -160,23 +160,22 @@ description: |
 
 ```
 ai-env repo 구조:
-  .claude/global/settings.json.template            ← enterprise 기본 프로필
+  .claude/global/settings.json.template            ← team 기본 프로필
   .claude/global/settings.personal.json.template   ← 개인 프로필
 
 동기화 후:
-  ~/.claude/settings.json                         ← enterprise 기본 프로필 (회사 Bedrock)
-  ~/.claude/settings.enterprise.json              ← enterprise 명시 프로필
-  ~/.claude-personal/settings.json                ← 개인 프로필 (Bedrock 없음, 개인 로그인)
+  ~/.claude/settings.json                         ← team 기본 프로필 (팀 플랜 OAuth 로그인)
+  ~/.claude/settings.enterprise.json              ← legacy alias용 동일 설정
+  ~/.claude-personal/settings.json                ← 개인 프로필 (개인 로그인)
   ~/.claude-personal/{CLAUDE.md,commands,skills,agents,hooks}  ← ~/.claude 심링크
 ```
 
 - 토큰은 `config/secrets.yaml` (gitignore) 또는 환경변수로 주입
 - `.template`에는 `"${GITHUB_TOKEN}"` 같은 플레이스홀더 사용
 - `ai-env sync`가 secrets 치환하여 최종 settings.json 생성
-- `claude`/`claude enterprise`는 `~/.claude`(회사 Bedrock), `claude personal`은
+- `claude`/`claude team`은 `~/.claude`(팀 플랜 OAuth), `claude personal`은
   `CLAUDE_CONFIG_DIR=~/.claude-personal`(개인 Anthropic 로그인)로 실행
-- `--settings`는 User 계층을 대체하지 못해 Bedrock env/apiKeyHelper가 남으므로,
-  프로필 격리는 `CLAUDE_CONFIG_DIR`로만 가능하다
+- `--settings`는 User 계층을 대체하지 못하므로 프로필 격리는 `CLAUDE_CONFIG_DIR`로만 가능하다
 - 권한 설정(`permissions`)은 두 프로필이 동일
 
 ## 소스 관리 흐름 (ai-env)
