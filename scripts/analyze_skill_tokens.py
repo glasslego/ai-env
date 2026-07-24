@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_ROOTS = (
-    "megan-skills/skills",
+    "megan-harness/skills",
     "cde-skills/plugins/cde-skills/skills",
     "cde-ranking-skills/.claude/skills",
 )

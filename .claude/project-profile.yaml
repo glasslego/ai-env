@@ -4,12 +4,12 @@
 project:
   name: ai-env
   type: cli-tool
-  description: AI 개발 환경(Claude, Codex, Gemini) 설정 및 MCP 서버 통합 관리 CLI
+  description: Claude Code + Codex 설정 및 MCP 서버 통합 관리 CLI
 
 architecture:
   pattern: 3-layer
   layers:
-    core: "src/ai_env/core/"       # 비즈니스 로직 (config, sync, secrets, doctor, pipeline, workflow)
+    core: "src/ai_env/core/"       # 비즈니스 로직 (config, sync, secrets, doctor, project_sync, bedrock)
     mcp: "src/ai_env/mcp/"         # MCP 설정 생성 (generator, vibe)
     cli: "src/ai_env/cli/"         # Click CLI + Rich UI
 
@@ -25,7 +25,3 @@ tests:
 
 status:
   file: "_project-status.yaml"
-
-research:
-  obsidian_base: "~/Documents/Obsidian/PARA-2025"
-  sources_dir: "config/topics/"

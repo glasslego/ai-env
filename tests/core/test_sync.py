@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from ai_env.core.sync import (
     _build_skills_index,
+    _collect_agent_sources,
     _collect_skill_sources,
     _extract_skill_summary,
     _sync_file_or_dir,
@@ -26,6 +27,8 @@ def mock_secrets_manager():
         manager = MagicMock()
         manager.list.return_value = {"API_KEY": "test_key"}
         manager.substitute.side_effect = lambda s: s.replace("${API_KEY}", "test_key")
+        # 미설정 키는 빈 문자열로 — url 기반(sse/http) 서버는 url 없으면 스킵된다.
+        manager.get.return_value = ""
         mock.return_value = manager
         yield mock
 
@@ -84,6 +87,40 @@ def test_sync_claude_global_config(tmp_path, mock_secrets_manager):
         settings_dst = target_dir / "settings.json"
         assert settings_dst.exists()
         assert '{"key": "test_key"}' in settings_dst.read_text()
+
+
+def test_sync_writes_mcp_servers_to_claude_json_preserving_keys(tmp_path, mock_secrets_manager):
+    """MCP 서버는 settings.json 이 아니라 ~/.claude.json top-level mcpServers 에 기록되고,
+    기존 ~/.claude.json 의 다른 키(projects 등)는 보존되어야 한다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+    (global_dir / "settings.json.template").write_text('{"key": "${API_KEY}"}')
+
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    claude_json = home_dir / ".claude.json"
+    # 기존 ~/.claude.json — projects 키는 보존되어야 한다.
+    claude_json.write_text(json.dumps({"projects": {"/some/path": {"trust": True}}}))
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        results = sync_claude_global_config()
+
+    data = json.loads(claude_json.read_text())
+    # 기존 키 보존
+    assert data["projects"] == {"/some/path": {"trust": True}}
+    # MCP 서버가 top-level mcpServers 에 기록됨 (실제 mcp_servers.yaml 기반, stdio 서버 다수)
+    assert "mcpServers" in data
+    assert data["mcpServers"], "mcpServers should be non-empty"
+    # settings.json 에는 mcpServers 가 없어야 한다.
+    settings = json.loads((home_dir / ".claude" / "settings.json").read_text())
+    assert "mcpServers" not in settings
+    # 결과 dict 에 ~/.claude.json 항목이 보고됨
+    assert any("claude.json mcpServers" in key for key in results)
 
 
 def test_sync_claude_global_config_writes_profile_settings(tmp_path, mock_secrets_manager):
@@ -162,7 +199,7 @@ def test_sync_claude_global_config_includes_agents(tmp_path, mock_secrets_manage
 def test_collect_skill_sources_personal_only(tmp_path):
     """personal skills만 있을 때 수집."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     # personal skills 생성
     (skills_dir / "git-worktree").mkdir(parents=True)
@@ -179,9 +216,9 @@ def test_collect_skill_sources_personal_only(tmp_path):
 
 
 def test_collect_skill_sources_from_claude_skills(tmp_path):
-    """.claude/skills 경로를 personal 소스로 사용."""
+    """megan-harness/skills 경로를 personal 소스로 사용."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     (skills_dir / "my-private-skill").mkdir(parents=True)
     (skills_dir / "my-private-skill" / "SKILL.md").write_text("# personal skill")
@@ -196,7 +233,7 @@ def test_collect_skill_sources_from_claude_skills(tmp_path):
 def test_collect_skill_sources_with_cde_skills(tmp_path):
     """--skills-include 사용 시 team(cde-skills symlink) 포함."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     # personal skill
     (skills_dir / "git-worktree").mkdir(parents=True)
@@ -230,7 +267,7 @@ def test_collect_skill_sources_with_cde_skills(tmp_path):
 def test_collect_skill_sources_with_cde_skills_subdir_layout(tmp_path):
     """skills/ 하위 team repo도 --skills-include로 포함."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     # personal skill
     (skills_dir / "git-worktree").mkdir(parents=True)
@@ -262,7 +299,7 @@ def test_collect_skill_sources_with_cde_skills_subdir_layout(tmp_path):
 def test_collect_skill_sources_with_cde_skills_plugin_layout(tmp_path):
     """plugins/<name>/skills 레이아웃의 cde-skills 카테고리 스킬을 포함."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     (skills_dir / "git-worktree").mkdir(parents=True)
     (skills_dir / "git-worktree" / "SKILL.md").write_text("# git worktree")
@@ -297,7 +334,7 @@ def test_collect_skill_sources_with_cde_skills_plugin_layout(tmp_path):
 def test_sync_skills_merged(tmp_path):
     """--skills-include 사용 시 personal + team 스킬이 합쳐지는지 확인."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     # personal
     (skills_dir / "mcp-config").mkdir(parents=True)
@@ -422,7 +459,7 @@ def test_collect_cde_ranking_skills_fetches_origin_develop_for_rebase(tmp_path):
 def _setup_multi_team_skills(tmp_path):
     """테스트용 multi-team skills 환경 생성 헬퍼."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     # personal skill
     (skills_dir / "my-skill").mkdir(parents=True)
@@ -493,6 +530,45 @@ def test_collect_skills_no_filter(tmp_path):
     assert "score-drilldown" in names
 
 
+def test_collect_skills_personal_overrides_team(tmp_path):
+    """이름 충돌 시 개인(megan-harness)이 팀(cde-*)을 이긴다 (name 기준 first-wins)."""
+    project_root = tmp_path / "ai-env"
+    # 개인: megan-harness/skills/ai-env/spark-debug (개인 버전)
+    personal = project_root / "megan-harness" / "skills" / "ai-env" / "spark-debug"
+    personal.mkdir(parents=True)
+    (personal / "SKILL.md").write_text("# personal spark-debug")
+    # 팀: cde-skills/spark-debug (동명 팀 버전)
+    cde_real = tmp_path / "cde-skills-repo"
+    (cde_real / "spark-debug").mkdir(parents=True)
+    (cde_real / "spark-debug" / "SKILL.md").write_text("# team spark-debug")
+    (project_root / "cde-skills").symlink_to(cde_real)
+
+    sources = _collect_skill_sources(project_root)
+    spark = [s for s in sources if s.name == "spark-debug"]
+
+    assert len(spark) == 1  # 중복 없이 하나만
+    assert "megan-harness" in str(spark[0])  # 개인 버전이 이김
+
+
+def test_collect_skills_recursive_category_scan(tmp_path):
+    """megan-harness/skills/{category}/{skill}/ 카테고리 깊이를 재귀 수집하고,
+    스킬 내부의 부수 SKILL.md(references/)는 중복 수집하지 않는다."""
+    project_root = tmp_path / "ai-env"
+    for cat, name in [("ranking", "ranking-lookup"), ("code", "pr-eval"), ("ai-env", "doc-sync")]:
+        skill = project_root / "megan-harness" / "skills" / cat / name
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(f"# {name}")
+    # 스킬 내부의 부수 SKILL.md는 무시되어야 함
+    ref = project_root / "megan-harness" / "skills" / "ranking" / "ranking-lookup" / "references"
+    ref.mkdir()
+    (ref / "SKILL.md").write_text("# nested — must be ignored")
+
+    sources = _collect_skill_sources(project_root)
+    names = sorted(s.name for s in sources)
+
+    assert names == ["doc-sync", "pr-eval", "ranking-lookup"]  # references 제외, 3개만
+
+
 def test_collect_skills_always_no_double_include(tmp_path):
     """--skills-all 같이 ALWAYS 팀 스킬이 include 에 들어와도 dedup 보장."""
     project_root = _setup_multi_team_skills(tmp_path)
@@ -538,7 +614,7 @@ def test_sync_codex_global_config(tmp_path, mock_secrets_manager):
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
     (skills_dir / "spec-manager").mkdir(parents=True)
     (skills_dir / "spec-manager" / "SKILL.md").write_text("# spec")
 
@@ -564,7 +640,7 @@ def test_sync_codex_global_config_dry_run(tmp_path, mock_secrets_manager):
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
     (skills_dir / "spec-manager").mkdir(parents=True)
     (skills_dir / "spec-manager" / "SKILL.md").write_text("# spec")
 
@@ -591,7 +667,7 @@ def test_sync_codex_global_config_mirrors_personal_home(tmp_path, mock_secrets_m
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
     (skills_dir / "spec-manager").mkdir(parents=True)
     (skills_dir / "spec-manager" / "SKILL.md").write_text("# spec")
 
@@ -917,7 +993,7 @@ def test_extract_skill_summary_no_skill_md(tmp_path):
 def test_build_skills_index(tmp_path):
     """스킬 인덱스 Markdown 생성 확인."""
     project_root = tmp_path / "ai-env"
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
 
     (skills_dir / "spec-manager").mkdir(parents=True)
     (skills_dir / "spec-manager" / "SKILL.md").write_text(
@@ -954,7 +1030,7 @@ def test_sync_codex_includes_skills_index(tmp_path, mock_secrets_manager):
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
 
     # 스킬 생성
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
     (skills_dir / "task-impl").mkdir(parents=True)
     (skills_dir / "task-impl" / "SKILL.md").write_text(
         "---\nname: task-implement\ndescription: TDD 코드 구현\n---\n"
@@ -991,7 +1067,7 @@ def test_sync_codex_global_config_prunes_stale_skills_but_keeps_meta(
     global_dir.mkdir(parents=True)
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
 
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
     (skills_dir / "research").mkdir(parents=True)
     (skills_dir / "research" / "SKILL.md").write_text("# research")
 
@@ -1022,7 +1098,7 @@ def test_sync_codex_global_config_normalizes_skill_frontmatter(tmp_path, mock_se
     global_dir.mkdir(parents=True)
     (global_dir / "CLAUDE.md").write_text("# Global Instructions")
 
-    skills_dir = project_root / ".claude" / "skills"
+    skills_dir = project_root / "megan-harness" / "skills"
     (skills_dir / "spark-debug").mkdir(parents=True)
     (skills_dir / "spark-debug" / "SKILL.md").write_text(
         """---
@@ -1178,3 +1254,133 @@ def test_sync_cmux_hooks_excluded_when_disabled(tmp_path, mock_secrets_manager):
     session_hooks = settings["hooks"]["SessionStart"][0]["hooks"]
     assert len(session_hooks) == 1
     assert "session_start.sh" in session_hooks[0]["command"]
+
+
+# --- megan-harness own skills / agents 수집 (차단급 회귀 고정) ---
+
+
+def test_collect_skill_sources_from_megan_harness(tmp_path):
+    """megan-harness/skills/{category}/{skill}/ own 스킬이 수집된다."""
+    project_root = tmp_path / "ai-env"
+    harness_skills = project_root / "megan-harness" / "skills"
+
+    (harness_skills / "obsidian" / "distill").mkdir(parents=True)
+    (harness_skills / "obsidian" / "distill" / "SKILL.md").write_text("# distill")
+    (harness_skills / "work" / "wrap-up").mkdir(parents=True)
+    (harness_skills / "work" / "wrap-up" / "SKILL.md").write_text("# wrap-up")
+    # SKILL.md 없는 디렉토리는 무시
+    (harness_skills / "work" / "no-skill").mkdir()
+    # underscore 카테고리는 무시
+    (harness_skills / "_archive" / "old").mkdir(parents=True)
+    (harness_skills / "_archive" / "old" / "SKILL.md").write_text("# old")
+
+    sources = _collect_skill_sources(project_root)
+    names = [s.name for s in sources]
+
+    assert "distill" in names
+    assert "wrap-up" in names
+    assert "no-skill" not in names
+    assert "old" not in names
+
+
+def test_collect_skill_sources_megan_harness_wins_over_always_team(tmp_path):
+    """이름 충돌 시 megan-harness own 스킬이 ALWAYS 팀 스킬을 이긴다 (first-wins)."""
+    project_root = tmp_path / "ai-env"
+    project_root.mkdir(parents=True)
+
+    harness_skills = project_root / "megan-harness" / "skills"
+    (harness_skills / "code" / "spark-debug").mkdir(parents=True)
+    (harness_skills / "code" / "spark-debug" / "SKILL.md").write_text("# own spark-debug")
+
+    cde_real = tmp_path / "cde-skills-repo"
+    (cde_real / "spark-debug").mkdir(parents=True)
+    (cde_real / "spark-debug" / "SKILL.md").write_text("# team spark-debug")
+    (project_root / "cde-skills").symlink_to(cde_real)
+
+    sources = _collect_skill_sources(project_root)
+    matches = [s for s in sources if s.name == "spark-debug"]
+
+    assert len(matches) == 1
+    assert matches[0] == harness_skills / "code" / "spark-debug"
+
+
+def test_collect_agent_sources_merges_and_dedups(tmp_path):
+    """.claude/agents + megan-harness/agents 병합, stem 충돌 시 .claude 우선."""
+    project_root = tmp_path / "ai-env"
+    claude_agents = project_root / ".claude" / "agents"
+    harness_agents = project_root / "megan-harness" / "agents"
+    claude_agents.mkdir(parents=True)
+    harness_agents.mkdir(parents=True)
+
+    (claude_agents / "router.md").write_text("# legacy router")
+    (harness_agents / "router.md").write_text("# harness router")
+    (harness_agents / "curator.md").write_text("# curator")
+    # 카테고리 하위 디렉토리도 수집
+    (harness_agents / "ranking").mkdir()
+    (harness_agents / "ranking" / "investigator.md").write_text("# investigator")
+    # dot/underscore 는 제외
+    (harness_agents / "_draft.md").write_text("# draft")
+    (harness_agents / ".hidden.md").write_text("# hidden")
+
+    sources = _collect_agent_sources(project_root)
+    by_stem = {f.stem: f for f in sources}
+
+    assert set(by_stem) == {"router", "curator", "investigator"}
+    assert by_stem["router"] == claude_agents / "router.md"
+
+
+def test_collect_agent_sources_missing_dirs(tmp_path):
+    """agents 소스 디렉토리가 없으면 빈 리스트."""
+    project_root = tmp_path / "ai-env"
+    project_root.mkdir(parents=True)
+
+    assert _collect_agent_sources(project_root) == []
+
+
+def test_sync_claude_global_config_includes_megan_harness_agents(tmp_path, mock_secrets_manager):
+    """megan-harness/agents 정의가 ~/.claude/agents 로 평탄화 배포된다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+
+    harness_agents = project_root / "megan-harness" / "agents"
+    (harness_agents / "ranking").mkdir(parents=True)
+    (harness_agents / "curator.md").write_text("# curator")
+    (harness_agents / "ranking" / "investigator.md").write_text("# investigator")
+
+    target_dir = tmp_path / "home" / ".claude"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_claude_global_config()
+
+    assert any("agents/" in key for key in results), f"missing agents in {results}"
+    assert (target_dir / "agents" / "curator.md").exists()
+    # 카테고리 하위 파일도 평탄화되어 최상위로 배포된다
+    assert (target_dir / "agents" / "investigator.md").exists()
+
+
+def test_sync_codex_includes_megan_harness_agents(tmp_path, mock_secrets_manager):
+    """megan-harness/agents 정의가 ~/.codex/agents 로도 배포된다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global")
+
+    harness_agents = project_root / "megan-harness" / "agents"
+    harness_agents.mkdir(parents=True)
+    (harness_agents / "curator.md").write_text("# curator")
+
+    target_root = tmp_path / "home" / ".codex"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=tmp_path / "home"),
+    ):
+        results = sync_codex_global_config()
+
+    assert any("agents/" in key for key in results), f"missing agents in {results}"
+    assert (target_root / "agents" / "curator.md").exists()

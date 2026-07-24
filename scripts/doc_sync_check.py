@@ -166,7 +166,7 @@ def check_project_structure() -> Errors:
     content = _read(ROOT / "CLAUDE.md")
 
     # 실제 존재하는 주요 디렉토리
-    key_dirs = ["config/", "src/ai_env/", ".claude/", "tests/"]
+    key_dirs = ["config/", "src/ai_env/", ".claude/", "megan-harness/", "tests/"]
     for d in key_dirs:
         if (ROOT / d.rstrip("/")).is_dir() and d not in content:
             errors.append(f"CLAUDE.md: 프로젝트 구조에 '{d}' 미기재")
@@ -175,16 +175,24 @@ def check_project_structure() -> Errors:
 
 
 def check_skills_integrity() -> Errors:
-    """스킬 디렉토리 무결성 검증: 디렉토리가 있으면 SKILL.md도 있어야 한다."""
+    """스킬 디렉토리 무결성 검증: 카테고리 하위 스킬 디렉토리는 SKILL.md를 가져야 한다.
+
+    개인 스킬 홈은 megan-harness/skills/{category}/{skill}/ 구조다.
+    """
     errors: Errors = []
-    skills_dir = ROOT / ".claude" / "skills"
+    skills_dir = ROOT / "megan-harness" / "skills"
     if not skills_dir.is_dir():
         return errors
 
-    for skill_dir in sorted(skills_dir.iterdir()):
-        if skill_dir.is_dir() and not skill_dir.name.startswith("."):
+    for category in sorted(skills_dir.iterdir()):
+        if not category.is_dir() or category.name.startswith((".", "_")):
+            continue
+        for skill_dir in sorted(category.iterdir()):
+            if not skill_dir.is_dir() or skill_dir.name.startswith((".", "_")):
+                continue
             if not (skill_dir / "SKILL.md").exists():
-                errors.append(f".claude/skills/{skill_dir.name}: SKILL.md 없음 (sync 대상 아님)")
+                rel = skill_dir.relative_to(ROOT)
+                errors.append(f"{rel}: SKILL.md 없음 (sync 대상 아님)")
 
     return errors
 

@@ -1,4 +1,4 @@
-# megan-skills 설계 문서
+# megan-harness 설계 문서
 
 > ai-env 산하의 **개인 스킬 묶음**. 외부 팀 스킬(`cde-skills`, `cde-ranking-skills`,
 > `jackie-skills`)과 외부 레퍼런스(`kepano/obsidian-skills`,
@@ -28,16 +28,16 @@
    `cde-ranking-skills/spark-debug` 의 git 을 직접 참조해 스킬에 임베드하지 않음.
 6. **토큰 효율** — SKILL.md는 description+routing만 짧게, 본문은 lazy load
    (`_SKILL.md` 또는 `references/`로 분리). Defuddle 스타일 외부 컨텐츠 정제 채용.
-7. **ai-env 비파괴** — 기존 `.claude/skills/`, `core/`, `cli/`는 그대로 두고
-   megan-skills를 **추가 sync 소스**로 통합한다.
+7. **ai-env 비파괴** — 기존 `core/`, `cli/`, commands 는 그대로 두고
+   개인 스킬·에이전트는 `megan-harness/` 아래로 모아 sync 소스로 통합한다.
 
 ## 2. 출처별 채용/거부 매핑 (What from where)
 
 ### 2-1. cde-ranking-skills — **그대로 포함 (reference)**
 
-도메인 특화 (랭킹·CDE 운영). 이미 잘 동작하므로 megan-skills에서 **재구현하지
+도메인 특화 (랭킹·CDE 운영). 이미 잘 동작하므로 megan-harness에서 **재구현하지
 않는다**. 대신:
-- `lib/trino_client.py`, `lib/es_client.py` 는 megan-skills 의 데이터 스킬에서
+- `lib/trino_client.py`, `lib/es_client.py` 는 megan-harness 의 데이터 스킬에서
   **import 만** 한다 (path lookup 으로 자동 해결).
 - 스킬은 `cde-ranking-skills/` 그대로 ai-env sync에 포함되어 있으므로 추가 작업 불필요.
 
@@ -46,13 +46,13 @@
 | ranking-lookup, ranking-cs, ranking-batch-job, ranking-data-verify | 도메인 운영 |
 | score-drilldown, es-gift-ranking | 도메인 진단 |
 | service-onboard, feature-crud | repo 작업 가이드 |
-| spark-debug | spark 일반 진단 (megan-skills 의 `spark-optimize` 가 보강) |
+| spark-debug | spark 일반 진단 (megan-harness 의 `spark-optimize` 가 보강) |
 
 ### 2-2. cde-skills — **공통 플랫폼 부분만 외부 참조**
 
 `cde-skills/skills/{data, productivity, development, platform, operations,
 orchestration}` 는 잘 만들어진 meta-skill 묶음이다. **재구현 금지** —
-ai-env sync 가 이미 ~/.claude/skills/ 에 배포한다. megan-skills 에서는 그
+ai-env sync 가 이미 ~/.claude/skills/ 에 배포한다. megan-harness 에서는 그
 스킬들을 트리거하기 좋은 명칭으로 commands/ 에서 wrap만 한다.
 
 | 외부 스킬 (그대로 사용) | megan command wrapper (선택) |
@@ -104,7 +104,7 @@ ai-env sync 가 이미 ~/.claude/skills/ 에 배포한다. megan-skills 에서�
 ## 3. 디렉토리 구조
 
 ```
-megan-skills/
+megan-harness/
 ├── README.md                   설치/사용법
 ├── DESIGN.md                   본 문서
 ├── SKILLS.md                   스킬 인덱스 (자동 갱신 가능)
@@ -152,25 +152,23 @@ megan-skills/
 
 ### 4-1. sync 소스로 등록
 
-ai-env 의 `core/sync.py` 는 personal(`.claude/skills/*`) + team(`cde-*skills/*`)
-두 카테고리만 안다. megan-skills 는 **third 카테고리("own")** 로 별도 추가 대신,
-간단히 personal 로 취급한다:
+ai-env 의 `core/sync.py` 는 personal + team 두 카테고리를 병합한다.
 
-- 옵션 A (권장, 빠름): `megan-skills/skills/<name>` → `.claude/skills/<name>` 심링크
-  - `cde-*skills` 가 git submodule 인 점과 대칭. ai-env sync 변경 거의 없음.
-- 옵션 B: ai-env `core/sync.py` 에 `megan_skills_root` 설정 추가하고 personal과
-  병합. (다음 spec 으로 분리)
-
-이번 단계는 **옵션 A** 로 진행하고, 잘 굳어지면 옵션 B 로 승격.
+- personal 소스: `megan-harness/skills/{category}/{skill}/` (스킬), `megan-harness/agents/` (에이전트)
+- team 소스: `cde-*skills/*` (심링크, 동기화 시 develop pull 후 병합)
+- `_collect_skill_sources` 가 megan-harness 를 **먼저** 수집하고 이름 기준 first-wins 로
+  dedup 하므로, 스킬 이름 충돌 시 **personal(megan-harness) 이 team 을 덮어쓴다** (personal-wins).
+- 배포 대상: `~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills` (스킬) /
+  `~/.claude/agents`, `~/.codex/agents` (에이전트).
 
 ### 4-2. project-profile.yaml 노출
 
-`.claude/project-profile.yaml` 의 skills 인덱스에 megan-skills/SKILLS.md 를
+`.claude/project-profile.yaml` 의 skills 인덱스에 megan-harness/SKILLS.md 를
 추가하여 다른 프로젝트에서 ai-env 를 참조할 때도 megan 스킬을 자동 인식.
 
 ### 4-3. SPEC 추적
 
-megan-skills 도입은 ai-env 입장에서 **SPEC-015** (가칭) 후보. 현재는 docs/
+megan-harness 도입은 ai-env 입장에서 **SPEC-015** (가칭) 후보. 현재는 docs/
 플레이스홀더로만 두고, 안정화 후 specs/ 로 승격.
 
 ## 5. Phase 작업 순서
@@ -187,10 +185,10 @@ megan-skills 도입은 ai-env 입장에서 **SPEC-015** (가칭) 후보. 현재�
 | 6 — ai-env sync 통합 | ALWAYS_TEAM_SKILLS + own skills 자동 수집 + 3타겟 배포 | Phase 1~5 일부 |
 | 7 — Repo 운영 (확정) | **ai-env 모노레포 유지** — 별도 repo 분리 안 함 | — |
 
-**Phase 7 결정 (2026-05-06)**: megan-skills 는 ai-env 안에서 함께 운영. 이유: (1) 잦은 수정 사이클 — 분리 시 두 repo 동기화 부담, (2) cde-* lib 참조가 ai-env 경로에 자연스럽게 묶임, (3) 카카오 내부 vault/jira 컨벤션이 스킬에 묻어있어 sanitize 비용. 향후 안정화되면 `git subtree split` 으로 언제든 분리 가능 (현재 비용 0).
+**Phase 7 결정 (2026-05-06)**: megan-harness 는 ai-env 안에서 함께 운영. 이유: (1) 잦은 수정 사이클 — 분리 시 두 repo 동기화 부담, (2) cde-* lib 참조가 ai-env 경로에 자연스럽게 묶임, (3) 카카오 내부 vault/jira 컨벤션이 스킬에 묻어있어 sanitize 비용. 향후 안정화되면 `git subtree split` 으로 언제든 분리 가능 (현재 비용 0).
 
 각 Phase 는 독립 커밋. spec-task 컨벤션을 따름:
-`feat(megan-skills/<phase>): <summary>`.
+`feat(megan-harness/<phase>): <summary>`.
 
 ## 6. 토큰 효율 정책
 
@@ -205,7 +203,7 @@ megan-skills 도입은 ai-env 입장에서 **SPEC-015** (가칭) 후보. 현재�
 - AgriciDaniel 의 6 wiki modes 추상화
 - jackie 의 harness-engineering / auto-approve-readonly-ops
 - Spark 최적화 스킬 안에 코드 임베드 (외부 git 참조만)
-- megan-skills 자체 git push (이번 단계는 ai-env 안 로컬만)
+- megan-harness 자체 git push (이번 단계는 ai-env 안 로컬만)
 
 ## 8. 다음 액션
 

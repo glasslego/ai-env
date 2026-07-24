@@ -1,4 +1,4 @@
-# megan-skills 인덱스
+# megan-harness 인덱스
 
 > 각 스킬은 `skills/<category>/<name>/SKILL.md` 에 정의. 본 문서는 빠른 조회용.
 
@@ -64,14 +64,13 @@
 |---|---|---|---|
 | memory-hygiene | `/memory-clean` | planned (post-P6) | jackie/memory-hygiene |
 
-## ai-env 자산 (그대로 사용, 재구현 금지)
+## ai-env 자산 (개인 스킬 소스, megan-harness/skills/ai-env/)
 
 | 스킬 | 위치 | 비고 |
 |---|---|---|
-| session-save | `.claude/skills/session-save/` | Obsidian 영구 저장 (SPEC-013) |
-| handoff-resume | `.claude/skills/handoff-resume/` | cross-cwd 핸드오프 (SPEC-014) |
-| research, spec-manager, task-implement, code-review, doc-sync | `.claude/skills/<name>/` | workflow 핵심 |
-| skill-creator, harness, python-env, spark-debug | `.claude/skills/<name>/` | 메타/도메인 |
+| handoff-resume | `megan-harness/skills/ai-env/handoff-resume/` | cross-cwd 핸드오프 (SPEC-014) |
+| spec-manager, task-implement, code-review, doc-sync | `megan-harness/skills/ai-env/<name>/` | workflow 핵심 |
+| skill-creator, harness, python-env, spark-debug | `megan-harness/skills/ai-env/<name>/` | 메타/도메인 |
 
 ## cde-* 자산 (외부 참조, 재구현 금지)
 

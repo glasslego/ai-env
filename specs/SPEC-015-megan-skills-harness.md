@@ -13,7 +13,7 @@ fully compatible. Current personal skills exist, but the long-term harness needs
 clear ownership boundaries:
 
 - `cde-skills` and `cde-ranking-skills` are canonical team/domain libraries.
-- `megan-skills` should encode Megan's personal work style, automation defaults,
+- `megan-harness` should encode Megan's personal work style, automation defaults,
   token-saving wrappers, and session memory.
 - Every coding-agent session must leave durable traces for handoff and Obsidian
   ontology building.
@@ -22,7 +22,7 @@ clear ownership boundaries:
 
 ### AC-1: Team Skill Delegation
 
-- `megan-skills` wrappers stay short and delegate domain details to
+- `megan-harness` wrappers stay short and delegate domain details to
   `cde-skills` / `cde-ranking-skills`.
 - A token report identifies the largest skill files and likely compaction
   targets.

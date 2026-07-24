@@ -6,11 +6,11 @@ import json
 import re
 import shutil
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
-from .codex_skills import copy_skill_tree_for_codex
+from .codex_skills import _strip_wrapping_quotes, copy_skill_tree_for_codex
 from .config import get_project_root, load_settings
 from .secrets import get_secrets_manager
 
@@ -80,27 +80,6 @@ def _sync_md_files(src: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
     return f"{src.name}/ ({len(md_files)} files)", len(md_files)
 
 
-def _sync_subdirectories(src: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
-    """서브디렉토리들 동기화 (skills/ 디렉토리용)
-
-    Args:
-        src: 소스 디렉토리
-        dst: 목적지 디렉토리
-        dry_run: True면 실제 복사하지 않음
-
-    Returns:
-        (설명, 복사된 디렉토리 수)
-    """
-    subdirs = [d for d in src.iterdir() if d.is_dir() and not d.name.startswith(".")]
-
-    if not dry_run:
-        dst.mkdir(parents=True, exist_ok=True)
-        for subdir in subdirs:
-            safe_copytree(subdir, dst / subdir.name)
-
-    return f"{src.name}/ ({len(subdirs)} items)", len(subdirs)
-
-
 def _sync_directory(src: Path, dst: Path, dry_run: bool) -> tuple[str, int]:
     """일반 디렉토리 동기화 (전체 복사)
 
@@ -158,7 +137,6 @@ def _sync_file_or_dir(
     동기화 전략:
     - 파일: 단순 복사
     - commands/ 디렉토리: .md 파일만 복사
-    - skills/ 디렉토리: 서브디렉토리 전체 복사
     - hooks/ 디렉토리: 전체 복사 + .sh 실행 권한 (cmux 조건부)
     - 기타 디렉토리: 전체 복사
 
@@ -180,8 +158,6 @@ def _sync_file_or_dir(
     # 디렉토리 처리
     if src.name == "commands":
         return _sync_md_files(src, dst, dry_run)
-    elif src.name == "skills":
-        return _sync_subdirectories(src, dst, dry_run)
     elif src.name == "hooks":
         return _sync_hooks(src, dst, dry_run, cmux_enabled=cmux_enabled)
     else:
@@ -275,13 +251,6 @@ _SKILL_COPY_LARGE_ARTIFACT_SUFFIXES = frozenset(
     {".db", ".sqlite", ".sqlite3", ".parquet", ".zip", ".html", ".json"}
 )
 _SKILL_COPY_MAX_ARTIFACT_BYTES = 5 * 1024 * 1024
-
-
-def _strip_wrapping_quotes(value: str) -> str:
-    """frontmatter scalar 값의 바깥 quote 한 겹을 제거."""
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
 
 
 def _skill_copy_ignore(directory: str, names: list[str]) -> set[str]:
@@ -458,19 +427,35 @@ def _team_repo_for_sync(project_root: Path, link: Path) -> Path:
     return repo
 
 
+def _iter_skill_dirs(root: Path) -> Iterator[Path]:
+    """root 하위에서 SKILL.md를 가진 스킬 디렉토리를 카테고리 깊이 무관하게 찾는다.
+
+    스킬 디렉토리(SKILL.md 보유)를 찾으면 그 내부(references/ 등)로는 더 내려가지 않아
+    스킬 내부의 부수 SKILL.md를 중복 수집하지 않는다.
+    """
+    if not root.is_dir():
+        return
+    for child in sorted(root.iterdir()):
+        if not child.is_dir() or child.name.startswith((".", "_")):
+            continue
+        if (child / "SKILL.md").is_file():
+            yield child  # 스킬 루트 — 내부로 재귀하지 않음
+        else:
+            yield from _iter_skill_dirs(child)  # 카테고리 디렉토리 — 한 단계 더
+
+
 def _collect_skill_sources(
     project_root: Path,
     skills_include: list[str] | None = None,
     skills_exclude: list[str] | None = None,
     prepare_team_rebase: bool = True,
 ) -> list[Path]:
-    """스킬 소스 디렉토리 수집 (personal + own + always-team + optional team)
+    """스킬 소스 디렉토리 수집 (개인 harness + always-team + optional team)
 
-    수집 순서:
-      1) personal: ai-env/.claude/skills/<skill>/
-      2) own:      ai-env/megan-skills/skills/<category>/<skill>/
-      3) always:   ALWAYS_TEAM_SKILLS — skills_exclude 로만 제외
-      4) team:     skills_include / skills_exclude 옵션이 있을 때만 cde-*skills 스캔
+    수집 순서 (이름 충돌 시 먼저 수집된 것이 이김 = 개인 우선):
+      1) 개인:   ai-env/megan-harness/skills/**/<skill>/  (카테고리 무관 재귀)
+      2) always: ALWAYS_TEAM_SKILLS — skills_exclude 로만 제외
+      3) team:   skills_include / skills_exclude 옵션이 있을 때만 cde-*skills 스캔
 
     Args:
         project_root: ai-env 프로젝트 루트
@@ -480,68 +465,50 @@ def _collect_skill_sources(
         prepare_team_rebase: True면 cde-ranking 작업 브랜치용 rebase worktree를 준비한다.
 
     Returns:
-        스킬 서브디렉토리 경로 리스트 (resolve 기준 dedup)
+        스킬 서브디렉토리 경로 리스트 (스킬 이름 기준 dedup, 개인 우선)
     """
     sources: list[Path] = []
-    seen: set[Path] = set()
+    seen: set[str] = set()
 
     def _add(skill: Path) -> None:
-        key = skill.resolve()
-        if key in seen:
+        # 스킬 이름(basename) 기준 first-wins: 먼저 수집된 소스가 이긴다.
+        # 개인(megan-harness)을 가장 먼저 수집하므로 팀 스킬과 이름이 겹치면 개인이 이긴다.
+        if skill.name in seen:
             return
-        seen.add(key)
+        seen.add(skill.name)
         sources.append(skill)
 
-    # 1) personal skills — ai-env/.claude/skills/
-    personal_dir = project_root / ".claude" / "skills"
-    if personal_dir.is_dir():
-        for d in sorted(personal_dir.iterdir()):
-            if d.is_dir() and not d.name.startswith("."):
+    def _scan_team_link(link: Path) -> None:
+        repo = _team_repo_for_sync(project_root, link) if prepare_team_rebase else link.resolve()
+        scan_dir = _resolve_team_skill_root(repo)
+        for d in sorted(scan_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith((".", "_")) and (d / "SKILL.md").exists():
                 _add(d)
 
-    # 2) own skills — ai-env/megan-skills/skills/{category}/{skill}/
-    # 카테고리(obsidian/work/data/code/meta) 한 단계가 더 있다.
-    own_dir = project_root / "megan-skills" / "skills"
-    if own_dir.is_dir():
-        for category in sorted(own_dir.iterdir()):
-            if not category.is_dir() or category.name.startswith((".", "_")):
-                continue
-            for skill in sorted(category.iterdir()):
-                if not skill.is_dir() or skill.name.startswith((".", "_")):
-                    continue
-                if (skill / "SKILL.md").exists():
-                    _add(skill)
+    # 1) 개인 스킬 — ai-env/megan-harness/skills/ (카테고리 무관 재귀 스캔)
+    #    가장 먼저 수집 → 이름 충돌 시 팀(cde-*) 스킬보다 개인이 우선.
+    harness_skills = project_root / "megan-harness" / "skills"
+    for skill in _iter_skill_dirs(harness_skills):
+        _add(skill)
 
-    # 3) ALWAYS 팀 스킬 (skills_exclude 로만 옵트아웃)
+    # 2) ALWAYS 팀 스킬 (skills_exclude 로만 옵트아웃)
     for always_name in ALWAYS_TEAM_SKILLS:
         if skills_exclude is not None and always_name in skills_exclude:
             continue
         link = project_root / always_name
         if not link.exists():
             continue
-        repo = _team_repo_for_sync(project_root, link) if prepare_team_rebase else link.resolve()
-        scan_dir = _resolve_team_skill_root(repo)
-        for d in sorted(scan_dir.iterdir()):
-            if not d.is_dir() or d.name.startswith((".", "_")):
-                continue
-            if (d / "SKILL.md").exists():
-                _add(d)
+        _scan_team_link(link)
 
-    # 옵션이 없으면 personal + own + always 만
+    # 옵션이 없으면 개인 + always 만
     if skills_include is None and skills_exclude is None:
         return sources
 
-    # 4) 옵션 지정 시 team 스킬 추가 스캔 (cde-*skills 심링크)
+    # 3) 옵션 지정 시 team 스킬 추가 스캔 (cde-*skills 심링크)
     for item in sorted(project_root.iterdir()):
         if not _is_team_skill_link(item, skills_include, skills_exclude):
             continue
-        repo = _team_repo_for_sync(project_root, item) if prepare_team_rebase else item.resolve()
-        scan_dir = _resolve_team_skill_root(repo)
-        for d in sorted(scan_dir.iterdir()):
-            if not d.is_dir() or d.name.startswith((".", "_")):
-                continue
-            if (d / "SKILL.md").exists():
-                _add(d)
+        _scan_team_link(item)
 
     return sources
 
@@ -711,6 +678,42 @@ def _write_settings_json(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def _sync_claude_user_mcp_servers(claude_json_path: Path, *, dry_run: bool) -> int | None:
+    """MCP 서버 정의를 ~/.claude.json top-level mcpServers 에 머지 기록.
+
+    Claude Code 는 settings.json 의 mcpServers 키를 읽지 않는다. MCP 정의는
+    ~/.claude.json(user/local scope) 또는 .mcp.json(project scope)에서만
+    로드되므로, ai-env 가 관리하는 서버 dict 를 user scope 에 기록한다.
+    기존 파일의 다른 키(projects 등)는 보존하고 mcpServers 키만 갱신한다.
+
+    Args:
+        claude_json_path: ~/.claude.json 경로
+        dry_run: True 면 파일을 쓰지 않고 서버 수만 반환
+
+    Returns:
+        기록한 MCP 서버 수. 생성 대상이 없으면 None.
+    """
+    # 순환 import 방지를 위해 함수 내부에서 generator import
+    from ..mcp.generator import MCPConfigGenerator
+
+    secrets = get_secrets_manager()
+    generator = MCPConfigGenerator(secrets)
+    servers = generator.generate_claude_user_mcp_servers()
+    if not servers:
+        return None
+
+    if not dry_run:
+        if claude_json_path.exists():
+            data = json.loads(claude_json_path.read_text())
+        else:
+            data = {}
+        data["mcpServers"] = servers
+        claude_json_path.parent.mkdir(parents=True, exist_ok=True)
+        claude_json_path.write_text(json.dumps(data, indent=2))
+
+    return len(servers)
+
+
 def _ensure_symlink(
     target: Path,
     link: Path,
@@ -864,7 +867,7 @@ def sync_claude_global_config(
     (CLAUDE.md, commands/, skills/, settings.json, hooks/)
 
     cmux_enabled 설정에 따라 cmux 훅을 조건부로 포함/제외한다.
-    skills는 ai-env/.claude/skills/ (personal)를 동기화한다.
+    skills는 ai-env/megan-harness/skills/ (personal)를 동기화한다.
     team 스킬(cde-*skills)은 옵션으로 지정했을 때만 함께 동기화한다.
 
     Args:
@@ -901,16 +904,22 @@ def sync_claude_global_config(
             _write_settings_json(settings_dst, content)
         results["settings.json"] = str(settings_dst)
 
-        # 명시적인 enterprise 프로필도 같은 내용으로 생성한다. 기본 실행은
-        # settings.json을 쓰고, wrapper의 `claude enterprise ...`는 이 파일을 쓴다.
+        # legacy enterprise 프로필 파일도 같은 내용으로 생성한다. Bedrock 전용 설정은
+        # 더 이상 포함하지 않으며, 기존 스크립트/문서 호환성을 위해 파일명만 유지한다.
         enterprise_dst = target_dir / "settings.enterprise.json"
         if not dry_run:
             _write_settings_json(enterprise_dst, content)
         results["settings.enterprise.json"] = str(enterprise_dst)
 
+    # 2b. MCP 서버 정의를 ~/.claude.json top-level mcpServers 에 기록.
+    #     (settings.json 의 mcpServers 는 Claude Code 가 읽지 않으므로 user scope 에 둔다.)
+    claude_json_path = Path.home() / ".claude.json"
+    server_count = _sync_claude_user_mcp_servers(claude_json_path, dry_run=dry_run)
+    if server_count is not None:
+        results[f"~/.claude.json mcpServers ({server_count} servers)"] = str(claude_json_path)
+
     # personal 프로필은 별도 config 디렉토리(~/.claude-personal)로 분리한다.
-    # `claude personal`은 CLAUDE_CONFIG_DIR로 이 디렉토리를 user-level 설정으로 쓰며,
-    # Bedrock env/apiKeyHelper가 없는 settings.json만 둬 개인 Anthropic 로그인을 쓴다.
+    # `claude personal`은 CLAUDE_CONFIG_DIR로 이 디렉토리를 user-level 설정으로 쓴다.
     # (공용 자산 심링크는 모든 자산을 ~/.claude에 동기화한 뒤 함수 끝에서 건다.)
     personal_settings_template = global_dir / "settings.personal.json.template"
     if personal_settings_template.exists():
@@ -929,12 +938,10 @@ def sync_claude_global_config(
     if desc:
         results[desc] = str(target_dir / "commands")
 
-    # 4. agents/ 동기화 (.claude/agents → ~/.claude/agents)
-    src_agents = source_dir / "agents"
-    if src_agents.is_dir():
-        agent_count = _copy_commands_tree(src_agents, target_dir / "agents", dry_run)
-        if agent_count:
-            results[f"agents/ ({agent_count} files)"] = str(target_dir / "agents")
+    # 4. agents/ 동기화 (.claude/agents + megan-harness/agents → ~/.claude/agents)
+    agent_count = _sync_agents_merged(project_root, target_dir / "agents", dry_run)
+    if agent_count:
+        results[f"agents/ ({agent_count} files)"] = str(target_dir / "agents")
 
     # 5. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks, cmux 조건부)
     desc, _ = _sync_file_or_dir(
@@ -1043,7 +1050,7 @@ def _build_skills_index(
             lines.append(f"- **{skill_dir.name}**")
 
     lines.append("")
-    lines.append("각 스킬의 상세 가이드: `.claude/skills/{name}/SKILL.md` 참조")
+    lines.append("각 스킬의 상세 가이드: `~/.claude/skills/{name}/SKILL.md` 참조")
     lines.append("")
 
     return "\n".join(lines)
@@ -1071,6 +1078,67 @@ def _copy_commands_tree(src: Path, dst: Path, dry_run: bool) -> int:
             shutil.copy2(md_file, target_path)
         count += 1
     return count
+
+
+def _collect_agent_sources(project_root: Path) -> list[Path]:
+    """에이전트 정의(.md) 파일 수집 (.claude/agents + megan-harness/agents).
+
+    수집 순서 (파일 stem 충돌 시 먼저 수집된 것이 이김):
+      1) legacy: ai-env/.claude/agents/*.md
+      2) 개인:   ai-env/megan-harness/agents/**/*.md (카테고리 하위 디렉토리 허용)
+
+    dot/underscore 로 시작하는 파일·디렉토리는 제외한다.
+
+    Args:
+        project_root: ai-env 프로젝트 루트
+
+    Returns:
+        에이전트 .md 파일 경로 리스트 (stem 기준 dedup)
+    """
+    sources: list[Path] = []
+    seen: set[str] = set()
+    bases = (
+        project_root / ".claude" / "agents",
+        project_root / "megan-harness" / "agents",
+    )
+    for base in bases:
+        if not base.is_dir():
+            continue
+        for md_file in sorted(base.rglob("*.md")):
+            rel_parts = md_file.relative_to(base).parts
+            if any(part.startswith((".", "_")) for part in rel_parts):
+                continue
+            if md_file.stem in seen:
+                continue
+            seen.add(md_file.stem)
+            sources.append(md_file)
+    return sources
+
+
+def _sync_agents_merged(project_root: Path, dst: Path, dry_run: bool) -> int:
+    """수집된 에이전트 정의를 dst에 평탄화 복사.
+
+    수집 결과가 비어 있으면 dst를 건드리지 않는다 (소스 디렉토리가
+    없을 때 기존 배포본을 지우지 않기 위함).
+
+    Args:
+        project_root: ai-env 프로젝트 루트
+        dst: 목적지 디렉토리 (~/.claude/agents, ~/.codex/agents 등)
+        dry_run: True면 실제 복사하지 않음
+
+    Returns:
+        복사된 에이전트 .md 파일 수
+    """
+    agent_files = _collect_agent_sources(project_root)
+    if not agent_files:
+        return 0
+    if not dry_run:
+        if dst.exists():
+            shutil.rmtree(dst)
+        dst.mkdir(parents=True, exist_ok=True)
+        for md_file in agent_files:
+            shutil.copy2(md_file, dst / md_file.name)
+    return len(agent_files)
 
 
 def sync_codex_global_config(
@@ -1140,12 +1208,10 @@ def sync_codex_global_config(
             results[f"commands/ ({md_count} files)"] = str(dst_commands)
 
     # 4) agents/ — Claude agent definitions as shared reference material
-    src_agents = project_root / ".claude" / "agents"
-    if src_agents.is_dir():
-        dst_agents = agent_root / "agents"
-        agent_count = _copy_commands_tree(src_agents, dst_agents, dry_run)
-        if agent_count:
-            results[f"agents/ ({agent_count} files)"] = str(dst_agents)
+    dst_agents = agent_root / "agents"
+    agent_count = _sync_agents_merged(project_root, dst_agents, dry_run)
+    if agent_count:
+        results[f"agents/ ({agent_count} files)"] = str(dst_agents)
 
     # 5) project-profile.yaml — 그대로 복사
     src_profile = project_root / ".claude" / "project-profile.yaml"

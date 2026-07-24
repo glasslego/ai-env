@@ -1,6 +1,6 @@
-# megan-skills
+# megan-harness
 
-megan 의 개인 Claude Code / Codex 스킬 묶음. ai-env 산하에서 관리.
+megan 의 개인 Claude Code / Codex 스킬·에이전트 묶음. ai-env 산하에서 관리.
 
 > 외부 팀 스킬(cde-skills, cde-ranking-skills, jackie-skills)과 외부 레퍼런스를
 > 큐레이션해 **개인 워크플로우 (Obsidian + Jira + git + Trino)** 에 맞춰 재구성.
@@ -12,7 +12,7 @@ megan 의 개인 Claude Code / Codex 스킬 묶음. ai-env 산하에서 관리.
 uv run ai-env sync
 
 # 수동 (Phase 6 이전 임시)
-ln -snf $(pwd)/megan-skills/skills/* ~/.claude/skills/
+ln -snf $(pwd)/megan-harness/skills/*/* ~/.claude/skills/
 ```
 
 Codex CLI 도 동일하게 동작 (ai-env `core/codex_skills.py` 가 정규화).
@@ -41,16 +41,16 @@ Codex CLI 도 동일하게 동작 (ai-env `core/codex_skills.py` 가 정규화).
 
 ## ai-env 와의 관계
 
-megan-skills 는 ai-env 의 **추가 sync 소스**. 기존 `.claude/skills/`,
-`core/sync.py`, commands 는 그대로 유지된다 (비파괴 통합).
+megan-harness 는 ai-env 의 **개인 스킬·에이전트 sync 소스**. 개인 스킬은
+`megan-harness/skills/{category}/{skill}/`, 개인 에이전트는 `megan-harness/agents/`
+에 모여 있고, `core/sync.py` 가 이를 personal 로 인식해 배포한다.
 
-| ai-env 자산 | megan-skills 와의 관계 |
+| ai-env 자산 | megan-harness 와의 관계 |
 |---|---|
-| `.claude/skills/session-save` | 그대로 사용. megan 의 `obsidian/distill` 이 보완. |
-| `.claude/skills/handoff-resume` | 그대로. cross-cwd 인계 (SPEC-014). |
-| `.claude/skills/research`, `spec-manager`, `task-implement` | 그대로. workflow 의 핵심. |
+| `megan-harness/skills/ai-env/handoff-resume` | cross-cwd 인계 (SPEC-014). |
+| `megan-harness/skills/ai-env/{spec-manager,task-implement,code-review,doc-sync}` | workflow 의 핵심. |
 | `cde-ranking-skills/lib/` | megan 의 `data/` 스킬이 import. |
-| `core/sync.py` | megan-skills/skills/* 를 personal 로 인식하도록 Phase 6에서 통합. |
+| `core/sync.py` | `megan-harness/skills/{category}/{skill}/` 와 `megan-harness/agents/` 를 personal 로 인식. 이름 충돌 시 personal 이 팀(cde-*skills) 스킬을 덮어쓴다 (personal-wins). |
 
 ## 상태 (Phase)
 
@@ -60,7 +60,7 @@ megan-skills 는 ai-env 의 **추가 sync 소스**. 기존 `.claude/skills/`,
 - [x] Phase 3 — Data (trino-query, es-query) — cde-skills 위임 wrapper
 - [x] Phase 4 — Code (second-opinion, branch-guard, pr-evaluator, spark-optimize)
 - [x] Phase 5 — Defuddle (auto-wikilink, auto-session-archive 는 후속)
-- [x] Phase 6 — ai-env sync 통합 (`core/sync.py` 의 `_collect_skill_sources` 가 megan-skills 자동 인식)
+- [x] Phase 6 — ai-env sync 통합 (`core/sync.py` 의 `_collect_skill_sources` 가 megan-harness 자동 인식, personal-wins dedup)
 - [ ] Phase 7 — (선택) 별도 git repo 분리
 
 ## 라이선스 / 출처
