@@ -69,11 +69,11 @@ class MCPConfigGenerator:
         if target not in server.targets:
             return None
 
-        if server.type == "sse":
+        if server.type in ("sse", "http"):
             url = self.secrets.get(server.url_env, "") if server.url_env else ""
             if not url:
                 return None
-            config: dict[str, Any] = {"type": "sse", "url": url}
+            config: dict[str, Any] = {"type": server.type, "url": url}
 
         else:
             config = {
@@ -134,6 +134,16 @@ class MCPConfigGenerator:
             },
             "mcpServers": self._generate_mcp_servers_for_target("claude_local"),
         }
+
+    def generate_claude_user_mcp_servers(self) -> dict[str, Any]:
+        """Claude Code user scope(~/.claude.json top-level mcpServers)용 서버 dict 생성.
+
+        Claude Code는 settings.json의 mcpServers 키를 읽지 않는다. MCP 정의는
+        ~/.claude.json(user/local scope) 또는 .mcp.json(project scope)에서만
+        로드되므로, sync는 이 dict를 ~/.claude.json top-level에 기록한다.
+        mcp_servers.yaml의 claude_local 타겟을 그대로 재사용한다.
+        """
+        return self._generate_mcp_servers_for_target("claude_local")
 
     def generate_codex(self) -> str:
         """Codex CLI용 config.toml 생성."""
@@ -274,8 +284,10 @@ class MCPConfigGenerator:
         """Codex config.toml의 단일 [mcp_servers.<name>] 블록을 라인 리스트로 직렬화."""
         lines: list[str] = [f"[mcp_servers.{name}]"]
 
-        if config.get("type") == "sse":
-            lines.append('type = "sse"')
+        server_type = config.get("type")
+        is_url_based = server_type in ("sse", "http")
+        if is_url_based:
+            lines.append(f'type = "{server_type}"')
             lines.append(f'url = "{config["url"]}"')
         else:
             lines.append(f'command = "{config["command"]}"')
@@ -286,7 +298,7 @@ class MCPConfigGenerator:
             lines.append(f"startup_timeout_sec = {config['startup_timeout_sec']}")
 
         # stdio 서버 전용: 추가 환경변수 서브 테이블
-        if config.get("type") != "sse" and "env" in config:
+        if not is_url_based and "env" in config:
             lines.append("")
             lines.append(f"[mcp_servers.{name}.env]")
             for key, value in config["env"].items():
@@ -303,12 +315,10 @@ class MCPConfigGenerator:
         """
         servers = self._generate_mcp_servers_for_target("codex_desktop")
 
-        # Codex Desktop JSON 형식: SSE는 url만, type 필드 제거
+        # Codex Desktop JSON 형식: URL 기반(sse/http)은 url만, type 필드 제거
         for name, config in servers.items():
-            if config.get("type") == "sse":
+            if config.get("type") in ("sse", "http"):
                 servers[name] = {"url": config["url"]}
-            # startup_timeout_sec는 codex CLI 전용이므로 제거
-            config.pop("startup_timeout_sec", None)
 
         return {"autoAcceptTools": True, "mcpServers": servers}
 

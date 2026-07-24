@@ -8,6 +8,16 @@ from ..core import get_project_root, get_secrets_manager, load_mcp_config, load_
 from . import _create_table, console, main
 
 
+def _status_cell(path: Path, missing: str) -> str:
+    """경로 존재 여부/항목 수를 Rich 마크업 셀 문자열로 변환."""
+    if not path.exists():
+        return missing
+    if path.is_dir():
+        count = len([f for f in path.iterdir() if not f.name.startswith(".")])
+        return f"[green]✓ ({count})[/green]"
+    return "[green]✓[/green]"
+
+
 @main.command()
 def status() -> None:
     """현재 상태 확인"""
@@ -101,27 +111,14 @@ def status() -> None:
         ("skills/", personal_skills_src, target_dir / "skills"),
     ]
 
-    claude_rows = []
-    for name, src, dst in items:
-        if src.exists():
-            if src.is_dir():
-                count = len([f for f in src.iterdir() if not f.name.startswith(".")])
-                src_status = f"[green]✓ ({count})[/green]"
-            else:
-                src_status = "[green]✓[/green]"
-        else:
-            src_status = "[red]✗[/red]"
-
-        if dst.exists():
-            if dst.is_dir():
-                count = len([f for f in dst.iterdir() if not f.name.startswith(".")])
-                dst_status = f"[green]✓ ({count})[/green]"
-            else:
-                dst_status = "[green]✓[/green]"
-        else:
-            dst_status = "[yellow]○ (not synced)[/yellow]"
-
-        claude_rows.append((name, src_status, dst_status))
+    claude_rows = [
+        (
+            name,
+            _status_cell(src, "[red]✗[/red]"),
+            _status_cell(dst, "[yellow]○ (not synced)[/yellow]"),
+        )
+        for name, src, dst in items
+    ]
 
     console.print()
     table3 = _create_table(
@@ -137,27 +134,14 @@ def status() -> None:
         ("skills/", personal_skills_src, codex_target_dir / "skills"),
     ]
 
-    codex_rows = []
-    for name, src, dst in codex_items:
-        if src.exists():
-            if src.is_dir():
-                count = len([f for f in src.iterdir() if not f.name.startswith(".")])
-                src_status = f"[green]✓ ({count})[/green]"
-            else:
-                src_status = "[green]✓[/green]"
-        else:
-            src_status = "[red]✗[/red]"
-
-        if dst.exists():
-            if dst.is_dir():
-                count = len([f for f in dst.iterdir() if not f.name.startswith(".")])
-                dst_status = f"[green]✓ ({count})[/green]"
-            else:
-                dst_status = "[green]✓[/green]"
-        else:
-            dst_status = "[yellow]○ (not synced)[/yellow]"
-
-        codex_rows.append((name, src_status, dst_status))
+    codex_rows = [
+        (
+            name,
+            _status_cell(src, "[red]✗[/red]"),
+            _status_cell(dst, "[yellow]○ (not synced)[/yellow]"),
+        )
+        for name, src, dst in codex_items
+    ]
 
     console.print()
     table4 = _create_table(

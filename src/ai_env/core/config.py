@@ -27,7 +27,6 @@ class OutputsConfig(BaseModel):
     codex_desktop: str = "~/.codex/codex.config.json"
 
     # CLI 도구 (글로벌)
-    claude_global: str = "~/.claude/settings.json"
     codex_global: str = "~/.codex/config.toml"
 
     # 로컬 프로젝트 설정 (glocal = global template for local)
@@ -60,7 +59,6 @@ class Settings(BaseModel):
     cmux_enabled: bool = True
     agent_priority: list[str] = Field(default_factory=lambda: ["claude", "codex"])
     fallback_log_dir: str | None = None
-    obsidian_base: str | None = None
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
     # mcp/providers 가 직접 안 쓰지만 코드 어딘가에서 .env 로 읽는 키들
@@ -71,11 +69,11 @@ class MCPServerConfig(BaseModel):
     """MCP 서버 설정"""
 
     enabled: bool = True
-    type: str = "stdio"  # stdio or sse
+    type: str = "stdio"  # stdio | sse | http(streamable-http)
     command: str | None = None
     args: list[str] = Field(default_factory=list)
     env_keys: list[str] = Field(default_factory=list)
-    url_env: str | None = None  # SSE 서버용
+    url_env: str | None = None  # URL 기반 서버용(sse/http)
     targets: list[str] = Field(default_factory=list)
     startup_timeout_sec: int | None = None  # Codex MCP startup timeout (seconds)
 

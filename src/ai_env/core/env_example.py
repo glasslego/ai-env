@@ -24,7 +24,7 @@ def generate_env_example() -> str:
     # 1. Provider API 키
     provider_keys: list[tuple[str, str]] = []
     for name, provider in settings.providers.items():
-        if hasattr(provider, "env_key") and provider.env_key:
+        if provider.env_key:
             provider_keys.append((provider.env_key, f"{name} API"))
 
     if provider_keys:

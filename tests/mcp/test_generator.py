@@ -104,6 +104,44 @@ class TestGenerateCodexConfig:
         assert 'type = "sse"' in result
         assert "startup_timeout_sec = 40" in result
 
+    def test_http_server_emits_url_and_type(self):
+        """streamable-http(type=http) 서버는 codex/claude 출력에 url+type 으로 직렬화."""
+        secrets = MagicMock()
+        secrets.get.side_effect = lambda key, default="": {
+            "TEST_HTTP_URL": "https://example.com/stream",
+        }.get(key, default)
+        secrets.substitute.side_effect = lambda value: value
+
+        with (
+            patch("ai_env.mcp.generator.load_mcp_config") as mock_mcp,
+            patch("ai_env.mcp.generator.load_settings") as mock_settings,
+        ):
+            mock_mcp.return_value = MagicMock(
+                mcp_servers={
+                    "http-sample": MCPServerConfig(
+                        enabled=True,
+                        type="http",
+                        url_env="TEST_HTTP_URL",
+                        targets=["codex", "claude_local"],
+                    )
+                }
+            )
+            mock_settings.return_value = Settings()
+            gen = MCPConfigGenerator(secrets)
+
+        # Codex config.toml
+        codex_result = gen.generate_codex()
+        assert "[mcp_servers.http-sample]" in codex_result
+        assert 'type = "http"' in codex_result
+        assert 'url = "https://example.com/stream"' in codex_result
+
+        # Claude user scope dict
+        claude_servers = gen.generate_claude_user_mcp_servers()
+        assert claude_servers["http-sample"] == {
+            "type": "http",
+            "url": "https://example.com/stream",
+        }
+
     def test_codex_config_structure(self):
         """Codex config.toml 기본 구조 확인 (0.113.0+ 호환)."""
         gen = self._make_generator({})

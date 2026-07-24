@@ -66,11 +66,6 @@ def _sha256(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
-def _file_sha256(path: Path) -> str:
-    """파일의 SHA-256 해시 반환"""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def check_env(report: DoctorReport) -> None:
     """환경변수 검사"""
     project_root = get_project_root()
@@ -120,13 +115,16 @@ def check_sync_drift(report: DoctorReport) -> None:
     generator = MCPConfigGenerator(sm)
     settings = generator.settings
 
+    # codex_global/codex_local은 동일한 config.toml을 공유하므로 한 번만 생성
+    codex_content = generator.generate_codex()
+
     # (타겟 이름, 생성 함수, 출력 경로) 튜플 리스트 (Claude+Codex 전용)
     mcp_targets: list[tuple[str, Any, str]] = [
         ("claude_desktop", generator.generate_claude_desktop(), settings.outputs.claude_desktop),
         ("codex_desktop", generator.generate_codex_desktop(), settings.outputs.codex_desktop),
-        ("codex_global", generator.generate_codex(), settings.outputs.codex_global),
+        ("codex_global", codex_content, settings.outputs.codex_global),
         ("claude_local", generator.generate_claude_local(), settings.outputs.claude_local),
-        ("codex_local", generator.generate_codex(), settings.outputs.codex_local),
+        ("codex_local", codex_content, settings.outputs.codex_local),
     ]
 
     for name, content, path_str in mcp_targets:
@@ -148,17 +146,15 @@ def check_sync_drift(report: DoctorReport) -> None:
             report.checks.append(CheckResult(name, "fail", f"drifted: {path}", "sync"))
 
     # Claude 글로벌 설정 파일 존재 검사
-    project_root = get_project_root()
-    global_dir = project_root / ".claude" / "global"
     target_dir = Path.home() / ".claude"
 
     claude_items = [
-        ("~/.claude/CLAUDE.md", global_dir / "CLAUDE.md", target_dir / "CLAUDE.md"),
-        ("~/.claude/commands/", project_root / ".claude" / "commands", target_dir / "commands"),
-        ("~/.claude/skills/", target_dir / "skills", target_dir / "skills"),
+        ("~/.claude/CLAUDE.md", target_dir / "CLAUDE.md"),
+        ("~/.claude/commands/", target_dir / "commands"),
+        ("~/.claude/skills/", target_dir / "skills"),
     ]
 
-    for name, _src, dst in claude_items:
+    for name, dst in claude_items:
         if dst.exists():
             report.checks.append(CheckResult(name, "pass", "exists", "sync"))
         else:
