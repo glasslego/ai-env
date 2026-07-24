@@ -8,7 +8,7 @@ license = { text = "MIT" }
 authors = [
     { name = "Namjung Won", email = "megan.won@kakaocorp.com" }
 ]
-keywords = ["ai", "cli", "mcp", "claude", "gemini", "devtools"]
+keywords = ["ai", "cli", "mcp", "claude", "codex", "devtools"]
 
 dependencies = [
     "click>=8.1.0",

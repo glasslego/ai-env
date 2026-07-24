@@ -59,9 +59,6 @@ generated/
 !.claude/README.md
 !.codex/README.md
 
-# SPEC-013: Gemini/Antigravity 지원 제거 — 디렉토리 무시
-.gemini/
-
 # Temp files
 .tmp.*
 *.tmp

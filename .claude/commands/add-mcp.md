@@ -19,7 +19,7 @@ description: 새로운 MCP 서버를 ai-env에 등록합니다
    - enabled: true
    - type: $SERVER_TYPE
    - command/url 설정
-   - targets 설정 (claude_desktop, antigravity, claude_local 등)
+   - targets 설정 (claude_desktop, claude_local, codex, codex_desktop)
    - 필요한 env_keys 추가
 
 3. **필요한 환경변수가 있다면 .env에 추가**

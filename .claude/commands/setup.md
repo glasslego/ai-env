@@ -24,7 +24,6 @@ description: 현재 프로젝트에 ai-env 표준 환경설정을 적용합니�
 3. **MCP 설정 적용**
    - .claude/settings.local.json 생성
    - .codex/config.toml 생성
-   - .gemini/settings.local.json 생성
 
 4. **프로젝트별 CLAUDE.md 생성**
    - /init 명령 실행하여 코드베이스 분석

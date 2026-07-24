@@ -25,7 +25,6 @@ vi .env
 # AI API 키
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
-GOOGLE_API_KEY=...
 
 # GitHub
 GITHUB_GLASSLEGO_TOKEN=ghp_...    # Public GitHub (glasslego)
@@ -69,9 +68,7 @@ uv run ai-env sync              # 전체 동기화
 | 파일 경로 | 용도 |
 |----------|------|
 | `~/Library/Application Support/Claude/claude_desktop_config.json` | Claude Desktop |
-| `~/Library/Application Support/ChatGPT/config.json` | ChatGPT Desktop |
 | `~/.codex/codex.config.json` | Codex Desktop |
-| `~/.gemini/antigravity/mcp_config.json` | Antigravity |
 
 ### CLI 글로벌 설정
 
@@ -84,8 +81,6 @@ uv run ai-env sync              # 전체 동기화
 | `~/.claude/hooks/` | Claude Code 세션 lifecycle 훅 |
 | `~/.codex/config.toml` | Codex 글로벌 |
 | `~/.codex/AGENTS.md` | Codex 에이전트 지침 |
-| `~/.gemini/settings.json` | Gemini CLI 글로벌 |
-| `~/.gemini/GEMINI.md` | Gemini CLI 에이전트 지침 |
 
 ### CLI 로컬 설정 (프로젝트별)
 
@@ -93,7 +88,6 @@ uv run ai-env sync              # 전체 동기화
 |----------|------|
 | `.claude/settings.glocal.json` | Claude Code 로컬 (MCP generator 생성) |
 | `.codex/config.toml` | Codex 로컬 |
-| `.gemini/settings.local.json` | Gemini CLI 로컬 |
 | `generated/shell_exports.sh` | Shell export + agent fallback 함수 |
 
 ## 글로벌 vs 로컬
@@ -125,7 +119,6 @@ mcp_servers:
     targets:
       - claude_desktop
       - claude_local
-      - gemini
 ```
 
 재동기화: `uv run ai-env sync`
