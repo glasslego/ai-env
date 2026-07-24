@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-AI 에이전트(Claude, Gemini, Codex 등)가 이 저장소에서 수행해야 할 역할과 규칙을 정의합니다.
+AI 에이전트(Claude, Codex)가 이 저장소에서 수행해야 할 역할과 규칙을 정의합니다.
 
 ---
 
@@ -8,7 +8,7 @@ AI 에이전트(Claude, Gemini, Codex 등)가 이 저장소에서 수행해야 �
 
 이 저장소는 **AI 개발 환경 통합 관리 도구**입니다.
 
-* 대상: Claude Code, Gemini CLI, Codex, Antigravity
+* 대상: Claude Code, Codex
 * 핵심: MCP 서버 토큰 중앙 관리 및 config 자동 생성
 
 ---
@@ -23,7 +23,6 @@ AI 에이전트(Claude, Gemini, Codex 등)가 이 저장소에서 수행해야 �
 
 - Claude Code: `~/.claude/CLAUDE.md`
 - Codex CLI: `~/.codex/AGENTS.md`, `~/.codex/skills/`
-- Gemini CLI: `~/.gemini/GEMINI.md`
 
 공용 필수 규칙:
 - Spec 기준으로 Task를 먼저 확정한다.
@@ -60,26 +59,30 @@ uv run ai-env sync --claude-only
 ## 📌 3. 저장소 구조
 
 ### **src/ai_env/**
-- `cli/`: Click 기반 CLI 패키지 (doctor, generate, pipeline, project, status, sync 명령어)
+- `cli/`: Click 기반 CLI 패키지 (bedrock, config, doctor, generate, project, secrets, setup, status, sync 명령어)
 - `core/config.py`: Pydantic 모델, YAML 설정 로드
 - `core/secrets.py`: `.env` 환경변수 관리, `${VAR}` 치환
-- `core/sync.py`: 글로벌 설정 동기화 (Claude, Codex, Gemini)
+- `core/sync.py`: 글로벌 설정 동기화 (Claude, Codex)
 - `core/doctor.py`: 환경 건강 검사
-- `core/pipeline.py`: 토픽 YAML 모델, 리서치 파이프라인 유틸
-- `core/research.py`: Deep Research API 디스패치 (Gemini/OpenAI)
 - `core/project_sync.py`: 프로젝트 로컬 Claude↔Codex 동기화
-- `core/workflow.py`: 6-Phase 워크플로우 스캐폴딩
+- `core/bedrock.py`: Claude Code on Bedrock 설정 헬퍼
 - `mcp/generator.py`: 타겟별 MCP 설정 생성 (stdio/SSE)
 - `mcp/vibe.py`: Agent Fallback 셸 함수 생성
 
 ### **.claude/**
 - `global/`: 글로벌 CLAUDE.md + settings.json.template (SSOT)
 - `commands/`: 슬래시 커맨드 소스
-- `skills/`: 개인 스킬 (SKILL.md 기반, `ai-env sync` → `~/.claude/skills/`)
 - `hooks/`: 세션 lifecycle 훅 (session_start, session_end, pre_compact)
 - `handoff/`: 세션 간 컨텍스트 전달 (gitignore)
 - `logs/`: fallback 세션 로그 (gitignore, 7일 후 자동 삭제)
 - `worktrees/`: agent worktree 작업 공간 (gitignore)
+
+### **megan-harness/**
+- `skills/{category}/{skill}/`: 개인 스킬 소스 (SKILL.md 기반, 카테고리: ai-env, code, data, meta, obsidian, orchestration, platform, ranking, work). `ai-env sync` → `~/.claude/skills/`, `~/.codex/skills/`, `~/.agents/skills/`
+- `agents/`: 개인 에이전트 정의 소스 (`ai-env sync` → `~/.claude/agents/`, `~/.codex/agents/`)
+- `lib/`, `hooks/`, `commands/`, `docs/`, `DESIGN.md`, `README.md`, `SKILLS.md`: 하네스 공유 자산
+
+> 스킬 이름 충돌 시 **개인(megan-harness) 스킬이 팀(cde-*skills) 스킬을 덮어쓴다** (personal-wins). `_collect_skill_sources`가 megan-harness를 먼저 수집하고 이름 기준 first-wins 로 dedup 한다.
 
 ### **config/**
 - `settings.yaml`: 메인 설정
@@ -105,7 +108,7 @@ uv run ai-env sync --claude-only
 ### **2) CLI 규칙**
 - Click 프레임워크 사용
 - Rich로 출력 포맷팅 (`console.print()` 사용, `print()` 금지)
-- 명령어 그룹화 (config, doctor, generate, pipeline, project, secrets, setup, status, sync)
+- 명령어 그룹화 (bedrock, config, doctor, generate, project, secrets, setup, status, sync)
 
 ### **3) pre-commit + ruff**
 - 프로젝트 루트에 `.pre-commit-config.yaml` 필수
@@ -136,9 +139,7 @@ uv run ai-env sync --claude-only
 
 ### **MCP Config 생성**
 - Claude Desktop용 JSON 생성
-- Antigravity용 JSON 생성
 - Codex용 TOML 생성
-- Gemini용 JSON 생성
 
 ### **동기화**
 - 단일 명령으로 모든 대상에 config 배포
@@ -189,7 +190,6 @@ uv run ai-env status
 uv run ai-env secrets
 uv run ai-env sync
 uv run ai-env doctor
-uv run ai-env pipeline --help
 
 # 테스트
 uv run pytest

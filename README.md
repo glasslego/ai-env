@@ -1,8 +1,7 @@
 # ai-env
 
 **Claude Code + Codex CLI** 개발 환경의 MCP 서버와 설정을 한 곳에서 관리하는 CLI.
-(Gemini / Antigravity / ChatGPT Desktop 지원은 SPEC-013 정리에서 제거됨. Deep Research API
-디스패치만 별도 기능으로 잔존.)
+(Gemini / Antigravity / ChatGPT Desktop 지원은 SPEC-013 정리에서 제거됨.)
 
 > **사용 예시**: 시나리오별 상세 가이드는 [docs/USAGE-EXAMPLES.md](docs/USAGE-EXAMPLES.md) 참조.
 
@@ -79,7 +78,17 @@ ai-env sync --skills-all            # 모든 팀 스킬 포함 (develop pull 포
 ai-env sync --skills-only           # 스킬만 빠르게 동기화
 ai-env sync --skills-include <dir>  # 특정 팀 스킬 포함
 ai-env sync --skills-exclude <dir>  # 특정 팀 스킬 제외
+```
 
+**스킬/에이전트 소스**
+
+- 개인 스킬: `megan-harness/skills/{category}/{skill}/` (카테고리: ai-env, code, data, meta, obsidian, orchestration, platform, ranking, work)
+- 개인 에이전트: `megan-harness/agents/`
+- 팀 스킬: `cde-skills`, `cde-ranking-skills` 심링크 (동기화 시 git pull 후 병합)
+- 이름 충돌 시 **개인(megan-harness) 스킬이 팀 스킬을 덮어쓴다** (personal-wins). sync는 megan-harness를 먼저 수집하고 이름 기준 first-wins로 dedup 한다.
+- 동기화 대상(destination): `~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills` (스킬) / `~/.claude/agents`, `~/.codex/agents` (에이전트)
+
+```bash
 # 개별 생성 (stdout)
 ai-env generate all
 ai-env generate claude-desktop [-o FILE]
@@ -92,23 +101,6 @@ ai-env project sync-codex --skills-only            # skills만 연결
 ai-env project sync-codex --agents-only            # AGENTS.md만 연결
 ai-env project sync-codex --copy                   # 심볼릭 링크 대신 복사
 ai-env project sync-codex --project-dir /path/to/repo
-
-# 리서치 파이프라인
-ai-env pipeline list                     # 등록된 토픽 목록
-ai-env pipeline info <topic_id>          # 토픽 상세 정보
-ai-env pipeline research <topic_id>      # Phase 1 실행 (자동검색)
-ai-env pipeline dispatch <topic_id>      # Deep Research API 디스패치
-ai-env pipeline status <topic_id>        # 리서치 진행 상황
-ai-env pipeline scaffold <topic_id>      # Obsidian 워크스페이스 생성
-ai-env pipeline workflow <topic_id>      # 워크플로우 진행 상태
-
-# Obsidian 세션 저장 (SPEC-013)
-ai-env session save --note "<메모>"                      # 기본 vault의 00_session/에 저장
-ai-env session save --note "..." --transcript-path ~/.claude/projects/...jsonl
-ai-env session latest --cwd "$PWD"                       # 현재 프로젝트 최신 세션 컨텍스트 출력
-ai-env session save --note "..." --subdir 01_Inbox      # 다른 디렉토리
-ai-env session save --note "..." --vault ~/Vaults/Other  # 다른 vault
-ai-env session save --note "..." --dry-run               # 본문 미리보기
 ```
 
 ## 동기화 대상
@@ -140,32 +132,6 @@ ai-env project sync-codex
 
 기존 일반 파일/디렉토리가 있으면 `.bak.<timestamp>`로 백업 후 교체합니다.
 
-## 세션을 Obsidian에 저장 (SPEC-013)
-
-대화·스킬 도중 현재 컨텍스트를 Obsidian vault의 마크다운 노트로 보존합니다.
-`/handoff`(다음 세션 인계용)와 달리 외부 vault에 영구 저장되어 검색·연결 가능합니다.
-
-```bash
-ai-env session save --note "메모"                            # 기본 vault/00_session/
-ai-env session save --note "..." --session-id abcdef --agent claude
-ai-env session save --note "..." --transcript-path ~/.claude/projects/...jsonl
-ai-env session latest --cwd "$PWD"                           # 프로젝트 최신 세션 출력
-ai-env session save --note "..." --title "회의 결정"          # 제목 지정
-ai-env session save --note "..." --subdir 01_Inbox           # 다른 폴더
-ai-env session save --note "..." --vault ~/Vaults/Other      # 다른 vault
-ai-env session save --note "..." --dry-run                   # 본문 미리보기
-```
-
-기본 저장 경로는 `config/settings.yaml`의 `obsidian_base` 아래 `00_session/`입니다.
-자동 파일명은 `YYYY-MM-DD HH {project}-session-{prefix}.md` 형식입니다.
-`--transcript-path`가 있으면 JSONL transcript에서 사용자 요청, 진행/결정, 도구 호출,
-파일 경로, 오류 신호, 최근 타임라인을 규칙 기반으로 압축해 저장합니다.
-
-Claude Code hook은 SessionStart에 `session latest`를 읽고, SessionEnd/PreCompact에
-현재 세션을 저장합니다. `ai-env sync`가 생성하는 `claude()`/`codex()` wrapper도
-대화형 TTY에서 최신 Obsidian 세션을 표시합니다. 출력이 필요 없으면
-`AI_ENV_SESSION_CONTEXT_DISABLE=1`을 설정합니다.
-
 ## claude --fallback
 
 `ai-env sync`가 생성하는 `claude()` 쉘 함수. `config/settings.yaml`의 `agent_priority` 순서대로 에이전트를 시도하고, rate-limit 시 자동 전환.
@@ -175,9 +141,10 @@ claude --fallback              # claude → claude:sonnet → codex 자동 전�
 claude --fallback -2           # 2순위부터 시작
 claude --fallback --auto       # 모든 에이전트 자동 승인 모드
 claude --fallback -l           # 우선순위 목록 출력
-claude                         # 회사 Bedrock enterprise 프로필로 일반 실행 (~/.claude)
+claude                         # 팀 플랜 Claude Code 프로필로 일반 실행 (~/.claude)
+claude team                    # 팀 플랜 프로필 명시 실행
 claude personal                # 개인 Anthropic 로그인 프로필로 실행 (~/.claude-personal)
-claude enterprise              # enterprise(회사 Bedrock) 프로필 명시 실행
+claude enterprise              # legacy alias: 팀 플랜 프로필로 실행
 ```
 
 | 옵션 | 설명 |
@@ -186,19 +153,18 @@ claude enterprise              # enterprise(회사 Bedrock) 프로필 명시 실
 | `--dangerously-skip-permissions` | `--auto`와 동일 (wrapper가 소비) |
 | `-N` | N순위부터 시작 (예: `-2`) |
 
-**프로필 전환 (enterprise / personal)**
+**프로필 전환 (team / personal)**
 
-`--settings`는 User 계층(`~/.claude/settings.json`)을 *대체*하지 못해 Bedrock
-`env`/`apiKeyHelper`가 남는다. 그래서 프로필 격리는 `CLAUDE_CONFIG_DIR`로 user-level
-config 디렉토리 자체를 바꾸는 방식으로 동작한다.
+`--settings`는 User 계층(`~/.claude/settings.json`)을 *대체*하지 못한다. 그래서
+프로필 격리는 `CLAUDE_CONFIG_DIR`로 user-level config 디렉토리 자체를 바꾸는
+방식으로 동작한다.
 
-- enterprise(기본): `~/.claude`를 그대로 사용 — 회사 Bedrock(`apiKeyHelper` 게이트웨이 토큰)
-- personal: `CLAUDE_CONFIG_DIR=~/.claude-personal` — Bedrock 설정이 전혀 없는
-  `settings.json`만 두고, 개인 Anthropic 로그인(OAuth 토큰은 이 디렉토리에 별도 저장)
+- team(기본): `~/.claude`를 그대로 사용 — Claude Code 팀 플랜 OAuth 로그인
+- personal: `CLAUDE_CONFIG_DIR=~/.claude-personal` — 별도 `settings.json`과 개인
+  Anthropic 로그인(OAuth 토큰은 이 디렉토리에 별도 저장)
 - 권한(`permissions`)·`skipDangerousModePermissionPrompt`·hooks·MCP는 두 프로필 모두 동일
-  (오직 **로그인/백엔드만 분리** — Bedrock env/apiKeyHelper 제거, 모델 ID는 direct-API 형식으로 변환)
-- 모델 버전도 동일하되 ID 형식만 백엔드에 맞춤. 단 Opus 기본은 백엔드 기본을 따른다:
-  enterprise(회사 Bedrock)=Opus 4.7 기본, personal(개인 API)=Opus 4.8 기본 — picker엔 둘 다 노출
+  (오직 **로그인 저장 위치만 분리**)
+- 모델 ID는 둘 다 direct Claude Code 형식을 사용한다.
 - 공용 자산(CLAUDE.md/commands/skills/agents/hooks)은 `~/.claude`를 가리키는 심링크로 재사용
 - `ai-env sync`가 `~/.claude-personal/settings.json` + 심링크를 생성한다
 - 첫 personal 실행 시 `claude personal`로 개인 계정 로그인이 필요하다
@@ -223,10 +189,10 @@ codex enterprise       # 기본 ~/.codex 명시
 - 첫 personal 실행 시 `codex personal login`으로 개인 계정 로그인 필요
 - `CODEX_CODE_PROFILE=personal codex ...`로도 개인 프로필을 기본 선택 가능
 
-## Claude Code on Bedrock
+## Optional Claude Code on Bedrock
 
-회사 Bedrock enterprise 프로필은 `ai-env bedrock` 명령으로 관리합니다. 수동
-`aws configure sso` 대신 AWS config의 Bedrock section만 생성/갱신합니다.
+Bedrock AWS SSO profile helper는 필요할 때만 `ai-env bedrock` 명령으로 사용합니다.
+기본 `claude`/`claude team` 설정에는 Bedrock env, AWS profile, `apiKeyHelper`를 넣지 않습니다.
 
 ```bash
 ai-env bedrock setup --dry-run     # ~/.aws/config 변경 미리보기
@@ -242,29 +208,6 @@ ai-env bedrock status --verify-auth --verify-token
 - SSO start URL: `https://d-9067b92cea.awsapps.com/start`
 - SSO region: `us-east-1`
 - account/role: `673981388588` / `BEDROCK`
-
-## 워크플로우 파이프라인
-
-리서치 → Brief → Spec → TDD 코드 → 리뷰의 6-Phase 자동화 파이프라인.
-
-```bash
-# 개별 Phase 실행
-claude "/wf-init topic_id"       # Phase 0: 워크스페이스 초기화
-claude "/wf-research topic_id"   # Phase 2: 3-Track 리서치
-claude "/wf-spec topic_id"       # Phase 3: Brief + Spec 생성
-claude "/wf-code topic_id"       # Phase 4: TDD 코드 생성
-claude "/wf-review topic_id"     # Phase 5: 스펙 정합성 리뷰
-
-# 전체 자동 실행
-claude "/wf-run topic_id"        # 현재 Phase부터 끝까지
-
-# 상태 확인
-ai-env pipeline workflow topic_id
-```
-
-- **체크포인트 재개**: 코드 생성 중 실패한 모듈부터 자동 재개
-- **Brief 압축**: 리서치를 30% 이하로 압축 후 교차 분석
-- **오류 격리**: 각 Phase 독립 재실행 가능
 
 ## MCP 서버 추가
 

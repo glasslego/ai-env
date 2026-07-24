@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. (Gemini / Antigravity / ChatGPT Desktop 지원은 SPEC-013 정리 시점에 제거되었다 — Deep Research API 디스패치만 별도 기능으로 남아있다.)
+ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. Claude/Codex 설정 동기화에만 집중하며, 리서치·워크플로우·세션 저장 등 부가 기능은 제거되었다.
 
 **핵심 가치**: 토큰·MCP 설정을 중앙화하고, 각 AI 도구 형식으로 자동 변환·배포한다.
 
@@ -28,7 +28,6 @@ uv sync --all-extras && pre-commit install  # 초기 설정
 uv run ai-env status                        # 상태 확인
 uv run ai-env sync --dry-run                # 동기화 미리보기
 uv run ai-env sync                          # 전체 동기화
-uv run ai-env session save --note "메모"    # Obsidian에 세션 노트 저장 (SPEC-013)
 uv run pytest                               # 테스트 (커버리지 자동 측정, 최소 65%)
 uv run ruff check . && uv run ruff format . # 린트·포맷
 ```
@@ -40,7 +39,8 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 .env                                      ← 시크릿 (gitignore)
          ↓ (ai-env sync)
 ├─ Claude Desktop  (claude_desktop_config.json)
-├─ Claude Code Global (~/.claude/settings.json, CLAUDE.md, commands/, skills/, hooks/)
+├─ Claude Code Global (~/.claude/settings.json[권한/env/hooks], CLAUDE.md, commands/, skills/, hooks/)
+├─ Claude MCP (user scope) (~/.claude.json top-level mcpServers — settings.json은 MCP를 읽지 않음)
 ├─ Claude Local    (.claude/settings.glocal.json)
 ├─ Codex Desktop   (~/.codex/codex.config.json)
 ├─ Codex Global    (~/.codex/config.toml, AGENTS.md, commands/, skills/, project-profile.yaml)
@@ -55,19 +55,14 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `core/config.py` | Pydantic 모델, YAML 설정 로드 |
 | `core/secrets.py` | `.env` 환경변수 관리, `${VAR}` 치환 |
 | `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex) |
-| `core/session_save.py` | Obsidian vault에 세션 컨텍스트(메모+git 스냅샷) 저장 (SPEC-013) |
 | `core/doctor.py` | 환경 건강 검사 (`ai-env doctor`) |
-| `core/pipeline.py` | 토픽 YAML 모델, 리서치 파이프라인 유틸 |
-| `core/research.py` | Deep Research API 디스패치 (Gemini / OpenAI — 외부 API 호출 전용, sync와 무관) |
 | `core/project_sync.py` | 프로젝트 로컬 Claude↔Codex 동기화 |
-| `core/workflow.py` | 6-Phase 워크플로우 스캐폴딩, 상태 관리 |
-| `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE) |
+| `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE/streamable-http) |
 | `core/codex_skills.py` | Codex 호환 스킬 패키징 (SKILL.md frontmatter 정규화) |
 | `mcp/vibe.py` | Agent Fallback 셸 함수 생성 (`claude()` wrapper) |
 | `core/env_example.py` | `.env.example` 자동 생성 — mcp_servers.yaml + settings.yaml 기반 |
-| `core/session_ontology.py` | Extract ontology seed records from saved session notes. |
 | `core/bedrock.py` | Claude Code on Bedrock setup helpers. |
-| `cli/` | Click CLI + Rich UI (doctor, generate, project, session, status, sync, pipeline) |
+| `cli/` | Click CLI + Rich UI (bedrock, doctor, generate, project, status, sync) |
 
 ### 환경변수 치환
 
@@ -78,21 +73,19 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 
 ```
 config/           YAML 설정 (git 추적)
-  topics/         리서치 토픽 YAML
-  templates/      Obsidian + AI 프롬프트 템플릿
   github/         GitHub 토큰 관리
 src/ai_env/       메인 패키지 (core/, mcp/)
 .claude/
 ├── global/       글로벌 설정 소스 (CLAUDE.md, settings.json.template)
 ├── project-profile.yaml  프로젝트 메타 (스킬이 자동 로드)
-├── commands/     슬래시 커맨드 (workflow.md + phases/ 하위)
-├── skills/       개인 스킬 (SKILL.md 기반, sync 대상)
+├── commands/     슬래시 커맨드 (add-mcp, ai-env-sync, commit, handoff 등)
 ├── hooks/        세션 lifecycle 훅 (session_start, session_end, pre_compact)
 ├── handoff/      세션 간 컨텍스트 전달 (gitignore, /handoff로 생성)
 ├── logs/         fallback 세션 로그 (gitignore, 7일 후 자동 삭제)
 ├── worktrees/    agent worktree 작업 공간 (gitignore)
 ├── settings.glocal.json  로컬 Claude 템플릿 (MCP generator 생성, gitignore)
 └── settings.local.json   프로젝트별 로컬 설정 (gitignore)
+megan-harness/    개인 스킬·에이전트 단일 홈 (skills/{category}/, agents/, lib/, docs/)
 scripts/          문서-코드 정합성 검증 스크립트 (pre-push hook)
 cde-*skills/      팀 스킬 심링크 (cde-skills, cde-ranking-skills 등)
 tests/            pytest 테스트
@@ -101,15 +94,20 @@ generated/        생성된 설정 (gitignore)
 
 ### Skills 동기화
 
-`ai-env sync`는 기본적으로 personal 스킬만 `~/.claude/skills/`에 동기화한다.
-team 스킬은 `--skills-include` 또는 `--skills-exclude` 옵션을 줄 때만 합쳐서 동기화한다.
+`ai-env sync`는 기본적으로 개인 스킬(`megan-harness/skills/`)만 `~/.claude/skills/`에 동기화한다.
+team 스킬(`cde-*skills`)은 `--skills-include`/`--skills-exclude` 옵션을 줄 때만 합쳐서 동기화한다
+(단, `ALWAYS_TEAM_SKILLS`의 cde-skills·cde-ranking-skills는 항상 포함).
 
 ```
-personal: .claude/skills/*/
-team(option): cde-*skills/ (symlink) → SKILL.md를 가진 서브디렉토리만
-                ↓ 병합
-          ~/.claude/skills/
+개인:   megan-harness/skills/{category}/{skill}/   (카테고리 무관 재귀 스캔)
+팀:     cde-*skills/ (symlink) → SKILL.md 가진 서브디렉토리만
+                ↓ 병합 (이름 충돌 시 개인 우선 = first-wins)
+          ~/.claude/skills/  ·  ~/.codex/skills/  ·  ~/.agents/skills/
+에이전트: megan-harness/agents/  →  ~/.claude/agents/  ·  ~/.codex/agents/
 ```
+
+**오버라이드 방향**: 같은 스킬 이름이 개인·팀 양쪽에 있으면 **개인(megan-harness)이 이긴다**
+(`_collect_skill_sources`가 개인을 먼저 수집, 이름 기준 first-wins). 팀 스킬은 개인에 없는 이름만 병합된다.
 
 `--skills-all`로 모든 팀 스킬을 포함하거나, `--skills-include`/`--skills-exclude`로 선택적 동기화 가능.
 팀 스킬 포함 시(`--skills-all` 등) 동기화 전에 각 `cde-*skills` 레포의 `develop` 브랜치를 자동 `git pull`한다.
@@ -150,46 +148,6 @@ Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`�
 
 **세션 로그**: fallback 세션 로그는 현재 프로젝트의 `.claude/logs/`에 `{session_id}_{agent}.log` 형식으로 저장된다. 세션 시작 시 7일 이상 된 로그는 자동 삭제된다. `CLAUDE_FALLBACK_LOG_DIR` 환경변수로 저장 경로를 오버라이드할 수 있다.
 
-### 워크플로우 파이프라인 (/workflow 커맨드)
-
-6-Phase 워크플로우로 리서치 → Spec → 코드 생성까지 자동화한다.
-`/workflow iterate {topic_id}` 로 Review → Research → Spec → Code 반복 개선 루프도 지원한다 (기본 최대 3회).
-
-```
-Phase 0 (intake)       → /workflow init {topic_id}     : Obsidian 워크스페이스 스캐폴딩
-Phase 2 (research)     → /workflow research {topic_id}  : 3-Track 리서치 (A: 자동검색, B: Gemini, C: GPT)
-Phase 3 (spec)         → /workflow spec {topic_id}      : Brief 압축 → 4-Way 교차분석 → Plan/Spec + ADR
-Phase 4 (implementing) → /workflow code {topic_id}      : TDD 코드 생성 (체크포인트 재개 지원)
-Phase 5 (review)       → /workflow review {topic_id}    : 스펙 정합성 리뷰
-전체 자동 실행          → /workflow run {topic_id}       : 현재 Phase부터 끝까지 순차 실행
-반복 개선 루프          → /workflow iterate {topic_id}   : Review → Research → Spec → Code 반복 (기본 3회)
-상태 확인              → /workflow status {topic_id}    : 현재 Phase 상태 확인
-```
-
-**상태 확인**: `ai-env pipeline workflow {topic_id}` — `_workflow-status.md`를 자동 재생성하고 현재 Phase 표시.
-
-**리서치 디렉토리**: 신규 파일은 `10_Research/Clippings/`에 저장. `07_참고/`는 레거시 읽기 전용.
-
-**Brief 단계**: wf-spec 실행 시 리서치를 30% 이하로 압축한 Brief를 먼저 생성. 기존 Brief가 있으면 재사용 확인.
-
-**코드 체크포인트**: wf-code 실행 시 `_code-status.yaml`에 모듈별 진행 상태(done/failed/pending) 기록. 실패 모듈부터 자동 재개.
-
-**오류 격리**: 각 Phase는 독립적으로 재실행 가능. 개별 Phase 실패 시 해당 Phase만 다시 실행.
-
-### Deep Research Dispatch (pipeline dispatch)
-
-Track B(Gemini)/C(GPT) 심층리서치를 API로 자동 실행한다.
-기존에는 프롬프트 파일만 생성하고 사용자가 웹에서 수동 실행했으나, Gemini Deep Research API와 OpenAI Deep Research API를 직접 호출하여 완전 자동화.
-
-```bash
-ai-env pipeline dispatch bitcoin-automation              # 전체 디스패치
-ai-env pipeline dispatch bitcoin-automation --track gemini  # Gemini만
-ai-env pipeline dispatch bitcoin-automation --track gpt     # GPT만
-```
-
-API 키 없으면 기존 프롬프트 파일 생성으로 graceful fallback.
-API 키: `.env`의 `GOOGLE_API_KEY`, `OPENAI_API_KEY` 사용.
-
 ## 주요 규칙
 
 - `.env`는 절대 커밋하지 않음 (`.gitignore`에 `.env`, `*.pem`, `credentials*.json` 포함)
@@ -199,32 +157,19 @@ API 키: `.env`의 `GOOGLE_API_KEY`, `OPENAI_API_KEY` 사용.
 - pre-commit 필수 (`.pre-commit-config.yaml` + `ruff check --fix` + `ruff format` + `gitleaks` + `mypy`)
 - CI: GitHub Actions로 test + lint + type-check + doc-sync 자동 실행 (`.github/workflows/ci.yml`)
 - 커버리지: `pytest --cov` 자동 측정, 최소 65% 미달 시 실패
-- SSE 서버는 Claude/ChatGPT Desktop에서 미지원 (stdio만). Codex Desktop은 SSE(url) 지원
+- SSE 서버는 Claude Desktop에서 미지원 (stdio만). Codex Desktop은 SSE(url) 지원
+- **MCP 서버 정의는 `~/.claude/settings.json`이 아니라 `~/.claude.json`(user scope) top-level `mcpServers`에 기록한다.** Claude Code는 settings.json의 mcpServers를 읽지 않는다 (MCP는 `~/.claude.json` 또는 `.mcp.json`에서만 로드). settings.json은 권한(`mcp__*` allow)/env/hooks 전용. sync는 `~/.claude.json`의 다른 키(projects 등)를 보존하며 mcpServers만 갱신한다.
+- MCP `type`은 `stdio | sse | http`(streamable-http) 지원. url 기반(sse/http)은 `url_env`로 URL 주입.
 - glocal = "global template for local" (MCP generator가 생성, git 추적)
 - local = 프로젝트별 permissions (sync가 덮어쓰지 않음)
 
-### Obsidian 세션 저장 (SPEC-013)
-
-스킬/대화 도중 현재 세션 컨텍스트를 Obsidian vault에 마크다운 노트로 보존한다.
-`/handoff`(다음 세션 인계용)와 달리 외부 vault에 영구 저장되어 검색·연결이 가능하다.
-
-```bash
-ai-env session save --note "이번 세션 메모"        # 기본: ~/Documents/Obsidian Vault/00_session/
-ai-env session save --note "..." --subdir 01_Inbox  # 다른 디렉토리
-ai-env session save --note "..." --dry-run          # 본문 미리보기
-```
-
-`config/settings.yaml`의 `obsidian_base`로 vault 경로를 변경할 수 있다.
-스킬은 `.claude/skills/session-save/SKILL.md`이며, **Codex CLI에서도 동일하게 동작**한다
-(CLI 의존이라 `~/.codex/skills/session-save/`로 정규화 동기화됨).
-
-### Codex가 Claude 자산을 활용하는 범위 (SPEC-013 AC-2)
+### Codex가 Claude 자산을 활용하는 범위
 
 `ai-env sync` 1회 실행으로 Codex CLI도 Claude의 다음 자산을 사용한다:
 
 - `~/.codex/AGENTS.md` — Claude 글로벌 지침 + 스킬 인덱스
 - `~/.codex/skills/` — SKILL.md frontmatter strict YAML로 정규화된 복사본
-- `~/.codex/commands/` — `.claude/commands/*.md` (phases/ 포함) 트리 미러 (참조용)
+- `~/.codex/commands/` — `.claude/commands/*.md` 트리 미러 (참조용)
 - `~/.codex/project-profile.yaml` — 프로젝트 프로파일 미러
 
 프로젝트 로컬은 `ai-env project sync-codex`로 동일한 구조의 `.codex/`를 만든다.

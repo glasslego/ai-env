@@ -2,6 +2,18 @@
 
 SPEC 문서 관련 변경 이력은 이 파일에서만 관리합니다.
 
+## v1.6 (2026-07-23)
+
+- ai-env 사용 범위를 **Claude Code + Codex 설정 동기화** 전용으로 축소
+- 기능 제거 (코드 + 테스트 + 문서 일괄 삭제)
+  - Deep Research API 디스패치 (`SPEC-008`)
+  - 6-Phase 통합 워크플로우 파이프라인 및 `/workflow` (`SPEC-009`)
+  - 리서치 파이프라인
+  - Obsidian 세션 저장 (`ai-env session save`, SPEC-013의 일부)
+- 제거된 CLI 그룹: `ai-env pipeline`, `ai-env session`
+- 제거된 설정/에셋: `config/topics`, `config/templates`, `session-save`/`research` 스킬
+- SPEC 문서 삭제: `SPEC-008`, `SPEC-009`
+
 ## v1.5 (2026-04-30)
 
 - `SPEC-014-cross-agent-handoff.md` 추가 (status: implemented)

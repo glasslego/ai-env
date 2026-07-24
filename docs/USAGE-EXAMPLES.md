@@ -1,12 +1,12 @@
 # ai-env 효과적 사용 가이드
 
-> ai-env가 해결하는 문제: Claude, Codex, Gemini, ChatGPT 등 여러 AI 도구의 API 키, MCP 서버, 코딩 가이드라인을 **한 곳에서 관리**하고 각 도구 형식으로 자동 변환.
+> ai-env가 해결하는 문제: Claude, Codex 등 AI 도구의 API 키, MCP 서버, 코딩 가이드라인을 **한 곳에서 관리**하고 각 도구 형식으로 자동 변환.
 
 ---
 
 ## 시나리오 1: 처음 설정 (Day 0)
 
-**상황**: 새 맥에서 AI 도구들을 세팅하려는데, Claude Desktop, Codex, Gemini CLI 각각 설정이 다르다.
+**상황**: 새 맥에서 AI 도구들을 세팅하려는데, Claude Desktop, Codex 각각 설정이 다르다.
 
 ```bash
 # 1. 클론 & 환경 설정
@@ -17,7 +17,6 @@ uv sync --all-extras && pre-commit install
 cat > .env << 'EOF'
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
-GOOGLE_API_KEY=AIza...
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_...
 EOF
 
@@ -31,11 +30,9 @@ source ~/.zshrc
 
 **결과**: 아래가 모두 자동 설정됨
 - Claude Desktop: `claude_desktop_config.json` (MCP 서버 + API 키)
-- ChatGPT Desktop: `config.json`
 - Codex Desktop: `codex.config.json`
 - Claude Code: `~/.claude/settings.json` + `CLAUDE.md` + `commands/` + `skills/`
 - Codex CLI: `~/.codex/config.toml` + `AGENTS.md` + `skills/`
-- Gemini CLI: `~/.gemini/settings.json` + `GEMINI.md`
 - Shell: `claude --fallback` 함수
 
 ---
@@ -148,19 +145,18 @@ ai-env sync --dry-run
 
 ## 시나리오 5: 팀 코딩 가이드라인 통일
 
-**상황**: 팀원들이 Claude, Codex, Gemini를 각자 다른 설정으로 쓰고 있다.
+**상황**: 팀원들이 Claude, Codex를 각자 다른 설정으로 쓰고 있다.
 
 ```bash
 # 1. 가이드라인 수정 (단일 소스)
 vi .claude/global/CLAUDE.md
 
-# 2. Claude + Codex + Gemini 모두에 동기화
+# 2. Claude + Codex 모두에 동기화
 ai-env sync --claude-only
 
 # 동기화 결과:
 # ~/.claude/CLAUDE.md      ← Claude Code가 읽는 가이드라인
 # ~/.codex/AGENTS.md       ← Codex CLI가 읽는 가이드라인
-# ~/.gemini/GEMINI.md      ← Gemini CLI가 읽는 가이드라인
 ```
 
 ### 팀 스킬 공유
@@ -192,10 +188,8 @@ ai-env doctor
 # ✅ .env 파일 존재
 # ✅ ANTHROPIC_API_KEY 설정됨
 # ✅ OPENAI_API_KEY 설정됨
-# ❌ GOOGLE_API_KEY 미설정 — Gemini 기능 사용 불가
 # ✅ claude 설치됨 (v1.2.3)
 # ✅ codex 설치됨 (v0.113.0)
-# ❌ gemini 미설치
 
 # JSON 형식으로 출력 (스크립트 연동용)
 ai-env doctor --json
@@ -203,50 +197,7 @@ ai-env doctor --json
 
 ---
 
-## 시나리오 7: 리서치 → 스펙 → 코드 자동화 워크플로우
-
-**상황**: "비트코인 자동매매 시스템"을 리서치부터 코드까지 자동으로 진행하고 싶다.
-
-```bash
-# 1. 토픽 YAML 작성
-cat > config/topics/bitcoin-automation.yaml << 'EOF'
-id: bitcoin-automation
-title: 비트코인 자동매매 시스템
-research:
-  gemini:
-    - focus: 시장 분석 알고리즘
-      prompt: "비트코인 자동매매에 사용되는 주요 기술적 분석 지표와 알고리즘을 조사해줘"
-  gpt:
-    - focus: 리스크 관리
-      prompt: "암호화폐 자동매매 시스템의 리스크 관리 전략을 조사해줘"
-plan:
-  output_dir: ~/Documents/Obsidian/PARA-2025
-  module_prefix: btc
-EOF
-
-# 2. Phase별 실행
-claude "/wf-init bitcoin-automation"       # Obsidian 워크스페이스 생성
-claude "/wf-research bitcoin-automation"   # 3-Track 자동 리서치
-claude "/wf-spec bitcoin-automation"       # Brief 압축 → Spec/Plan 생성
-claude "/wf-code bitcoin-automation"       # TDD 코드 생성
-claude "/wf-review bitcoin-automation"     # 스펙 정합성 리뷰
-
-# 또는 전체 자동 실행
-claude "/wf-run bitcoin-automation"
-
-# 3. Deep Research API 디스패치 (Gemini/GPT 동시)
-ai-env pipeline dispatch bitcoin-automation
-```
-
-**진행 상황 확인**:
-```bash
-ai-env pipeline workflow bitcoin-automation
-# 현재 Phase, 완료된 리서치 파일, 남은 작업 등 표시
-```
-
----
-
-## 시나리오 8: 일상 개발 슬래시 커맨드
+## 시나리오 7: 일상 개발 슬래시 커맨드
 
 Claude Code 세션 내에서 바로 사용하는 커맨드들:
 
@@ -256,14 +207,14 @@ Claude Code 세션 내에서 바로 사용하는 커맨드들:
 /sync                      # ai-env sync 실행
 /handoff                   # 세션 컨텍스트를 다음 세션에 전달
 /setup                     # 프로젝트 초기 설정 가이드
-/upgrade-ai-tools          # Claude, Codex, Gemini CLI 일괄 업그레이드
+/upgrade-ai-tools          # Claude, Codex 일괄 업그레이드
 /cleanup-branches          # 머지된 브랜치 정리
 /git-summary               # Git 히스토리 요약
 ```
 
 ---
 
-## 시나리오 9: 세션 간 컨텍스트 이어받기
+## 시나리오 8: 세션 간 컨텍스트 이어받기
 
 **상황**: 어제 작업하다가 세션이 끊겼는데, 오늘 이어서 하고 싶다.
 
@@ -283,7 +234,7 @@ cat .claude/handoff/latest.md
 
 ---
 
-## 시나리오 10: 다른 프로젝트에 ai-env 적용
+## 시나리오 9: 다른 프로젝트에 ai-env 적용
 
 **상황**: 새 프로젝트에서 ai-env의 혜택을 받고 싶다.
 
@@ -343,4 +294,3 @@ ai-env project sync-codex
 | 뭐가 문제인지 모를 때 | `ai-env doctor` |
 | Rate-limit 걱정 없이 | `claude --fallback` |
 | 프로젝트에 Codex 추가 | `ai-env project sync-codex` |
-| 리서치 자동화 | `claude "/wf-run topic_id"` |
