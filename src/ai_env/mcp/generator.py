@@ -287,7 +287,8 @@ class MCPConfigGenerator:
         server_type = config.get("type")
         is_url_based = server_type in ("sse", "http")
         if is_url_based:
-            lines.append(f'type = "{server_type}"')
+            # Codex 0.144+는 원격 MCP transport를 URL로 판별한다.
+            # type을 함께 기록하면 stdio 설정으로 해석해 url을 거부한다.
             lines.append(f'url = "{config["url"]}"')
         else:
             lines.append(f'command = "{config["command"]}"')

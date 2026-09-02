@@ -101,11 +101,12 @@ class TestGenerateCodexConfig:
 
         result = gen.generate_codex()
         assert "[mcp_servers.sse-sample]" in result
-        assert 'type = "sse"' in result
+        assert 'url = "https://example.com/sse"' in result
+        assert 'type = "sse"' not in result
         assert "startup_timeout_sec = 40" in result
 
-    def test_http_server_emits_url_and_type(self):
-        """streamable-http(type=http) 서버는 codex/claude 출력에 url+type 으로 직렬화."""
+    def test_http_server_emits_codex_url_and_claude_type(self):
+        """HTTP 서버는 Codex에 url만, Claude에는 type과 url을 직렬화한다."""
         secrets = MagicMock()
         secrets.get.side_effect = lambda key, default="": {
             "TEST_HTTP_URL": "https://example.com/stream",
@@ -132,8 +133,8 @@ class TestGenerateCodexConfig:
         # Codex config.toml
         codex_result = gen.generate_codex()
         assert "[mcp_servers.http-sample]" in codex_result
-        assert 'type = "http"' in codex_result
         assert 'url = "https://example.com/stream"' in codex_result
+        assert 'type = "http"' not in codex_result
 
         # Claude user scope dict
         claude_servers = gen.generate_claude_user_mcp_servers()

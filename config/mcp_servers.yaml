@@ -200,13 +200,9 @@ mcp_servers:
   # Supabase hosted MCP endpoint (remote)
   supabase:
     enabled: true
-    type: stdio
+    type: http
     startup_timeout_sec: 60
-    command: npx
-    args:
-      - -y
-      - mcp-remote
-      - https://mcp.supabase.com/mcp
+    url_env: SUPABASE_MCP_URL
     targets:
       - codex_desktop
       - claude_local
