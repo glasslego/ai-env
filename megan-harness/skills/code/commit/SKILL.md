@@ -5,8 +5,8 @@ description: 변경사항을 task(기능) 단위로 나눠 spec/task 컨벤션 �
 
 # Commit (spec/task 단위 커밋)
 
-> `.claude/commands/commit.md` 를 대체·통합. diff → task 분할 → spec/task 메시지 → pre-commit 루프 → 보고.
-> `<type>(spec-<id>/task-<id>): <summary>` 컨벤션(ai-env/글로벌 CLAUDE.md)을 그대로 따른다.
+> `.claude/commands/commit.md` 를 대체·통합. diff → task 분할 → 프로젝트별 메시지 → pre-commit 루프 → 보고.
+> 저장소의 `.claude/rules/commit-message.md` 가 있으면 그 형식을 우선한다.
 
 ## When to invoke
 - `/commit`, "커밋해줘", "task 단위로 나눠서 커밋", "commit"
@@ -32,11 +32,15 @@ description: 변경사항을 task(기능) 단위로 나눠 spec/task 컨벤션 �
 4. `git commit -F -` (heredoc)로 본문 포함 커밋.
 
 ## 3. 커밋 메시지 컨벤션
-- 제목: `<type>(spec-<id>/task-<id>): <summary>` — type ∈ feat/fix/refactor/docs/chore/test …
+- 먼저 프로젝트별 `.claude/rules/commit-message.md` 또는 `CLAUDE.md` 를 확인한다.
+- CDE 랭킹 저장소: 제목은 `[CDETEAM-XXXX] 한 줄 요약`, 본문은 `-` 목록으로
+  변경 항목·입력/출력·검증 방법을 적는다. Agit 요청 기반이면 Jira의 요청 링크를
+  `- 요청: <URL>` 로 추가한다. Task 식별자가 제목에 없으면 본문에 기록한다.
+- 프로젝트별 규칙이 없으면 `<type>(spec-<id>/task-<id>): <summary>` 를 사용한다.
   - 예: `refactor(spec-narrow/task-scope): ai-env를 Claude/Codex 설정 동기화 전용으로 축소`
-- 본문: 무엇을/왜. 공유 파일이 여러 작업에 걸쳤으면 그 사실을 본문에 한 줄 명시.
-- 꼬리에 항상:
-  `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
+- 공유 파일이 여러 작업에 걸쳤으면 어느 커밋에 묶였는지 본문에 명시한다.
+- AI 표기는 실제 에이전트를 기준으로 한다. Claude는 프로젝트 규칙의
+  `Co-Authored-By: {모델명}`을 사용하고, Codex는 마지막 줄을 `by codex`로 둔다.
 
 ## 4. pre-commit 자동수정 재-stage 루프
 pre-commit(ruff `--fix`, ruff-format, end-of-file-fixer 등)이 파일을 고치면 커밋이 exit≠0 로 **중단**된다:

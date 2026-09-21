@@ -49,9 +49,14 @@ When unsure about implementation details, ALWAYS ask the developer.
 4) **커밋 단위 = Spec의 Task 구현 단위**
 - 하나의 커밋에는 하나의 Task 완료분만 포함한다.
 - 커밋 메시지에는 Spec/Task 식별자를 포함한다.
-- 권장 형식:
+- 저장소에 `.claude/rules/commit-message.md` 같은 프로젝트별 규칙이 있으면
+  **그 제목/본문 형식을 우선**한다. Spec/Task 식별자는 본문에도 기록할 수 있다.
+- 프로젝트별 규칙이 없을 때의 기본 형식:
   - `<type>(spec-<id>/task-<id>): <summary>`
   - 예: `feat(spec-003/task-02): add team skills include filter`
+- CDE 랭킹 저장소에서는 프로젝트 규칙에 맞춰 `[CDETEAM-XXXX] 한 줄 요약`을 제목으로,
+  변경·입출력·검증 내용을 `-` 목록으로 본문에 작성한다. AI 공동 작성자 표기는
+  실제 사용한 에이전트를 기준으로 하며, Codex 커밋의 마지막 줄은 `by codex`로 둔다.
 
 5) **보고 형식**
 - 작업 보고 시 아래 4가지를 항상 포함한다.
