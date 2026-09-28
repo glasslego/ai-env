@@ -76,11 +76,13 @@ uv run ai-env sync              # 전체 동기화
 |----------|------|
 | `~/.claude/settings.json` | Claude Code 글로벌 |
 | `~/.claude/CLAUDE.md` | Claude Code 에이전트 지침 |
+| `~/.claude/rules/` | Claude Code 경로별 전역 규칙 |
 | `~/.claude/commands/` | Claude Code 슬래시 커맨드 |
 | `~/.claude/skills/` | Claude Code 스킬 |
 | `~/.claude/hooks/` | Claude Code 세션 lifecycle 훅 |
 | `~/.codex/config.toml` | Codex 글로벌 |
 | `~/.codex/AGENTS.md` | Codex 에이전트 지침 |
+| `~/.codex/rules/` | Codex 전역 규칙 참조 파일 (`AGENTS.md` 인덱스 연동) |
 
 ### CLI 로컬 설정 (프로젝트별)
 

@@ -196,6 +196,35 @@ def test_sync_claude_global_config_includes_agents(tmp_path, mock_secrets_manage
     assert (target_dir / "agents" / "router.md").exists()
 
 
+def test_sync_claude_global_config_includes_global_rules(tmp_path, mock_secrets_manager):
+    """Claude 동기화 시 전역 rules를 team/personal 프로필에 배포한다."""
+    project_root = tmp_path / "ai-env"
+    source_dir = project_root / ".claude"
+    global_dir = source_dir / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Claude Global")
+    (global_dir / "settings.personal.json.template").write_text("{}")
+
+    rules_dir = source_dir / "rules"
+    rules_dir.mkdir()
+    (rules_dir / "python.md").write_text('---\npaths:\n  - "**/*.py"\n---\n\n# Python rules\n')
+
+    home_dir = tmp_path / "home"
+    target_dir = home_dir / ".claude"
+    personal_dir = home_dir / ".claude-personal"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        results = sync_claude_global_config()
+
+    assert "rules/" in results
+    assert (target_dir / "rules" / "python.md").read_text() == (rules_dir / "python.md").read_text()
+    assert (personal_dir / "rules").is_symlink()
+    assert (personal_dir / "rules").resolve() == (target_dir / "rules").resolve()
+
+
 def test_collect_skill_sources_personal_only(tmp_path):
     """personal skills만 있을 때 수집."""
     project_root = tmp_path / "ai-env"
@@ -632,6 +661,41 @@ def test_sync_codex_global_config(tmp_path, mock_secrets_manager):
     assert agents_md.exists()
     assert "# Global Instructions" in agents_md.read_text()
     assert (target_dir / "skills" / "spec-manager" / "SKILL.md").exists()
+
+
+def test_sync_codex_global_config_includes_rules_and_index(tmp_path, mock_secrets_manager):
+    """Codex는 전역 rule 파일을 미러하고 AGENTS.md에 로딩 인덱스를 기록한다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+
+    rules_dir = project_root / ".claude" / "rules"
+    rules_dir.mkdir()
+    (rules_dir / "commit-message.md").write_text("# Commit rules\n")
+    (rules_dir / "python.md").write_text('---\npaths:\n  - "**/*.py"\n---\n\n# Python rules\n')
+
+    home_dir = tmp_path / "home"
+    target_dir = home_dir / ".codex"
+    personal_dir = home_dir / ".codex-personal"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        results = sync_codex_global_config()
+
+    assert "rules/" in results
+    assert (target_dir / "rules" / "commit-message.md").exists()
+    assert (target_dir / "rules" / "python.md").exists()
+
+    agents_content = (target_dir / "AGENTS.md").read_text()
+    assert "## Global Rule Files" in agents_content
+    assert "`~/.codex/rules/commit-message.md` — always" in agents_content
+    assert "`~/.codex/rules/python.md` — `**/*.py`" in agents_content
+
+    assert (personal_dir / "rules").is_symlink()
+    assert (personal_dir / "rules").resolve() == (target_dir / "rules").resolve()
 
 
 def test_sync_codex_global_config_dry_run(tmp_path, mock_secrets_manager):

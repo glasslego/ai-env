@@ -20,6 +20,7 @@ source ./generated/shell_exports.sh
 Spec-Task-Test-Commit 규칙의 단일 원본(SSOT)은 다음 파일입니다.
 
 - `.claude/global/CLAUDE.md`
+- `.claude/rules/*.md` (주제별·경로별 조건부 규칙)
 
 주요 포함 내용:
 - Spec-Task-Test-Commit 워크플로우
@@ -35,8 +36,8 @@ uv run ai-env sync --claude-only
 ```
 
 동기화 대상:
-- `~/.claude/CLAUDE.md` (Claude Code)
-- `~/.codex/AGENTS.md`, `~/.codex/skills/`, `~/.codex/commands/`, `~/.codex/project-profile.yaml` (Codex CLI)
+- `~/.claude/CLAUDE.md`, `~/.claude/rules/` (Claude Code)
+- `~/.codex/AGENTS.md`, `~/.codex/rules/`, `~/.codex/skills/`, `~/.codex/commands/`, `~/.codex/project-profile.yaml` (Codex CLI)
 
 ## 동작 원리
 
@@ -48,7 +49,8 @@ uv run ai-env sync --claude-only
         ┌────────────────┼────────────────┐
         ▼                ▼                ▼
   Claude Desktop    Codex CLI/Desktop  ~/.claude/
-  Claude Local      ~/.codex/AGENTS.md  (commands, skills, hooks)
+  Claude Local      ~/.codex/AGENTS.md  (commands, rules, skills, hooks)
+                    ~/.codex/rules/
                     ~/.codex/skills/   shell_exports.sh
                     ~/.codex/commands/
                     ~/.codex/project-profile.yaml
@@ -108,10 +110,10 @@ ai-env project sync-codex --project-dir /path/to/repo
 | 대상 | 출력 경로 |
 |------|----------|
 | Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Claude Code (글로벌) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `skills/`, `hooks/` |
+| Claude Code (글로벌) | `~/.claude/settings.json`, `CLAUDE.md`, `commands/`, `rules/`, `skills/`, `hooks/` |
 | Claude Local | `.claude/settings.glocal.json` |
 | Codex Desktop | `~/.codex/codex.config.json` |
-| Codex CLI (글로벌) | `~/.codex/config.toml`, `AGENTS.md`, `skills/`, `commands/`, `project-profile.yaml` |
+| Codex CLI (글로벌) | `~/.codex/config.toml`, `AGENTS.md`, `rules/`, `skills/`, `commands/`, `project-profile.yaml` |
 | Codex Local | `.codex/config.toml`, `.codex/skills`, `.codex/commands`, `.codex/project-profile.yaml` |
 | Shell exports | `generated/shell_exports.sh` |
 
@@ -165,7 +167,7 @@ claude enterprise              # legacy alias: 팀 플랜 프로필로 실행
 - 권한(`permissions`)·`skipDangerousModePermissionPrompt`·hooks·MCP는 두 프로필 모두 동일
   (오직 **로그인 저장 위치만 분리**)
 - 모델 ID는 둘 다 direct Claude Code 형식을 사용한다.
-- 공용 자산(CLAUDE.md/commands/skills/agents/hooks)은 `~/.claude`를 가리키는 심링크로 재사용
+- 공용 자산(CLAUDE.md/commands/rules/skills/agents/hooks)은 `~/.claude`를 가리키는 심링크로 재사용
 - `ai-env sync`가 `~/.claude-personal/settings.json` + 심링크를 생성한다
 - 첫 personal 실행 시 `claude personal`로 개인 계정 로그인이 필요하다
 - `CLAUDE_CODE_PROFILE=personal claude ...`로도 개인 프로필을 기본 선택 가능
@@ -184,7 +186,7 @@ codex enterprise       # 기본 ~/.codex 명시
 ```
 
 - personal: `CODEX_HOME=~/.codex-personal` — `auth.json`(개인 로그인)만 분리 저장
-- 공용 자산(AGENTS.md/skills/commands/agents/config.toml/hooks)은 `~/.codex` 심링크로 재사용
+- 공용 자산(AGENTS.md/rules/skills/commands/agents/config.toml/hooks)은 `~/.codex` 심링크로 재사용
 - `ai-env sync`가 `~/.codex-personal/` 심링크를 생성한다 (auth.json은 절대 심링크 안 함)
 - 첫 personal 실행 시 `codex personal login`으로 개인 계정 로그인 필요
 - `CODEX_CODE_PROFILE=personal codex ...`로도 개인 프로필을 기본 선택 가능

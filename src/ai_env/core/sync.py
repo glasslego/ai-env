@@ -10,6 +10,8 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from .codex_skills import _strip_wrapping_quotes, copy_skill_tree_for_codex
 from .config import get_project_root, load_settings
 from .secrets import get_secrets_manager
@@ -162,6 +164,69 @@ def _sync_file_or_dir(
         return _sync_hooks(src, dst, dry_run, cmux_enabled=cmux_enabled)
     else:
         return _sync_directory(src, dst, dry_run)
+
+
+def _extract_rule_paths(rule_file: Path) -> list[str]:
+    """Claude rule frontmatter에서 조건부 적용 경로를 추출한다.
+
+    Claude Code는 rule frontmatter의 ``paths`` 필드만 해석한다. Codex는
+    동일한 기능이 없으므로 AGENTS.md에 경로 인덱스를 생성할 때 이 값을 사용한다.
+
+    Args:
+        rule_file: Markdown rule 파일.
+
+    Returns:
+        정규화된 glob 목록. frontmatter가 없거나 유효하지 않으면 빈 목록.
+    """
+    content = rule_file.read_text(encoding="utf-8")
+    match = re.match(r"^---\s*\n(.*?)\n---(?:\s*\n|$)", content, re.DOTALL)
+    if not match:
+        return []
+
+    try:
+        frontmatter = yaml.safe_load(match.group(1))
+    except yaml.YAMLError:
+        return []
+    if not isinstance(frontmatter, dict):
+        return []
+
+    paths = frontmatter.get("paths")
+    if isinstance(paths, str):
+        return [path.strip() for path in paths.split(",") if path.strip()]
+    if isinstance(paths, list):
+        return [path for path in paths if isinstance(path, str) and path]
+    return []
+
+
+def _build_rules_index(rules_dir: Path) -> str:
+    """Codex AGENTS.md에 추가할 전역 rule 로딩 인덱스를 생성한다.
+
+    Args:
+        rules_dir: ai-env의 canonical ``.claude/rules`` 디렉토리.
+
+    Returns:
+        AGENTS.md에 추가할 Markdown. rule이 없으면 빈 문자열.
+    """
+    rule_files = sorted(rules_dir.rglob("*.md")) if rules_dir.is_dir() else []
+    if not rule_files:
+        return ""
+
+    lines = [
+        "",
+        "## Global Rule Files",
+        "",
+        "Canonical rules are mirrored under `~/.codex/rules/`. Read every rule marked",
+        "`always` before coding, and read path-matching rules before editing matching files.",
+        "Project-local instructions take precedence when they are more specific.",
+        "",
+    ]
+    for rule_file in rule_files:
+        relative_path = rule_file.relative_to(rules_dir).as_posix()
+        paths = _extract_rule_paths(rule_file)
+        scope = ", ".join(f"`{path}`" for path in paths) if paths else "always"
+        lines.append(f"- `~/.codex/rules/{relative_path}` — {scope}")
+
+    return "\n".join(lines) + "\n"
 
 
 def _update_team_skill_repos(
@@ -864,7 +929,7 @@ def sync_claude_global_config(
     """
     글로벌 Claude Code 설정 동기화
     ai-env/.claude → ~/.claude
-    (CLAUDE.md, commands/, skills/, settings.json, hooks/)
+    (CLAUDE.md, commands/, rules/, skills/, settings.json, hooks/)
 
     cmux_enabled 설정에 따라 cmux 훅을 조건부로 포함/제외한다.
     skills는 ai-env/megan-harness/skills/ (personal)를 동기화한다.
@@ -938,19 +1003,24 @@ def sync_claude_global_config(
     if desc:
         results[desc] = str(target_dir / "commands")
 
-    # 4. agents/ 동기화 (.claude/agents + megan-harness/agents → ~/.claude/agents)
+    # 4. rules/ 동기화 (.claude/rules → ~/.claude/rules)
+    desc, _ = _sync_file_or_dir(source_dir / "rules", target_dir / "rules", dry_run)
+    if desc:
+        results[desc] = str(target_dir / "rules")
+
+    # 5. agents/ 동기화 (.claude/agents + megan-harness/agents → ~/.claude/agents)
     agent_count = _sync_agents_merged(project_root, target_dir / "agents", dry_run)
     if agent_count:
         results[f"agents/ ({agent_count} files)"] = str(target_dir / "agents")
 
-    # 5. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks, cmux 조건부)
+    # 6. hooks/ 동기화 (.claude/hooks → ~/.claude/hooks, cmux 조건부)
     desc, _ = _sync_file_or_dir(
         source_dir / "hooks", target_dir / "hooks", dry_run, cmux_enabled=cmux_enabled
     )
     if desc:
         results[desc] = str(target_dir / "hooks")
 
-    # 6. skills/ 동기화 (personal + team 합쳐서 → ~/.claude/skills)
+    # 7. skills/ 동기화 (personal + team 합쳐서 → ~/.claude/skills)
     desc, _ = _sync_skills_merged(
         project_root, target_dir / "skills", dry_run, skills_include, skills_exclude
     )
@@ -961,7 +1031,7 @@ def sync_claude_global_config(
     # (settings.json은 위에서 personal 전용 내용으로 이미 기록함)
     if (global_dir / "settings.personal.json.template").exists():
         personal_dir = Path.home() / ".claude-personal"
-        for asset in ("CLAUDE.md", "commands", "skills", "agents", "hooks"):
+        for asset in ("CLAUDE.md", "commands", "rules", "skills", "agents", "hooks"):
             if _ensure_symlink(target_dir / asset, personal_dir / asset, dry_run=dry_run):
                 results[f"personal:{asset}"] = str(personal_dir / asset)
 
@@ -1150,6 +1220,7 @@ def sync_codex_global_config(
 
     출력:
     - ~/.codex/AGENTS.md          ← .claude/global/CLAUDE.md + 스킬 인덱스
+    - ~/.codex/rules/             ← .claude/rules + AGENTS.md 로딩 인덱스
     - ~/.codex/skills/            ← .claude/skills + team skills (Codex YAML로 정규화)
     - ~/.agents/skills/           ← 동일 (Codex 0.125+ 통합 스킬 위치)
     - ~/.codex/commands/          ← .claude/commands/ MD 트리 (참조)
@@ -1163,6 +1234,10 @@ def sync_codex_global_config(
 
     # 1) AGENTS.md = CLAUDE.md + 스킬 인덱스
     content = source.read_text(encoding="utf-8")
+    rules_source = project_root / ".claude" / "rules"
+    rules_index = _build_rules_index(rules_source)
+    if rules_index:
+        content = content.rstrip() + "\n" + rules_index
     skills_index = _build_skills_index(
         project_root,
         skills_include,
@@ -1185,7 +1260,12 @@ def sync_codex_global_config(
         _sync_codex_hooks(project_root, agent_root, dry_run, cmux_enabled=settings.cmux_enabled)
     )
 
-    # 2) skills/ — Codex 호환 frontmatter로 정규화하여 ~/.codex/skills 와
+    # 2) rules/ — Claude rules를 참조 자료로 미러하고 AGENTS.md 인덱스로 조건부 로딩
+    desc, _ = _sync_file_or_dir(rules_source, agent_root / "rules", dry_run)
+    if desc:
+        results[desc] = str(agent_root / "rules")
+
+    # 3) skills/ — Codex 호환 frontmatter로 정규화하여 ~/.codex/skills 와
     #    ~/.agents/skills (Codex 0.125+ 통합 위치) 두 곳에 복사
     for skills_dir in (agent_root / "skills", Path.home() / ".agents" / "skills"):
         desc, count = _sync_skills_merged(
@@ -1199,7 +1279,7 @@ def sync_codex_global_config(
         if count:
             results[f"{desc} → {skills_dir}"] = str(skills_dir)
 
-    # 3) commands/ — Claude 슬래시 커맨드 정의 트리를 참조 자료로 미러
+    # 4) commands/ — Claude 슬래시 커맨드 정의 트리를 참조 자료로 미러
     src_commands = project_root / ".claude" / "commands"
     if src_commands.is_dir():
         dst_commands = agent_root / "commands"
@@ -1207,13 +1287,13 @@ def sync_codex_global_config(
         if md_count:
             results[f"commands/ ({md_count} files)"] = str(dst_commands)
 
-    # 4) agents/ — Claude agent definitions as shared reference material
+    # 5) agents/ — Claude agent definitions as shared reference material
     dst_agents = agent_root / "agents"
     agent_count = _sync_agents_merged(project_root, dst_agents, dry_run)
     if agent_count:
         results[f"agents/ ({agent_count} files)"] = str(dst_agents)
 
-    # 5) project-profile.yaml — 그대로 복사
+    # 6) project-profile.yaml — 그대로 복사
     src_profile = project_root / ".claude" / "project-profile.yaml"
     if src_profile.is_file():
         dst_profile = agent_root / "project-profile.yaml"
@@ -1222,7 +1302,7 @@ def sync_codex_global_config(
             shutil.copy2(src_profile, dst_profile)
         results["project-profile.yaml"] = str(dst_profile)
 
-    # 6) personal 프로필 미러 (~/.codex-personal)
+    # 7) personal 프로필 미러 (~/.codex-personal)
     # `codex personal`은 CODEX_HOME=~/.codex-personal로 별도 auth.json(개인 계정)만
     # 분리하고, 공용 자산(AGENTS.md/skills/commands/agents/config.toml 등)은 ~/.codex를
     # 심링크로 재사용한다. auth.json은 절대 심링크하지 않아 계정이 섞이지 않게 한다.
@@ -1235,6 +1315,7 @@ def sync_codex_global_config(
     generated_later = {"config.toml"}
     for asset in (
         "AGENTS.md",
+        "rules",
         "skills",
         "commands",
         "agents",

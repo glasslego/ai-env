@@ -18,11 +18,13 @@ AI 에이전트(Claude, Codex)가 이 저장소에서 수행해야 할 역할과
 전체 에이전트 공용 기준의 단일 원본(SSOT)은 아래 파일이다.
 
 - `ai-env/.claude/global/CLAUDE.md`
+- `ai-env/.claude/rules/*.md` (주제별·경로별 조건부 규칙)
 
 이 파일은 `ai-env sync`로 각 에이전트 글로벌 설정으로 배포된다.
 
 - Claude Code: `~/.claude/CLAUDE.md`
-- Codex CLI: `~/.codex/AGENTS.md`, `~/.codex/skills/`
+- Claude Code rules: `~/.claude/rules/`
+- Codex CLI: `~/.codex/AGENTS.md`, `~/.codex/rules/`, `~/.codex/skills/`
 
 공용 필수 규칙:
 - Spec 기준으로 Task를 먼저 확정한다.

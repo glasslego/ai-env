@@ -3,7 +3,7 @@ id: SPEC-003
 title: Claude Global Sync & Skills Management
 status: implemented
 created: 2025-06-01
-updated: 2026-02-13
+updated: 2026-09-29
 ---
 
 # SPEC-003: Claude Global Sync & Skills Management
@@ -12,7 +12,7 @@ updated: 2026-02-13
 
 `ai-env sync` 명령은 ai-env 프로젝트의 `.claude/` 디렉토리에 있는 설정 소스를 `~/.claude/`로 동기화하여, 모든 프로젝트에서 일관된 Claude Code 글로벌 설정을 유지한다.
 
-동기화 대상은 4가지이며, skills 동기화는 personal 스킬과 team 스킬을 병합하는 독립적인 정책을 갖는다.
+동기화 대상은 5가지이며, skills 동기화는 personal 스킬과 team 스킬을 병합하는 독립적인 정책을 갖는다.
 
 ### 핵심 설계 원칙
 
@@ -20,14 +20,15 @@ updated: 2026-02-13
 - **Personal-first**: 기본 동기화는 개인 스킬만 포함 (팀 스킬은 opt-in)
 - **안전한 기본값**: `--dry-run`으로 사전 확인 가능, 시크릿은 `${VAR}` 치환으로 분리 관리
 
-## 2. 동기화 대상 4가지
+## 2. 동기화 대상 5가지
 
 | # | 항목 | 소스 (ai-env) | 타겟 (~/.claude) | 동기화 전략 |
 |---|------|---------------|------------------|-------------|
 | 1 | CLAUDE.md | `.claude/global/CLAUDE.md` | `~/.claude/CLAUDE.md` | 단일 파일 복사 |
 | 2 | settings.json | `.claude/global/settings.json.template` | `~/.claude/settings.json` | 템플릿 치환 후 생성 |
 | 3 | commands/ | `.claude/commands/*.md` | `~/.claude/commands/` | .md 파일만 복사 |
-| 4 | skills/ | personal + team 병합 | `~/.claude/skills/` | 서브디렉토리 단위 복사 |
+| 4 | rules/ | `.claude/rules/**/*.md` | `~/.claude/rules/` | 디렉토리 전체 교체 |
+| 5 | skills/ | personal + team 병합 | `~/.claude/skills/` | 서브디렉토리 단위 복사 |
 
 ### 2.1 CLAUDE.md 동기화
 
@@ -69,6 +70,19 @@ personal skills + team skills  -->  ~/.claude/skills/
 
 - 가장 복잡한 동기화 로직으로, 별도 섹션(3장)에서 상세 설명
 - personal 스킬은 항상 포함, team 스킬은 CLI 옵션에 따라 opt-in
+
+### 2.5 rules/ 동기화
+
+```
+ai-env/.claude/rules/  -->  ~/.claude/rules/
+                         ~/.codex/rules/
+```
+
+- Claude Code는 `paths` frontmatter를 네이티브로 해석해 필요한 rule만 조건부 로드한다.
+- Codex는 rule 디렉토리 자동 로딩 기능이 없으므로 `~/.codex/AGENTS.md`에 파일별
+  적용 경로 인덱스를 생성하고, 원문은 `~/.codex/rules/`에 미러한다.
+- team/personal 프로필은 각 기본 프로필의 rules 디렉토리를 심링크로 공유한다.
+- `globs`는 Claude Code가 해석하지 않으므로 조건부 규칙은 반드시 `paths`를 사용한다.
 
 ## 3. Skills 동기화 정책
 
@@ -183,7 +197,10 @@ ai-env sync [옵션]
      |--- 3. commands/ 동기화
      |       .claude/commands/*.md -> ~/.claude/commands/
      |
-     |--- 4. skills/ 병합 동기화
+     |--- 4. rules/ 동기화
+     |       .claude/rules/ -> ~/.claude/rules/, ~/.codex/rules/
+     |
+     |--- 5. skills/ 병합 동기화
      |       _collect_skill_sources()
      |         -> personal: .claude/skills/
      |         -> team: cde-*skills/ (옵션에 따라)
@@ -369,6 +386,9 @@ ai-env/
       sync.md
       review.md
       ...
+    rules/                         # 글로벌 경로별 rule SSOT
+      python-coding-standards.md
+      sql-standards.md
     skills/                        # personal 스킬 (fallback)
       jira-weekly-update/
         SKILL.md
@@ -398,6 +418,9 @@ ai-env/
     commit.md
     sync.md
     ...
+  rules/
+    python-coding-standards.md
+    sql-standards.md
   skills/
     agit-search/                   # personal 스킬
       SKILL.md
@@ -416,6 +439,7 @@ ai-env/
 | `src/ai_env/core/secrets.py` | `SecretsManager.substitute()` (${VAR} 치환) |
 | `src/ai_env/cli.py` | `sync()` CLI 명령 (Click) |
 | `.claude/global/CLAUDE.md` | 글로벌 CLAUDE.md 소스 |
+| `.claude/rules/` | Claude/Codex 글로벌 조건부 rule 소스 |
 | `.claude/global/settings.json.template` | settings.json 템플릿 |
 | `.claude/commands/` | 슬래시 커맨드 소스 |
 
@@ -427,3 +451,10 @@ ai-env/
 4. **commands/ 누적**: 기존 `~/.claude/commands/`에 있던 파일 중 소스에 없는 것은 삭제되지 않음 (누적됨)
 5. **skills/ 누적**: 마찬가지로 소스에 없는 스킬 디렉토리는 타겟에 남아 있음 (명시적 삭제 필요)
 6. **macOS 전용 경로**: outputs 설정의 Desktop 앱 경로가 `~/Library/Application Support/`로 macOS 기준
+
+## 10. 전역 rules 확장 Task (2026-09-29)
+
+- [x] Task-global-rules: kamek-batch의 7개 rule을 ai-env SSOT로 이관하고,
+  Claude/Codex team·personal 프로필 전체에 동기화한다.
+- 검증: Claude native rules 복사, Codex rules 미러 + AGENTS.md 인덱스,
+  personal 프로필 심링크를 pytest로 확인한다.
