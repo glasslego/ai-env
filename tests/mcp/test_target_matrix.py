@@ -40,7 +40,6 @@ def test_known_unstable_servers_not_targeted_to_codex():
     excluded_for_codex = [
         "github",
         "github-kakao",
-        "jira-wiki-mcp",
         "kkoto-mcp",
         "cdp-mcp-server",
         "mem0",
@@ -50,6 +49,12 @@ def test_known_unstable_servers_not_targeted_to_codex():
         assert server_name in mcp_config.mcp_servers
         server = mcp_config.mcp_servers[server_name]
         assert "codex" not in server.targets
+
+
+def test_replaced_jira_wiki_mcp_is_not_configured():
+    """Jira 및 Wiki는 cde-skills로 제공하므로 기존 MCP를 생성하지 않는다."""
+    mcp_config = load_mcp_config()
+    assert "jira-wiki-mcp" not in mcp_config.mcp_servers
 
 
 def test_no_dropped_targets_remain():

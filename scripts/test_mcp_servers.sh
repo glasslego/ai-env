@@ -171,8 +171,6 @@ if [ -f ".env" ]; then
     check_env_var "OPENAI_API_KEY"
     check_env_var "GOOGLE_API_KEY"
     check_env_var "GITHUB_GLASSLEGO_TOKEN"
-    check_env_var "JIRA_TOKEN"
-    check_env_var "WIKI_TOKEN"
     check_env_var "NOTION_API_TOKEN"
 
     results+=("env:OK")

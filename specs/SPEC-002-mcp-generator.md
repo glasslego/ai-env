@@ -8,6 +8,11 @@ updated: 2026-02-13
 
 # SPEC-002: MCP Config Generator
 
+## Task: remove-legacy-jira-wiki-mcp (2026-10-02)
+
+Jira와 Wiki 접근은 각각 cde-skills `development/jira`, `productivity/wiki`로 제공한다.
+`jira-wiki-mcp`는 MCP 생성 대상과 활성 클라이언트 설정에서 제거한다.
+
 ## 개요
 
 `MCPConfigGenerator`는 하나의 MCP 서버 정의(`config/mcp_servers.yaml`)로부터 6개 AI 도구 타겟의 설정 파일을 자동 생성한다. 각 타겟의 고유 포맷(JSON, TOML)과 제약사항(Desktop은 stdio만, Codex는 permissions 기반 등)을 처리한다.
@@ -82,7 +87,7 @@ ENV_KEY_MAPPING = {
 #### generate_claude_desktop() -> dict
 
 ```json
-{"mcpServers": {"github": {...}, "jira-wiki-mcp": {...}, ...}}
+{"mcpServers": {"github": {...}, "playwright": {...}, ...}}
 ```
 
 stdio 서버만 지원 (Desktop 앱 제약).
@@ -221,7 +226,6 @@ CODEX_DEFAULT_STARTUP_TIMEOUT_SEC = 30
 |------|-----------|:-:|:-:|:-:|:-:|:-:|:-:|
 | github | docker | O | O | O | O | | O |
 | github-kakao | docker | O | O | O | O | | O |
-| jira-wiki-mcp | docker | O | O | O | O | | O |
 | playwright | npx | O | O | O | O | O | O |
 | desktop-commander | npx | O | O | O | O | O | O |
 | brave-search | npx | O | O | O | O | O | O |
@@ -246,7 +250,6 @@ CODEX_DEFAULT_STARTUP_TIMEOUT_SEC = 30
 |------|:-------------------:|
 | github | 45 |
 | github-kakao | 45 |
-| jira-wiki-mcp | 60 |
 | desktop-commander | 60 |
 | mem0 | 30 |
 | kkoto-mcp | 30 |
@@ -269,11 +272,11 @@ CODEX_DEFAULT_STARTUP_TIMEOUT_SEC = 30
 ```
 config/mcp_servers.yaml의 args:
   - "-e"
-  - "JIRA_URL=${JIRA_URL}"
+  - "GITHUB_HOST=${GITHUB_HOST}"
        ↓ _substitute_env()
   SecretsManager.substitute()
        ↓ (.env → os.environ 순서 조회)
-  "JIRA_URL=https://jira.example.com"
+  "GITHUB_HOST=https://github.example.com"
 ```
 
 ```

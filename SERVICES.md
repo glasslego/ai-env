@@ -9,11 +9,9 @@ ai-env에서 관리하는 MCP 서버 목록. 설정: `config/mcp_servers.yaml`
 | **github** | Public GitHub (glasslego) | `GITHUB_GLASSLEGO_TOKEN` | 개인 프로젝트, 오픈소스 |
 | **github-kakao** | Kakao Enterprise GitHub | `GITHUB_TOKEN` | 회사 업무, 내부 프로젝트 |
 
-## Atlassian
+## Jira 및 Wiki
 
-| 서버 | 환경변수 | 용도 |
-|------|---------|------|
-| **jira-wiki-mcp** | `JIRA_URL`, `JIRA_TOKEN`, `WIKI_BASE_URL`, `WIKI_TOKEN` | 이슈 관리, 문서 검색/작성 |
+Jira는 cde-skills `development/jira`, Wiki는 `productivity/wiki` 스킬을 사용합니다.
 
 ## 개발 도구
 

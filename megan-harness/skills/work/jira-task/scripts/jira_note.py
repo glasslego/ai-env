@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Jira ↔ vault note sync (megan vault convention).
 
-이 스크립트는 Jira API 를 **직접 호출하지 않는다**. 다음 의존성 중 하나가
+이 스크립트는 Jira API 를 **직접 호출하지 않는다**. 다음 의존성이
 설치/인증된 환경을 가정한다:
 
-  1) cde-skills/development/jira 서브스킬 (glob: ~/.claude/skills/development/jira/scripts)
-  2) jira-wiki-mcp (글로벌 MCP)
+  1) cde-skills/development/jira 서브스킬
 
 스크립트는 vault note 의 frontmatter 컨벤션·body 레이아웃을 강제하고,
 실제 Jira fetch/update 호출은 위 의존성에 위임한다.
@@ -117,12 +116,23 @@ def jira_dependency_check() -> list[str]:
         / "jira"
         / "scripts",
         Path.home() / "work" / "cde" / "cde-skills" / "skills" / "development" / "jira" / "scripts",
+        Path.home()
+        / "work"
+        / "cde"
+        / "cde-skills"
+        / "plugins"
+        / "cde-skills"
+        / "skills"
+        / "development"
+        / "jira"
+        / "scripts",
     ]
+    plugin_cache = Path.home() / ".codex" / "plugins" / "cache" / "cde" / "cde-skills"
+    candidates.extend(plugin_cache.glob("*/skills/development/jira/scripts"))
     for p in candidates:
         if p.exists() and any(p.glob("jira_*.py")):
             out.append(str(p))
             break
-    # MCP 등록 여부는 Claude 가 직접 판단 (settings.json 검사는 skill 책임 X)
     return out
 
 
@@ -173,7 +183,6 @@ def main() -> int:
         print(f"  ✓ cde-skills development/jira 발견: {deps[0]}")
     else:
         print("  ✗ cde-skills development/jira 미발견.")
-        print("  대안: jira-wiki-mcp 가 글로벌 MCP 로 등록되어 있으면 Claude 가 호출 가능.")
     print()
     print(f"mode={args.mode} 는 Phase 2.5 에서 wiring 예정.")
     print("현재 단계: vault skeleton 만 생성. 실제 Jira pull/push 는 in-conversation 에서")

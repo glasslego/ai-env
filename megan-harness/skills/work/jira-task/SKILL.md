@@ -1,6 +1,6 @@
 ---
 name: jira-task
-description: Jira 이슈 ↔ Obsidian vault `1X_업무카카오/jira/{KEY}.md` 양방향 노트 동기화. 사용자가 "/jira <KEY>", "지라 만들어줘", "지라 업데이트", "JIRA-123 노트로 만들어" 를 말하면 트리거. Jira API 직접 호출은 하지 않고 이미 설치된 jira-wiki-mcp 또는 cde-skills `development/jira` 서브스킬을 wrap.
+description: Jira 이슈 ↔ Obsidian vault `1X_업무카카오/jira/{KEY}.md` 양방향 노트 동기화. 사용자가 "/jira <KEY>", "지라 만들어줘", "지라 업데이트", "JIRA-123 노트로 만들어" 를 말하면 트리거. Jira API 직접 호출은 하지 않고 cde-skills `development/jira` 서브스킬을 사용한다.
 ---
 
 # Jira Task
@@ -8,7 +8,7 @@ description: Jira 이슈 ↔ Obsidian vault `1X_업무카카오/jira/{KEY}.md` �
 > Origin: jackie-skills/jira-create + jira-update 통합. 단순화 + vault 컨벤션 통일.
 >
 > Vault note: `~/Documents/Obsidian Vault/1X_업무카카오/jira/{KEY}.md`
-> Jira 접근: jira-wiki-mcp (글로벌 MCP) 또는 cde-skills `/jira` (development 서브스킬).
+> Jira 접근: cde-skills `development/jira` 서브스킬.
 
 ## When to invoke
 
@@ -74,9 +74,8 @@ url: https://jira.kakaocorp.com/browse/CDE-1234
 
 ## 구현 의존성
 
-- `cde-skills` 의 `data/development/jira/scripts/jira_*.py` (이미 글로벌 sync 됨)
-- 또는 글로벌 MCP `jira-wiki-mcp` (settings.json `mcpServers` 등록)
-- 위 둘 다 없으면 SKILL 이 안내 후 종료 (megan-skills 자체는 Jira API 안 가짐)
+- `cde-skills` 의 `development/jira` 서브스킬
+- 스킬이 없으면 안내 후 종료 (megan-skills 자체는 Jira API 안 가짐)
 
 ## 트리거 우선순위
 

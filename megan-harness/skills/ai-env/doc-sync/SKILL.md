@@ -56,7 +56,7 @@ description: |
 - [OK] 환경변수 치환 설명
 
 ### SERVICES.md
-- [MISMATCH] 환경변수: JIRA_PERSONAL_TOKEN → JIRA_TOKEN
+- [MISMATCH] MCP 서버 목록: 제거된 서버가 SERVICES.md에 남아 있음
 - [OK] MCP 서버 목록
 ```
 

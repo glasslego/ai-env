@@ -47,34 +47,6 @@ mcp_servers:
       - codex_desktop
       - claude_local
 
-  jira-wiki-mcp:
-    enabled: true
-    type: stdio
-    startup_timeout_sec: 60
-    command: docker
-    args:
-      - run
-      - --rm
-      - -i
-      - -e
-      - JIRA_URL=${JIRA_URL}
-      - -e
-      - JIRA_PERSONAL_TOKEN=${JIRA_TOKEN}
-      - -e
-      - CONFLUENCE_URL=${WIKI_BASE_URL}
-      - -e
-      - CONFLUENCE_PERSONAL_TOKEN=${WIKI_TOKEN}
-      - ghcr.io/sooperset/mcp-atlassian:latest
-    env_keys:
-      - JIRA_URL
-      - JIRA_TOKEN
-      - WIKI_BASE_URL
-      - WIKI_TOKEN
-    targets:
-      - claude_desktop
-      - codex_desktop
-      - claude_local
-
   # === NPX 기반 서버 ===
   playwright:
     enabled: true

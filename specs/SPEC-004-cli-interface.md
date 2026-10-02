@@ -56,7 +56,7 @@ ai-env                     # Click group (root)
 |------|------|
 | 옵션 | 없음 |
 | 검증 단계 | 1) `.env` 파일 존재 확인 2) 필수 환경변수 카테고리별 체크 3) MCP 서버 활성화 현황 |
-| 필수 변수 카테고리 | AI API Keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`), GitHub (`GITHUB_GLASSLEGO_TOKEN`), Jira/Wiki (`JIRA_URL`, `JIRA_TOKEN`, `WIKI_BASE_URL`, `WIKI_TOKEN`) |
+| 필수 변수 카테고리 | AI API Keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`), GitHub (`GITHUB_GLASSLEGO_TOKEN`) |
 | 동작 | `.env` 미존재 시 생성 안내 후 조기 종료. 존재 시 전체 점검 후 다음 단계 안내 |
 
 #### `ai-env status`

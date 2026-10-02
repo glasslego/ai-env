@@ -191,17 +191,18 @@ from pyspark.sql import functions as F  # 항상 F로 alias
 ## 🌐 MCP 서버 사용
 
 ### 사용 가능한 MCP
-- **jira-wiki-mcp**: Jira 이슈/Confluence 페이지 조회
 - **github**: GitHub Enterprise 연동
 - **playwright**: 브라우저 자동화/프론트엔드 테스트
 - **kkoto-mcp**: Kakao 내부 서비스
 - **cdp-mcp-server**: CDP 데이터 접근
 
+Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `productivity/wiki` 스킬을 사용한다.
+
 ### MCP 승인 팁
 특정 MCP의 모든 기능을 영구 승인하려면 settings.json에서 이름만 추가:
 ```json
 "permissions": {
-  "allow": ["mcp__jira-wiki-mcp"]
+  "allow": ["mcp__server-name"]
 }
 ```
 

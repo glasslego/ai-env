@@ -191,7 +191,7 @@ CODEX_PERMISSION_ENV = {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}
 
 | 문제 | 해결 |
 |------|------|
-| Docker 기반 MCP 서버(github, jira-wiki-mcp 등)는 컨테이너 기동에 시간과 리소스 소모 | Claude Code가 이미 기동한 서버를 공유하여 중복 제거 |
+| Docker 기반 MCP 서버(github 등)는 컨테이너 기동에 시간과 리소스 소모 | Claude Code가 이미 기동한 서버를 공유하여 중복 제거 |
 | 클라우드 메모리(mem0) 등 인증이 필요한 서버의 시크릿 관리 | Claude Code 세션의 인증 정보를 재사용 |
 | SSE 기반 사내 서버(kkoto-mcp, cdp-mcp-server)의 접근 | Claude Code를 통해 간접 접근 |
 | 서버 수가 많아질수록 Codex 기동 시간 증가 | 필수 서버만 직접 연결하여 기동 시간 최소화 |
@@ -225,7 +225,6 @@ Docker 기반이거나, 인증이 복잡하거나, SSE 전용인 서버:
 |------|------|-----------|
 | `github` | Docker (stdio) | Docker 컨테이너 기동 비용, 토큰 매핑 필요 |
 | `github-kakao` | Docker (stdio) | Docker + 사내 GitHub Enterprise 인증 |
-| `jira-wiki-mcp` | Docker (stdio) | Docker + 다수 환경변수(Jira/Confluence) 필요 |
 | `mem0` | npx (stdio) | 클라우드 메모리 API 키 관리를 Claude Code에 위임 |
 | `kkoto-mcp` | SSE | 사내 SSE 서버, Claude Code를 통해 접근 |
 | `cdp-mcp-server` | SSE | 사내 SSE 서버, Claude Code를 통해 접근 |

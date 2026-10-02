@@ -49,7 +49,7 @@ ai-env/.claude/global/settings.json.template  -->  ~/.claude/settings.json
 
 - `settings.json.template` 파일 내의 `${VAR}` 플레이스홀더를 SecretsManager가 실제 값으로 치환
 - 치환 우선순위: `.env` 파일 > `os.environ` 환경변수
-- 치환 대상 예시: `${GITHUB_GLASSLEGO_TOKEN}`, `${JIRA_URL}`, `${BRAVE_API_KEY}` 등
+- 치환 대상 예시: `${GITHUB_GLASSLEGO_TOKEN}`, `${BRAVE_API_KEY}` 등
 - 템플릿에는 permissions (allow/deny 규칙)와 mcpServers (MCP 서버 설정) 포함
 
 ### 2.3 commands/ 동기화

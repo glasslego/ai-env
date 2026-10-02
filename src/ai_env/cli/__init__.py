@@ -101,12 +101,6 @@ def setup() -> None:
     required_vars = {
         "AI API Keys": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
         "GitHub": ["GITHUB_GLASSLEGO_TOKEN"],
-        "Jira/Wiki": [
-            "JIRA_URL",
-            "JIRA_TOKEN",
-            "WIKI_BASE_URL",
-            "WIKI_TOKEN",
-        ],
     }
 
     for category, vars_list in required_vars.items():
