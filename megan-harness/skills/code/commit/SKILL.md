@@ -39,8 +39,8 @@ description: 변경사항을 task(기능) 단위로 나눠 spec/task 컨벤션 �
 - 프로젝트별 규칙이 없으면 `<type>(spec-<id>/task-<id>): <summary>` 를 사용한다.
   - 예: `refactor(spec-narrow/task-scope): ai-env를 Claude/Codex 설정 동기화 전용으로 축소`
 - 공유 파일이 여러 작업에 걸쳤으면 어느 커밋에 묶였는지 본문에 명시한다.
-- AI 표기는 실제 에이전트를 기준으로 한다. Claude는 프로젝트 규칙의
-  `Co-Authored-By: {모델명}`을 사용하고, Codex는 마지막 줄을 `by codex`로 둔다.
+- AI 표기는 실제 에이전트를 기준으로 한다. Claude와 Codex 모두 프로젝트 규칙의
+  `Co-Authored-By: {실제 에이전트명} {실제 모델명}`을 사용한다.
 
 ## 4. pre-commit 자동수정 재-stage 루프
 pre-commit(ruff `--fix`, ruff-format, end-of-file-fixer 등)이 파일을 고치면 커밋이 exit≠0 로 **중단**된다:
