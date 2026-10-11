@@ -244,6 +244,14 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 
 ---
 
+## 팀 스킬 정본 (2026-10-12)
+
+- 랭킹 스킬 정본은 `/Users/megan/work/cde/cde-ranking-skills/.claude/skills/`의 `develop`이다.
+- `~/.claude/skills/`, `~/.codex/skills/`, `~/.agents/skills/`는 활성 팀 스킬 원본을 링크한다. 현재 SKILL.md를 읽고 archive와 오래된 개인 사본은 사용하지 않는다.
+- 랭킹 helper는 정본 저장소의 `.venv/bin/python`으로 실행한다. `_shared`와 `lib` 의존성을 보존한다.
+- 랭킹 카탈로그는 정본 `README.md`를 따른다. `spark-optimize` → `spark-debug` optimize, `self-review` → `pr-digest` self, `ranking-batch-task-execution` → `ranking-develop` ops로 연결한다.
+- cde-skills 카테고리는 `/Users/megan/work/cde/cde-skills/plugins/cde-skills/skills/`를 사용한다. 나머지 개인 스킬의 기존 우선순위는 유지한다.
+
 ## 🤖 Codex 자동 실행 (Full Auto)
 
 - 기본 실행은 Codex 기준으로 한다.

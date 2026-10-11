@@ -385,6 +385,53 @@ def test_sync_skills_merged(tmp_path):
     assert (dst / "trino-analyst" / "SKILL.md").exists()
 
 
+def test_sync_canonical_ranking_overrides_copy_without_changing_source(tmp_path: Path) -> None:
+    """개인 사본 대신 정본 링크를 쓰고 재동기화해도 공유 런타임을 보존한다."""
+    project = tmp_path / "ai-env"
+    personal = project / "megan-harness/skills/ranking/spark-debug"
+    personal.mkdir(parents=True)
+    (personal / "SKILL.md").write_text("old personal")
+    repo = tmp_path / "ranking"
+    skill = repo / ".claude/skills/spark-debug"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("canonical")
+    shared = repo / ".claude/skills/_shared"
+    shared.mkdir()
+    (shared / "runtime.py").write_text("shared runtime")
+    (project / "cde-ranking-skills").symlink_to(repo)
+    dst = tmp_path / "installed"
+    stale = dst / "old-skill"
+    dst.mkdir()
+    stale.symlink_to(personal)
+    for _ in range(2):
+        _sync_skills_merged(project, dst, dry_run=False)
+        assert (dst / "spark-debug").is_symlink()
+        assert (dst / "spark-debug").resolve() == skill
+        assert (dst / "spark-debug").resolve().parent.joinpath("_shared/runtime.py").is_file()
+        assert (skill / "SKILL.md").read_text() == "canonical"
+        assert (personal / "SKILL.md").read_text() == "old personal"
+        assert not stale.is_symlink()
+
+
+def test_sync_plugin_category_overrides_personal_and_preserves_dry_run(tmp_path: Path) -> None:
+    """공식 카테고리 스킬은 플러그인 런타임으로 연결하고 dry-run은 쓰지 않는다."""
+    project = tmp_path / "ai-env"
+    personal = project / "megan-harness/skills/data/data"
+    personal.mkdir(parents=True)
+    (personal / "SKILL.md").write_text("old")
+    repo = tmp_path / "team"
+    category = repo / "plugins/cde-skills/skills/data"
+    category.mkdir(parents=True)
+    (category / "SKILL.md").write_text("current")
+    (project / "cde-skills").symlink_to(repo)
+    dst = tmp_path / "installed"
+    _sync_skills_merged(project, dst, dry_run=True)
+    assert not dst.exists()
+    _sync_skills_merged(project, dst, dry_run=False)
+    assert (dst / "data").is_symlink()
+    assert (dst / "data").resolve() == category
+
+
 def _git(cwd: Path, *args: str) -> None:
     """Run git for sync tests."""
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)

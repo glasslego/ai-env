@@ -60,7 +60,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE/streamable-http) |
 | `core/codex_skills.py` | Codex 호환 스킬 패키징 (SKILL.md frontmatter 정규화) |
 | `mcp/vibe.py` | Agent Fallback 셸 함수 생성 (`claude()` wrapper) |
-| `core/env_example.py` | `.env.example` 자동 생성 — mcp_servers.yaml + settings.yaml 기반 |
+| `core/env_example.py` | `.env.example` 자동 생성 — MCP/provider 설정 + 팀 스킬 템플릿·코드의 변수 이름 수집 |
 | `core/bedrock.py` | Claude Code on Bedrock setup helpers. |
 | `cli/` | Click CLI + Rich UI (bedrock, doctor, generate, project, status, sync) |
 
@@ -101,16 +101,19 @@ team 스킬(`cde-*skills`)은 `--skills-include`/`--skills-exclude` 옵션을 �
 ```
 개인:   megan-harness/skills/{category}/{skill}/   (카테고리 무관 재귀 스캔)
 팀:     cde-*skills/ (symlink) → SKILL.md 가진 서브디렉토리만
-                ↓ 병합 (이름 충돌 시 개인 우선 = first-wins)
+                ↓ 병합 (활성 팀 정본 우선, 나머지는 개인 우선)
           ~/.claude/skills/  ·  ~/.codex/skills/  ·  ~/.agents/skills/
 에이전트: megan-harness/agents/  →  ~/.claude/agents/  ·  ~/.codex/agents/
 ```
 
-**오버라이드 방향**: 같은 스킬 이름이 개인·팀 양쪽에 있으면 **개인(megan-harness)이 이긴다**
-(`_collect_skill_sources`가 개인을 먼저 수집, 이름 기준 first-wins). 팀 스킬은 개인에 없는 이름만 병합된다.
+활성 cde-skills 플러그인 카테고리와 cde-ranking-skills 정본은 개인 사본보다 우선하며 원본 디렉토리에 심링크한다. 다른 이름 충돌은 기존 개인 우선 정책을 따른다.
 
 `--skills-all`로 모든 팀 스킬을 포함하거나, `--skills-include`/`--skills-exclude`로 선택적 동기화 가능.
 팀 스킬 포함 시(`--skills-all` 등) 동기화 전에 각 `cde-*skills` 레포의 `develop` 브랜치를 자동 `git pull`한다.
+
+활성 팀 스킬은 원본을 링크하므로 `_shared`와 repo `lib`의 상대경로를 유지한다. 랭킹 helper는 cde-ranking-skills의 `.venv/bin/python`으로 실행한다. 통합 별칭 `spark-optimize`, `self-review`, `ranking-batch-task-execution`의 옛 개인 사본은 다시 배포하지 않는다.
+
+팀 환경변수는 `.env.example`의 주석 placeholder로 기록한다. 필요한 기능만 주석을 해제하고 값을 설정한다. 모든 팀 변수가 필수는 아니며, 예시 토큰·비밀번호는 복사하지 않는다. 실제 `.env`의 값은 수정 시에도 출력하거나 커밋하지 않는다.
 
 ### Agent Fallback (claude --fallback)
 
@@ -168,7 +171,7 @@ Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`�
 `ai-env sync` 1회 실행으로 Codex CLI도 Claude의 다음 자산을 사용한다:
 
 - `~/.codex/AGENTS.md` — Claude 글로벌 지침 + 스킬 인덱스
-- `~/.codex/skills/` — SKILL.md frontmatter strict YAML로 정규화된 복사본
+- `~/.codex/skills/` — 활성 팀 스킬은 정본 심링크, 개인 스킬은 YAML 정규화 사본
 - `~/.codex/commands/` — `.claude/commands/*.md` 트리 미러 (참조용)
 - `~/.codex/project-profile.yaml` — 프로젝트 프로파일 미러
 

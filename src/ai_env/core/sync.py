@@ -346,7 +346,9 @@ def _skill_copy_ignore(directory: str, names: list[str]) -> set[str]:
 
 def safe_copy_skill_tree(src: Path, dst: Path) -> None:
     """스킬 디렉토리를 복사하되 캐시와 큰 생성 산출물은 제외."""
-    if dst.exists():
+    if dst.is_symlink():
+        dst.unlink()
+    elif dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(src, dst, ignore=_skill_copy_ignore)
 
@@ -517,7 +519,7 @@ def _collect_skill_sources(
 ) -> list[Path]:
     """스킬 소스 디렉토리 수집 (개인 harness + always-team + optional team)
 
-    수집 순서 (이름 충돌 시 먼저 수집된 것이 이김 = 개인 우선):
+    수집 순서 (일반 충돌은 개인 우선, 활성 팀 정본은 개인 사본을 교체):
       1) 개인:   ai-env/megan-harness/skills/**/<skill>/  (카테고리 무관 재귀)
       2) always: ALWAYS_TEAM_SKILLS — skills_exclude 로만 제외
       3) team:   skills_include / skills_exclude 옵션이 있을 때만 cde-*skills 스캔
@@ -530,14 +532,14 @@ def _collect_skill_sources(
         prepare_team_rebase: True면 cde-ranking 작업 브랜치용 rebase worktree를 준비한다.
 
     Returns:
-        스킬 서브디렉토리 경로 리스트 (스킬 이름 기준 dedup, 개인 우선)
+        스킬 서브디렉토리 경로 리스트 (스킬 이름 기준 dedup, 활성 팀 정본 우선)
     """
     sources: list[Path] = []
     seen: set[str] = set()
 
     def _add(skill: Path) -> None:
         # 스킬 이름(basename) 기준 first-wins: 먼저 수집된 소스가 이긴다.
-        # 개인(megan-harness)을 가장 먼저 수집하므로 팀 스킬과 이름이 겹치면 개인이 이긴다.
+        # 활성 팀 레이아웃의 우선순위는 _scan_team_link에서 별도로 적용한다.
         if skill.name in seen:
             return
         seen.add(skill.name)
@@ -548,10 +550,13 @@ def _collect_skill_sources(
         scan_dir = _resolve_team_skill_root(repo)
         for d in sorted(scan_dir.iterdir()):
             if d.is_dir() and not d.name.startswith((".", "_")) and (d / "SKILL.md").exists():
+                if _is_canonical_team_skill(d) and d.name in seen:
+                    sources[:] = [source for source in sources if source.name != d.name]
+                    seen.remove(d.name)
                 _add(d)
 
     # 1) 개인 스킬 — ai-env/megan-harness/skills/ (카테고리 무관 재귀 스캔)
-    #    가장 먼저 수집 → 이름 충돌 시 팀(cde-*) 스킬보다 개인이 우선.
+    #    일반 충돌은 개인 우선. 활성 팀 정본은 아래에서 교체한다.
     harness_skills = project_root / "megan-harness" / "skills"
     for skill in _iter_skill_dirs(harness_skills):
         _add(skill)
@@ -564,6 +569,21 @@ def _collect_skill_sources(
         if not link.exists():
             continue
         _scan_team_link(link)
+
+    # 통합된 랭킹 별칭의 옛 개인 구현은 활성 스킬로 다시 배포하지 않는다.
+    ranking_root = project_root / CDE_RANKING_SKILLS / ".claude" / "skills"
+    if ranking_root.is_dir() and CDE_RANKING_SKILLS not in (skills_exclude or []):
+        aliases = {
+            "spark-optimize": "spark-debug",
+            "self-review": "pr-digest",
+            "ranking-batch-task-execution": "ranking-develop",
+        }
+        sources[:] = [
+            source
+            for source in sources
+            if source.name not in aliases
+            or not (ranking_root / aliases[source.name] / "SKILL.md").exists()
+        ]
 
     # 옵션이 없으면 개인 + always 만
     if skills_include is None and skills_exclude is None:
@@ -630,6 +650,20 @@ def _resolve_team_skill_root(team_repo: Path) -> Path:
     return team_repo
 
 
+def _is_canonical_team_skill(skill: Path) -> bool:
+    """현재 팀 저장소의 활성 스킬 레이아웃인지 판정한다.
+
+    Returns:
+        랭킹 정본 또는 cde-skills 플러그인 원본이면 True.
+    """
+    root = skill.parent
+    return (root.name == "skills" and root.parent.name == ".claude") or (
+        root.name == "skills"
+        and root.parent.name == "cde-skills"
+        and root.parent.parent.name == "plugins"
+    )
+
+
 def _sync_skills_merged(
     project_root: Path,
     dst: Path,
@@ -671,7 +705,15 @@ def _sync_skills_merged(
         dst.mkdir(parents=True, exist_ok=True)
         _prune_stale_skills(dst, keep={s.name for s in skill_dirs})
         for skill_dir in skill_dirs:
-            copy_fn(skill_dir, dst / skill_dir.name)
+            target = dst / skill_dir.name
+            if _is_canonical_team_skill(skill_dir):
+                if target.is_symlink():
+                    target.unlink()
+                elif target.exists():
+                    shutil.rmtree(target)
+                target.symlink_to(skill_dir, target_is_directory=True)
+            else:
+                copy_fn(skill_dir, target)
 
     return f"skills/ ({len(skill_dirs)} items)", len(skill_dirs)
 
@@ -688,7 +730,10 @@ def _prune_stale_skills(skills_root: Path, keep: set[str]) -> None:
         if not entry.is_dir() or entry.name.startswith((".", "_")):
             continue
         if entry.name not in keep:
-            shutil.rmtree(entry, ignore_errors=True)
+            if entry.is_symlink():
+                entry.unlink()
+            else:
+                shutil.rmtree(entry, ignore_errors=True)
 
 
 def _strip_cmux_hooks(settings_json: str) -> str:

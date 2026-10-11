@@ -84,7 +84,7 @@ uv run ai-env sync --claude-only
 - `agents/`: 개인 에이전트 정의 소스 (`ai-env sync` → `~/.claude/agents/`, `~/.codex/agents/`)
 - `lib/`, `hooks/`, `commands/`, `docs/`, `DESIGN.md`, `README.md`, `SKILLS.md`: 하네스 공유 자산
 
-> 스킬 이름 충돌 시 **개인(megan-harness) 스킬이 팀(cde-*skills) 스킬을 덮어쓴다** (personal-wins). `_collect_skill_sources`가 megan-harness를 먼저 수집하고 이름 기준 first-wins 로 dedup 한다.
+> 활성 cde-skills 플러그인 카테고리와 cde-ranking-skills 정본은 개인 사본보다 우선하며 원본 디렉토리에 심링크한다. 다른 이름 충돌은 기존 개인 우선 정책을 따른다.
 
 ### **config/**
 - `settings.yaml`: 메인 설정

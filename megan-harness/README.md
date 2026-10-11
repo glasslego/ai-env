@@ -50,7 +50,7 @@ megan-harness 는 ai-env 의 **개인 스킬·에이전트 sync 소스**. 개인
 | `megan-harness/skills/ai-env/handoff-resume` | cross-cwd 인계 (SPEC-014). |
 | `megan-harness/skills/ai-env/{spec-manager,task-implement,code-review,doc-sync}` | workflow 의 핵심. |
 | `cde-ranking-skills/lib/` | megan 의 `data/` 스킬이 import. |
-| `core/sync.py` | `megan-harness/skills/{category}/{skill}/` 와 `megan-harness/agents/` 를 personal 로 인식. 이름 충돌 시 personal 이 팀(cde-*skills) 스킬을 덮어쓴다 (personal-wins). |
+| `core/sync.py` | `megan-harness/skills/{category}/{skill}/` 와 `megan-harness/agents/` 를 personal 로 인식. 활성 cde-skills 플러그인·랭킹 정본을 우선하고, 나머지는 personal-wins. |
 
 ## 상태 (Phase)
 

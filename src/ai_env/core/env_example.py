@@ -2,7 +2,75 @@
 
 from __future__ import annotations
 
+import ast
+import re
+from pathlib import Path
+
 from .config import get_project_root, load_mcp_config, load_settings
+
+
+def collect_team_env_keys(project_root: Path) -> dict[str, set[str]]:
+    """팀 템플릿과 실행 코드에서 변수 이름만 수집한다.
+
+    Args:
+        project_root: cde-*skills 연결이 있는 ai-env 루트.
+
+    Returns:
+        변수 이름별 출처 집합. 실제 값은 읽거나 반환하지 않는다.
+    """
+    keys: dict[str, set[str]] = {}
+    if (project_root / "cde-skills").is_dir():
+        keys.update(
+            {
+                "CDE_SKILLS_SOURCE_ROOT": {"cde-skills:runtime"},
+                "CDE_SKILLS_REPO_ROOT": {"cde-skills:runtime"},
+            }
+        )
+    layouts = {
+        "cde-skills": (
+            "plugins/cde-skills/skills",
+            "plugins/cde-skills/skills/_shared/env.template",
+        ),
+        "cde-ranking-skills": (".claude/skills", ".env.sample"),
+    }
+    for name, (skills_path, template_path) in layouts.items():
+        repo = project_root / name
+        template = repo / template_path
+        if template.is_file():
+            for key in re.findall(
+                r"^\s*(?:#\s*)?([A-Z][A-Z0-9_]+)\s*=", template.read_text(), re.MULTILINE
+            ):
+                keys.setdefault(key, set()).add(f"{name}:template")
+        for root in (repo / skills_path, repo / "lib"):
+            if not root.is_dir():
+                continue
+            for script in root.rglob("*.py"):
+                if script.name.startswith("test_") or "tests" in script.parts:
+                    continue
+                try:
+                    tree = ast.parse(script.read_text(encoding="utf-8"))
+                except (SyntaxError, UnicodeError):
+                    continue
+                for node in ast.walk(tree):
+                    key_node = None
+                    if isinstance(node, ast.Call) and node.args:
+                        if ast.unparse(node.func) in {"os.getenv", "os.environ.get", "getenv"}:
+                            key_node = node.args[0]
+                    elif (
+                        isinstance(node, ast.Subscript) and ast.unparse(node.value) == "os.environ"
+                    ):
+                        key_node = node.slice
+                    if isinstance(key_node, ast.Constant) and isinstance(key_node.value, str):
+                        key = key_node.value
+                        if re.fullmatch(r"[A-Z][A-Z0-9_]+", key) and key not in {
+                            "USER",
+                            "HOME",
+                            "PATH",
+                            "APPDATA",
+                            "XDG_CACHE_HOME",
+                        }:
+                            keys.setdefault(key, set()).add(f"{name}:code")
+    return keys
 
 
 def generate_env_example() -> str:
@@ -78,6 +146,23 @@ def generate_env_example() -> str:
             if entry.description:
                 lines.append(f"# {entry.description}")
             lines.append(f"{entry.key}=")
+        lines.append("")
+
+    # 팀 변수는 선택 기능과 fallback을 포함한다. 빈 활성 값으로 기본값을 가리지 않는다.
+    existing_keys = provider_key_set | set(mcp_keys) | set(mcp_url_keys)
+    existing_keys.update(entry.key for entry in settings.extra_env_keys)
+    team_keys = collect_team_env_keys(get_project_root())
+    if team_keys:
+        lines.extend(
+            [
+                "# === Team skills (필요한 기능만 주석 해제 후 설정) ===",
+                "# 모든 항목이 필수는 아님. 인증은 각 스킬의 Vault/환경변수 fallback을 따릅니다.",
+                "# 템플릿의 예시 비밀번호·토큰은 복사하지 않습니다.",
+            ]
+        )
+        for key in sorted(team_keys.keys() - existing_keys):
+            lines.append(f"# Used by: {', '.join(sorted(team_keys[key]))}")
+            lines.append(f"# {key}=")
         lines.append("")
 
     lines.append("# === Optional ===")

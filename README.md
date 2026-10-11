@@ -87,7 +87,7 @@ ai-env sync --skills-exclude <dir>  # 특정 팀 스킬 제외
 - 개인 스킬: `megan-harness/skills/{category}/{skill}/` (카테고리: ai-env, code, data, meta, obsidian, orchestration, platform, ranking, work)
 - 개인 에이전트: `megan-harness/agents/`
 - 팀 스킬: `cde-skills`, `cde-ranking-skills` 심링크 (동기화 시 git pull 후 병합)
-- 이름 충돌 시 **개인(megan-harness) 스킬이 팀 스킬을 덮어쓴다** (personal-wins). sync는 megan-harness를 먼저 수집하고 이름 기준 first-wins로 dedup 한다.
+- 활성 cde-skills 플러그인 카테고리와 cde-ranking-skills 정본은 개인 사본보다 우선하며 원본 디렉토리에 심링크한다. 다른 이름 충돌은 기존 개인 우선 정책을 따른다.
 - 동기화 대상(destination): `~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills` (스킬) / `~/.claude/agents`, `~/.codex/agents` (에이전트)
 
 ```bash
