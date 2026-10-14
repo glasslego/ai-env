@@ -28,6 +28,11 @@ vault note 존재?
               └─ both: pull 먼저 (Jira 가 truth), 그 후 push
 ```
 
+## Jira 댓글 작성
+
+- 개인 `wiki-jira-writing-style.md`의 Jira Task 댓글 규칙을 따른다.
+- 경과·검증·다음 조치만 1~3개 짧은 항목으로 공유한다. 원문 백업·본문 반복·변경 없는 댓글은 추가하지 않는다.
+
 ## Vault note 구조 (regex 안전한 단순 형식)
 
 ```markdown

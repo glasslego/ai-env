@@ -20,7 +20,7 @@ description: megan.won의 Jira Epic 작성·현행화. 짧은 6섹션 본문과 
 3. 인바운드 describe는 8개 헤더를 유지한다. 기존 원장·공유 모드도 원래 구조를 유지하며 6섹션으로 바꾸지 않는다.
 4. 핵심 사실은 짧은 항목, 조건은 하위 목록으로 쓴다. 구현 목록·상태·담당자·일정은 본문에 반복하지 않는다.
 5. 실제 라벨의 rubric 필드는 모두 유지하고 값만 짧게 작성한다. `- [label] field: value`는 들여쓰기하지 않는다. 필수 값은 근거로 채우고 허용 필드만 미정으로 둔다.
-6. `scripts/epic_standard.py --help`에서 선택한 명령을 확인한다. `apply --epic KEY --body-file FILE`로 dry-run 검증하고, 사용자가 요청한 쓰기 범위에서 `--apply` 후 본문을 재조회한다. 필수 구조·rubric 검증 실패는 고쳐서 다시 확인하며 우회하지 않는다.
+6. `scripts/epic_standard.py --help`에서 선택한 명령을 확인한다. `apply --epic KEY --body-file FILE`로 dry-run 검증하고, fatal 판정이 없음을 확인한 뒤 팀 Jira CLI의 `update --description`으로 적용·재조회한다. 자동 원문 백업 댓글은 생성하지 않으며 필요한 백업은 로컬에 보관한다. 필수 구조·rubric 검증 실패는 고쳐서 다시 확인하며 우회하지 않는다.
 
 ## 조건부 상세
 
