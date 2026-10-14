@@ -22,6 +22,16 @@ description: megan.won의 Jira Epic 작성·현행화. 짧은 6섹션 본문과 
 5. 실제 라벨의 rubric 필드는 모두 유지하고 값만 짧게 작성한다. `- [label] field: value`는 들여쓰기하지 않는다. 필수 값은 근거로 채우고 허용 필드만 미정으로 둔다.
 6. `scripts/epic_standard.py --help`에서 선택한 명령을 확인한다. `apply --epic KEY --body-file FILE`로 dry-run 검증하고, fatal 판정이 없음을 확인한 뒤 팀 Jira CLI의 `update --description`으로 적용·재조회한다. 자동 원문 백업 댓글은 생성하지 않으며 필요한 백업은 로컬에 보관한다. 필수 구조·rubric 검증 실패는 고쳐서 다시 확인하며 우회하지 않는다.
 
+## 완료보고·주간 보고 호환
+
+- 일반 Epic의 완료보고 헤더는 정확히 `☑️ 완료보고`로 쓴다. Task는 `h2. 완료보고`로 쓴다. `완료 근거`·`구현 결과 및 검증`으로 이름을 바꾸지 않는다.
+- 본문은 결과·영향 1항목 + 확인된 머지·운영 검증·공유 링크 + 필요한 미확인 범위만 짧게 쓴다. `TBD`·`미정`만 있는 완료보고는 완료 결과가 아니다.
+- 적용 전후 팀 `epic_report._section(description, "완료보고")`가 의도한 절만 추출하는지 확인한다. 다음 헤더 전까지가 본문이며 코드·명령·전체 이력은 넣지 않는다.
+- 형식 통과와 보고 대상 선정을 구분한다. `leader-report`는 Resolved Epic·원본 연결 이슈 반영일로 선별하고, `person`은 주간 상태전이를 Epic으로 롤업한다. Task 완료로 진행 중 Epic을 완료로 표시하지 않는다.
+- 상시 운영 Epic(CDETEAM-160)은 완료보고를 생성하지 않는다. 하위 Task 결과는 개인 위클리의 진행 근거로 사용한다.
+- 최종 위클리 항목은 팀 `share-item-format.md`의 헤더 + 2~3줄을 따른다. `label` 스타일은 배경·목표·기대효과 3줄이다. Jira 완료보고를 위클리 출력 양식으로 바꾸지 않는다.
+- 예시·선별 조건: `references/completion-report.md`. 주간 수집 결과를 확인할 때만 팀 `epic_report.py person-collect` 또는 `collect`를 읽기 전용으로 실행한다.
+
 ## 조건부 상세
 
 - 조사 결과·간결한 작성 예시: `references/template.md`. 예시는 실데이터로 바꾸며 적용 시 최신 팀 템플릿과 rubric을 확인한다.

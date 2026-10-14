@@ -28,6 +28,13 @@ vault note 존재?
               └─ both: pull 먼저 (Jira 가 truth), 그 후 push
 ```
 
+## 완료 처리 본문
+
+- 완료 결과는 정확히 `h2. 완료보고` 아래에 적는다. `완료 근거`로 헤더를 바꾸거나 댓글에만 결과를 남기지 않는다.
+- 결과·영향과 확인된 PR 머지·검증 링크를 짧게 기록한다. prod 반영 미확인·Won’t Do 종료는 구현 완료로 표현하지 않는다.
+- 팀 `epic_report._section(description, "완료보고")` 추출을 적용 전후 확인한다. 상위 Epic이 진행 중이면 Task 완료를 Epic 완료로 확대하지 않는다.
+- 상세 호환 기준은 개인 `epic-curator/references/completion-report.md`를 따른다.
+
 ## Jira 댓글 작성
 
 - 개인 `wiki-jira-writing-style.md`의 Jira Task 댓글 규칙을 따른다.
