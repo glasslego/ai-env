@@ -46,7 +46,7 @@
 | ranking-lookup, ranking-cs, ranking-batch-job, ranking-data-verify | 도메인 운영 |
 | score-drilldown, es-gift-ranking | 도메인 진단 |
 | service-onboard, feature-crud | repo 작업 가이드 |
-| spark-debug | spark 일반 진단 (megan-harness 의 `spark-optimize` 가 보강) |
+| spark-debug | Spark 진단·최적화 (팀 정본 optimize 모드) |
 
 ### 2-2. cde-skills — **공통 플랫폼 부분만 외부 참조**
 
@@ -129,7 +129,6 @@ megan-harness/
 │   │   ├── second-opinion/     Codex CLI wrapper (gemini 제외)
 │   │   ├── branch-guard/       force-push / main push 가드
 │   │   ├── pr-evaluator/       PR 평가 체크리스트
-│   │   └── spark-optimize/     kamek-batch / cde-ranking 의 spark 패턴 가이드
 │   └── meta/
 │       └── memory-hygiene/     ~/.claude/.../memory/ 정리
 ├── commands/                   슬래시 명령 (스킬 trigger wrapper)

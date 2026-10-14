@@ -1,36 +1,18 @@
 # ai-env Spec Registry
 
-> 이 문서는 ai-env 프로젝트의 모든 SPEC 문서를 추적합니다.
-> SPEC 변경 이력은 `specs/CHANGELOG.md`에서 관리합니다.
+현재 기능의 계약만 유지한다. 완료된 정리 작업의 상세 이력은 Git 기록을 확인한다.
 
-## SPEC 목록
+| Spec | 기능 |
+|---|---|
+| [SPEC-001](SPEC-001-core-architecture.md) | Core Architecture & Config Management |
+| [SPEC-002](SPEC-002-mcp-generator.md) | MCP Config Generator |
+| [SPEC-003](SPEC-003-sync-and-skills.md) | Claude Global Sync & Skills Management |
+| [SPEC-004](SPEC-004-cli-interface.md) | CLI Interface |
+| [SPEC-005](SPEC-005-agent-fallback.md) | Agent Fallback (claude --fallback) |
+| [SPEC-006](SPEC-006-codex-integration.md) | Codex CLI Integration (Permissions & Teammate Mode) |
+| [SPEC-007](SPEC-007-doctor-health-check.md) | Doctor Health Check |
+| [SPEC-013](SPEC-013-claude-codex-focused-and-session-save.md) | Claude+Codex 중심 정리 및 Obsidian 세션 저장 기능 |
+| [SPEC-014](SPEC-014-cross-agent-handoff.md) | Cross-Agent 핸드오프 (cwd 격리) |
+| [SPEC-015](SPEC-015-megan-skills-harness.md) | Megan Skills Harness |
 
-| ID | 제목 | 상태 | 최초 구현 | 문서화 | 파일 |
-|----|------|------|-----------|--------|------|
-| SPEC-001 | Core Architecture & Config Management | implemented | 2025-12-22 | 2026-02-14 | [SPEC-001](SPEC-001-core-architecture.md) |
-| SPEC-002 | MCP Config Generator | implemented | 2025-12-22 | 2026-02-14 | [SPEC-002](SPEC-002-mcp-generator.md) |
-| SPEC-003 | Claude Global Sync & Skills Management | implemented | 2026-01-06 | 2026-02-14 | [SPEC-003](SPEC-003-sync-and-skills.md) |
-| SPEC-004 | CLI Interface | implemented | 2025-12-22 | 2026-02-14 | [SPEC-004](SPEC-004-cli-interface.md) |
-| SPEC-005 | Agent Fallback (claude --fallback) | implemented | 2026-02-13 | 2026-02-14 | [SPEC-005](SPEC-005-agent-fallback.md) |
-| SPEC-006 | Codex CLI Integration (Permissions & Teammate Mode) | implemented | 2026-02-13 | 2026-02-14 | [SPEC-006](SPEC-006-codex-integration.md) |
-| SPEC-007 | Doctor Health Check | implemented | 2026-02-16 | 2026-02-16 | [SPEC-007](SPEC-007-doctor-health-check.md) |
-| SPEC-008 | Deep Research API Dispatch | implemented | 2026-02-18 | 2026-02-18 | [SPEC-008](SPEC-008-deep-research-dispatch.md) |
-| SPEC-009 | Unified Workflow Skills | draft | 2026-03-08 | 2026-03-08 | [SPEC-009](SPEC-009-unified-workflow-skills.md) |
-| SPEC-010 | AI 코딩 에이전트 효율성 개선 | implemented | 2026-03-12 | 2026-03-12 | [SPEC-010](SPEC-010-efficiency-improvements.md) |
-| SPEC-011 | AI 코딩 에이전트 인프라 강화 | implemented | 2026-03-13 | 2026-03-13 | [SPEC-011](SPEC-011-coding-efficiency-infra.md) |
-
-## 상태 정의
-
-| 상태 | 설명 |
-|------|------|
-| `draft` | 초안 작성 중. 검토/구현 전 |
-| `approved` | 승인됨. 구현 대기 |
-| `in-progress` | 구현 진행 중 |
-| `implemented` | 구현 완료 |
-| `deprecated` | 폐기됨. 더 이상 유효하지 않음 |
-
-## 네이밍 규칙
-
-- 파일명: `SPEC-{NNN}-{kebab-case-title}.md`
-- ID: 3자리 숫자 (001~999)
-- 새 SPEC 추가 시 이 README의 SPEC 목록과 `CHANGELOG.md`를 함께 업데이트
+새 작업은 Spec/Task 경계를 기록하고, [공용 템플릿](../megan-harness/skills/ai-env/spec-manager/references/spec-template.md)을 사용한다.

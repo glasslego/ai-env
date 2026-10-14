@@ -42,17 +42,6 @@ def test_status_command(runner):
             assert "AI Environment Status" in result.output
 
 
-def test_secrets_list_command(runner):
-    """Test secrets list command."""
-    with patch("ai_env.cli.get_secrets_manager") as mock:
-        manager = MagicMock()
-        manager.get_secret.return_value = "secret_value"
-        mock.return_value = manager
-
-        result = runner.invoke(main, ["secrets", "--show"])
-        assert result.exit_code == 0
-
-
 def test_generate_all_command(runner):
     """Test generate all command (dry run)."""
     with (

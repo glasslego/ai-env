@@ -54,7 +54,6 @@
 | second-opinion | `/2nd`, "교차 검증" | **shipped (P4)** — codex CLI only | jackie/code-second-opinion |
 | branch-guard | git push 직전 자동 + `/branch-guard` | **shipped (P4)** | jackie/branch-guard |
 | pr-evaluator | `/pr-eval` | **shipped (P4)** — 7카테고리 sniff | jackie/pr-evaluator |
-| spark-optimize | `/spark-opt`, "spark 최적화" | **shipped (P4)** — 정적 sniff | kamek-batch + cde-ranking-skills/spark-debug 가이드 |
 | git-branch | `/branch CDE-XXXX`, "브랜치 만들어" | **shipped (P4.5)** — CDE/spec 컨벤션 | new (megan) |
 | github-pr | `/pr`, "PR 만들어" | **shipped (P4.5)** — gh wrapper + 자동 본문 | new (megan) |
 | run-tests | `/test`, "테스트 돌려" | **shipped (P4.5)** — profile/추론 기반 | new (megan) |
@@ -71,7 +70,7 @@
 |---|---|---|
 | handoff-resume | `megan-harness/skills/ai-env/handoff-resume/` | cross-cwd 핸드오프 (SPEC-014) |
 | spec-manager, task-implement, code-review, doc-sync | `megan-harness/skills/ai-env/<name>/` | workflow 핵심 |
-| skill-creator, harness, python-env, spark-debug | `megan-harness/skills/ai-env/<name>/` | 메타/도메인 |
+| skill-creator, harness, python-env | `megan-harness/skills/ai-env/<name>/` | 메타/도메인 |
 
 ## cde-* 자산 (외부 참조, 재구현 금지)
 
@@ -79,3 +78,5 @@
 |---|---|
 | cde-skills | data, productivity, development, platform, operations, orchestration (각 meta-skill) |
 | cde-ranking-skills | ranking-{lookup,cs,batch-job,data-verify}, score-drilldown, es-gift-ranking, service-onboard, feature-crud, spark-debug |
+
+Spark 진단·최적화는 팀 정본 `spark-debug`를 사용한다. 최적화 요청은 optimize 모드로 처리한다.

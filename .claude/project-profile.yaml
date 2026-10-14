@@ -16,7 +16,7 @@ architecture:
 specs:
   directory: "specs/"
   format: "SPEC-NNN"
-  template: "specs/SPEC-010-efficiency-improvements.md"  # 최근 구현 완료된 스펙을 템플릿으로
+  template: "megan-harness/skills/ai-env/spec-manager/references/spec-template.md"
 
 tests:
   framework: pytest

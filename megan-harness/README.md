@@ -58,7 +58,7 @@ megan-harness 는 ai-env 의 **개인 스킬·에이전트 sync 소스**. 개인
 - [x] Phase 1 — Obsidian core (hot-context, distill, vault-lint)
 - [x] Phase 2 — Work (jira-task skeleton, wrap-up). pull/push API wiring 은 P2.5
 - [x] Phase 3 — Data (trino-query, es-query) — cde-skills 위임 wrapper
-- [x] Phase 4 — Code (second-opinion, branch-guard, pr-evaluator, spark-optimize)
+- [x] Phase 4 — Code (second-opinion, branch-guard, pr-evaluator; Spark 최적화는 팀 spark-debug optimize)
 - [x] Phase 5 — Defuddle (auto-wikilink, auto-session-archive 는 후속)
 - [x] Phase 6 — ai-env sync 통합 (`core/sync.py` 의 `_collect_skill_sources` 가 megan-harness 자동 인식, personal-wins dedup)
 - [ ] Phase 7 — (선택) 별도 git repo 분리
