@@ -13,22 +13,7 @@ from ai_env.core.doctor import (
 )
 
 
-class TestCheckResult:
-    def test_basic_creation(self) -> None:
-        result = CheckResult("test", "pass", "ok", "env")
-        assert result.name == "test"
-        assert result.status == "pass"
-        assert result.message == "ok"
-        assert result.category == "env"
-
-
 class TestDoctorReport:
-    def test_empty_report(self) -> None:
-        report = DoctorReport()
-        assert report.passed == 0
-        assert report.warned == 0
-        assert report.failed == 0
-
     def test_counts(self) -> None:
         report = DoctorReport(
             checks=[

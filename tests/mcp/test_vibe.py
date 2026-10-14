@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 from ai_env.core.config import Settings
 from ai_env.mcp.generator import MCPConfigGenerator
-from ai_env.mcp.vibe import generate_shell_functions
 
 
 def _run_bash_with_pty(command: str, env: dict[str, str], timeout: float = 30.0) -> tuple[int, str]:
@@ -50,34 +49,6 @@ class TestGenerateShellFunctions:
             mock_settings.return_value = settings
             return MCPConfigGenerator(secrets)
 
-    def test_default_priority(self):
-        """기본 우선순위 (claude → codex) 테스트"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert "claude()" in result
-        assert 'agents=("claude" "codex")' in result
-        assert "claude → codex" in result
-
-    def test_custom_priority(self):
-        """커스텀 우선순위 (codex → 추가 에이전트) 직렬화 테스트.
-
-        쉘 함수는 에이전트 이름을 검증하지 않고 그대로 배열에 직렬화하므로,
-        임의 placeholder('altagent')로 직렬화/표시 동작만 확인한다.
-        """
-        gen = self._make_generator(["codex", "altagent"])
-        result = gen.generate_shell_functions()
-
-        assert 'agents=("codex" "altagent")' in result
-        assert "codex → altagent" in result
-
-    def test_single_agent(self):
-        """에이전트가 하나일 때"""
-        gen = self._make_generator(["claude"])
-        result = gen.generate_shell_functions()
-
-        assert 'agents=("claude")' in result
-
     def test_empty_priority(self):
         """agent_priority가 비어있으면 빈 문자열 반환"""
         gen = self._make_generator([])
@@ -99,73 +70,6 @@ class TestGenerateShellFunctions:
 
         assert "-[0-9]" in result
         assert "start_idx" in result
-
-    def test_contains_claude_rate_limit_recovery_logic(self):
-        """Claude rate-limit 감지 후 fallback/복귀 로직 포함 확인"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert "_claude_is_rate_limited()" in result
-        assert "CLAUDE_FALLBACK_RETRY_MINUTES" in result
-        assert "entry_cooldown_epochs" in result
-        assert "Claude 제한 해제 감지. claude로 복귀합니다" in result
-        assert "/rate-limit-option(s)?" in result
-
-    def test_contains_passthrough_guard(self):
-        """--fallback 없이 호출 시 원본 바이너리 passthrough 코드 포함 확인"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert 'command claude "$@"' in result
-        assert '"--fallback"' in result
-        assert "claude personal [args...]" in result
-        assert "CLAUDE_CONFIG_DIR" in result
-
-    def test_contains_resolve_bin_helper(self):
-        """_resolve_bin 헬퍼 함수로 실제 바이너리 경로 확인"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert "_resolve_bin()" in result
-        assert "command claude" in result
-
-    def test_uses_agent_args_array(self):
-        """인자를 배열로 보존하여 플래그 passthrough 확인"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert 'agent_args=("$@")' in result
-        assert '"${agent_args[@]}"' in result
-
-    def test_contains_to_option(self):
-        """--to 옵션으로 fallback 대상 지정 코드 포함 확인"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert "--to)" in result
-        assert "fallback_targets" in result
-
-    def test_contains_auto_option(self):
-        """--auto 옵션으로 자동 승인 모드 코드 포함 확인"""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert "--auto)" in result
-        assert "auto_mode" in result
-        assert "CLAUDE_FALLBACK_AUTO" in result
-        assert "--dangerously-skip-permissions" in result
-        assert "--allow-dangerously-skip-permissions" in result
-        assert '"--yolo"' in result
-
-    def test_contains_tty_aware_sync_modes(self):
-        """스킬 sync가 TTY 여부에 따라 foreground/background 모드를 나누는지 확인."""
-        gen = self._make_generator(["claude", "codex"])
-        result = gen.generate_shell_functions()
-
-        assert "_ai_env_sync_skills_run()" in result
-        assert 'local _mode="${1:-auto}"' in result
-        assert "-t 0 && -t 1" in result
-        assert ") >/dev/null 2>&1 &" in result
 
     def test_passthrough_without_fallback_flag(self, tmp_path):
         """--fallback 없이 claude 호출 시 원본 바이너리로 passthrough 확인"""
@@ -1765,32 +1669,6 @@ class TestModelLevelFallback:
             mock_settings.return_value = settings
             return MCPConfigGenerator(secrets)
 
-    def test_model_suffix_in_agents_array(self):
-        """claude:sonnet 엔트리가 agents 배열에 포함되는지 확인"""
-        gen = self._make_generator(["claude", "claude:sonnet", "codex"])
-        result = gen.generate_shell_functions()
-        assert 'agents=("claude" "claude:sonnet" "codex")' in result
-
-    def test_model_suffix_priority_display(self):
-        """priority 표시에서 claude:sonnet이 claude (sonnet) 형태로 출력"""
-        gen = self._make_generator(["claude", "claude:sonnet", "codex"])
-        result = gen.generate_shell_functions()
-        assert "claude → claude (sonnet) → codex" in result
-
-    def test_contains_parse_agent_entry_helper(self):
-        """_parse_agent_entry 헬퍼 함수 포함 확인"""
-        gen = self._make_generator(["claude", "claude:sonnet", "codex"])
-        result = gen.generate_shell_functions()
-        assert "_parse_agent_entry()" in result
-        assert "base_agent" in result
-        assert "model_suffix" in result
-
-    def test_contains_per_entry_cooldown(self):
-        """per-entry cooldown 배열 포함 확인"""
-        gen = self._make_generator(["claude", "claude:sonnet", "codex"])
-        result = gen.generate_shell_functions()
-        assert "entry_cooldown_epochs" in result
-
     def test_model_flag_injected_for_claude_sonnet(self, tmp_path):
         """claude:sonnet 엔트리에서 --model sonnet 플래그가 주입되는지 확인"""
         gen = self._make_generator(["claude:sonnet"])
@@ -2104,37 +1982,6 @@ class TestSessionLogAndExit:
             mock_settings.return_value = settings
             return MCPConfigGenerator(secrets)
 
-    def test_generate_accepts_fallback_log_dir(self):
-        """generate_shell_functions에 fallback_log_dir 전달 가능."""
-        result = generate_shell_functions(["claude", "codex"], fallback_log_dir="~/my-logs")
-        assert "CLAUDE_FALLBACK_LOG_DIR" in result
-        assert "~/my-logs" in result
-
-    def test_generate_empty_log_dir_when_none(self):
-        """fallback_log_dir=None이면 기본값 빈 문자열."""
-        result = generate_shell_functions(["claude", "codex"])
-        # 환경변수 미설정 시 빈 문자열 → 기존 temp 동작
-        assert "CLAUDE_FALLBACK_LOG_DIR:-}" in result
-
-    def test_contains_session_id_helper(self):
-        """_get_claude_session_id 헬퍼 함수 포함 확인."""
-        result = generate_shell_functions(["claude", "codex"])
-        assert "_get_claude_session_id()" in result
-        assert ".claude/projects/" in result
-        assert "shasum" in result
-
-    def test_contains_exit_detection(self):
-        """_user_explicitly_exited 헬퍼 함수 포함 확인."""
-        result = generate_shell_functions(["claude", "codex"])
-        assert "_user_explicitly_exited()" in result
-        assert "/exit" in result
-        assert "/quit" in result
-
-    def test_contains_save_session_log(self):
-        """_save_session_log 헬퍼 함수 포함 확인."""
-        result = generate_shell_functions(["claude", "codex"])
-        assert "_save_session_log()" in result
-
     def test_exit_command_prevents_codex_restart(self, tmp_path):
         """Codex에서 /exit 입력 시 래퍼가 재시작하지 않는지 확인."""
         gen = self._make_generator(["claude", "codex"])
@@ -2356,14 +2203,6 @@ class TestPersistentCooldown:
             )
             mock_settings.return_value = settings
             return MCPConfigGenerator(secrets)
-
-    def test_contains_persistent_cooldown_functions(self):
-        """영속 cooldown 관련 함수 포함 확인."""
-        result = generate_shell_functions(["claude", "codex"])
-        assert "_save_cooldown_state()" in result
-        assert "_load_cooldown_state()" in result
-        assert "_parse_reset_epoch()" in result
-        assert ".fallback_cooldown" in result
 
     def test_cooldown_saved_but_not_loaded_across_sessions(self, tmp_path):
         """Rate-limit 후 cooldown이 파일에 저장되지만, 새 세션에서는 로드하지 않음."""
@@ -2743,14 +2582,6 @@ class TestPersistentCooldown:
                 reverse_found = True
                 break
         assert reverse_found, "Reverse handoff (codex → Claude) not found"
-
-    def test_handoff_header_direction(self):
-        """핸드오프 파일 헤더가 전환 방향에 따라 다른지 확인."""
-        result = generate_shell_functions(["claude", "codex"])
-        # Claude → Fallback 방향
-        assert "Handoff: Claude Code → Fallback Agent" in result
-        # Fallback → Claude 방향
-        assert "Handoff: $from_agent → Claude Code" in result
 
 
 class TestClaudeExitAndCooldownReset:

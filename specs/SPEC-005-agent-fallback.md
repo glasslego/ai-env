@@ -208,75 +208,15 @@ uv run ai-env sync
 source ./generated/shell_exports.sh
 ```
 
-## 테스트 커버리지
+## 검증
 
-### `TestGenerateShellFunctions` 클래스 (기존)
+[실행 테스트](../tests/mcp/test_vibe.py)에서 다음 동작을 검증한다.
 
-| 테스트 | 검증 내용 |
-|--------|-----------|
-| `test_default_priority` | 기본 설정(claude, codex)으로 함수 생성 확인 |
-| `test_custom_priority` | 커스텀 우선순위(codex, gemini) 반영 확인 |
-| `test_single_agent` | 에이전트 1개일 때 정상 생성 |
-| `test_empty_priority` | 빈 리스트이면 빈 문자열 반환 |
-| `test_contains_claudecode_guard` | CLAUDECODE 중첩 방지 코드 포함 확인 |
-| `test_contains_skip_option` | -N 옵션 파싱 코드 포함 확인 |
-| `test_contains_claude_rate_limit_recovery_logic` | rate-limit 감지/복귀 로직 포함 확인 |
-| `test_contains_passthrough_guard` | `command claude "$@"` passthrough 코드 포함 확인 |
-| `test_passthrough_without_fallback_flag` | `--fallback` 없이 호출 시 원본 바이너리 passthrough 통합 테스트 |
-| `test_claude_fallback_switches_to_codex_then_returns_to_claude` | rate-limit → codex 전환 → claude 복귀 통합 테스트 |
+- 인자 전달, 개인·팀 프로필 격리, 대화형 실행 전 동기화
+- rate-limit 감지·오탐 방지, 모델별 fallback·cooldown
+- 핸드오프 전달·보존, 세션 로그 저장, 사용자 종료 처리
 
-### `TestModelLevelFallback` 클래스 (모델 fallback)
-
-| 테스트 | 검증 내용 |
-|--------|-----------|
-| `test_model_suffix_in_agents_array` | `claude:sonnet`이 agents 배열에 포함 확인 |
-| `test_model_suffix_priority_display` | 헤더에 `claude (sonnet)` 형태로 표시 확인 |
-| `test_contains_parse_agent_entry_helper` | `_parse_agent_entry` 헬퍼 존재 확인 |
-| `test_contains_per_entry_cooldown` | per-entry cooldown 배열 존재 확인 |
-| `test_model_flag_injected_for_claude_sonnet` | `--model sonnet` 플래그 주입 통합 테스트 |
-| `test_no_model_flag_for_plain_claude` | plain `claude`에는 `--model` 미주입 확인 |
-| `test_model_fallback_opus_to_sonnet_to_codex` | Opus rate-limit → Sonnet 성공 전체 경로 테스트 |
-| `test_model_fallback_all_claude_rate_limited_then_codex` | Opus + Sonnet 모두 rate-limit → Codex 전환 테스트 |
-| `test_model_suffix_auto_mode_injects_skip_permissions` | `claude:sonnet` + `--auto` 플래그 주입 확인 |
-| `test_list_display_with_model_suffix` | `-l` 출력에 모델 suffix 표시 확인 |
-
-### `TestCodexTransitionEdgeCases` 클래스 (Codex 전환)
-
-| 테스트 | 검증 내용 |
-|--------|-----------|
-| `test_claude_crash_no_rate_limit_passes_original_to_codex` | crash(비 rate-limit) 시 원래 프롬프트로 codex 전환 |
-| `test_codex_exec_exact_args_structure` | codex exec 인자 구조 정확성 검증 |
-| `test_claude_crash_no_prompt_codex_gets_yolo` | 프롬프트 없는 crash → codex --yolo 모드 |
-| `test_fallback_with_special_chars_in_prompt` | 특수문자 포함 프롬프트 전달 |
-| `test_only_codex_available_claude_not_installed` | Claude 미설치 시 codex만 사용 |
-| `test_codex_nonzero_exit_shows_error_and_terminates` | 마지막 에이전트 실패 시 종료 |
-| `test_rapid_rate_limit_no_delay_before_codex` | rate-limit 후 즉시 codex 전환 |
-| `test_complete_opus_sonnet_codex_flow_with_exec` | Opus → Sonnet → Codex 3단계 degradation |
-
-### `TestRateLimitPatternCoverage` 클래스 (패턴 검증)
-
-| 테스트 | 검증 내용 |
-|--------|-----------|
-| `test_switch_to_extra_usage` | "switch to extra usage" 메시지 감지 |
-| `test_upgrade_your_plan` | "upgrade your plan" 메시지 감지 |
-| `test_stop_and_wait_for_limit` | "stop and wait" 메시지 감지 |
-| `test_you_have_exhausted` | "you have exhausted" 메시지 감지 |
-| `test_too_many_requests` | "too many requests" 메시지 감지 |
-| `test_rate_limit_options_with_exit_zero` | exit 0 + `/rate-limit-options` 감지 |
-| `test_what_do_you_want_to_do` | "what do you want to do" 메시지 감지 |
-| `test_reached_daily_limit` | "reached daily limit" 메시지 감지 |
-| `test_exceeded_hourly_limit` | "exceeded hourly limit" 메시지 감지 |
-| `test_quota_exceeded` | "quota exceeded" 메시지 감지 |
-| `test_no_false_positive_on_normal_output` | 일반 출력 false-positive 방지 |
-| `test_no_false_positive_on_limit_in_code` | 코드 출력(`rate_limit`) false-positive 방지 |
-| `test_hit_your_limit_resets_with_timezone` | 타임존 포함 limit reset 메시지 감지 |
-
-### `TestHandoffFileIntegrity` 클래스 (핸드오프)
-
-| 테스트 | 검증 내용 |
-|--------|-----------|
-| `test_handoff_file_contains_required_sections` | 핸드오프 파일 필수 섹션 포함 |
-| `test_handoff_original_task_empty_for_interactive` | 대화형 세션 라벨 정확성 |
+생성 문자열에 함수명·옵션이 존재하는지만 확인하는 중복 테스트는 유지하지 않는다.
 
 ## 관련 파일
 

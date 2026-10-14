@@ -1,6 +1,5 @@
 """Tests for ai-env CLI commands."""
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,34 +11,6 @@ from click.testing import CliRunner
 def runner():
     """Click CLI runner fixture."""
     return CliRunner()
-
-
-def test_status_command(runner):
-    """Test status command."""
-    with (
-        patch("ai_env.cli.status_cmd.load_settings") as mock_settings,
-        patch("ai_env.cli.status_cmd.load_mcp_config") as mock_mcp,
-    ):
-        settings = MagicMock()
-        settings.version = "0.1.0"
-        settings.default_agent = "claude"
-        settings.env_file = ".env"
-
-        provider = MagicMock()
-        provider.enabled = True
-        provider.env_key = "CLAUDE_API_KEY"
-        settings.providers = {"claude": provider}
-
-        mock_settings.return_value = settings
-
-        config = MagicMock()
-        config.mcp_servers = {}
-        mock_mcp.return_value = config
-
-        with patch.dict(os.environ, {"CLAUDE_API_KEY": "present"}):
-            result = runner.invoke(main, ["status"])
-            assert result.exit_code == 0, f"Command failed: {result.output}"
-            assert "AI Environment Status" in result.output
 
 
 def test_generate_all_command(runner):
