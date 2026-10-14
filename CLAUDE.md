@@ -1,5 +1,13 @@
 # CLAUDE.md
 
+## ai-env 브랜치 운영
+
+- ai-env는 `main` 단일 브랜치에서 바로 작업·검증·커밋한다.
+- 별도 작업 브랜치나 브랜치용 worktree를 만들지 않는다. 일반 스킬의 작업 브랜치 생성 권고보다 이 규칙이 우선한다.
+- 이 정책은 ai-env에만 적용한다. 연결된 cde-skills·cde-ranking-skills의 develop 정책은 유지한다.
+- 원격 push는 사용자가 요청한 범위에서 수행한다.
+
+
 ## 프로젝트 개요
 
 ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. Claude/Codex 설정 동기화에만 집중하며, 리서치·워크플로우·세션 저장 등 부가 기능은 제거되었다.

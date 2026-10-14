@@ -259,6 +259,11 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 - Epic 문서는 개인 `epic-curator` 진입점을 사용하고 선택한 모드의 상세 지침만 추가로 읽는다.
 - 이 규칙의 원본은 ai-env `.claude/rules/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
 
+## ai-env 개인 저장소 브랜치 정책
+
+- `/Users/megan/work/glasslego/ai-env`는 main 단일 브랜치에서 작업·검증·커밋한다. 작업 브랜치나 branch worktree를 만들지 않는다.
+- ai-env에서는 일반 commit/git-branch/branch-guard의 작업 브랜치 생성 권고보다 이 사용자 정책을 우선한다. 다른 저장소의 브랜치 정책은 유지한다.
+
 ## 🤖 Codex 자동 실행 (Full Auto)
 
 - 기본 실행은 Codex 기준으로 한다.

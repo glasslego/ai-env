@@ -1,5 +1,13 @@
 # Repository Guidelines
 
+## ai-env 브랜치 운영
+
+- ai-env는 `main` 단일 브랜치에서 바로 작업·검증·커밋한다.
+- 별도 작업 브랜치나 브랜치용 worktree를 만들지 않는다. 일반 스킬의 작업 브랜치 생성 권고보다 이 규칙이 우선한다.
+- 이 정책은 ai-env에만 적용한다. 연결된 cde-skills·cde-ranking-skills의 develop 정책은 유지한다.
+- 원격 push는 사용자가 요청한 범위에서 수행한다.
+
+
 AI 에이전트(Claude, Codex)가 이 저장소에서 수행해야 할 역할과 규칙을 정의합니다.
 
 ---
