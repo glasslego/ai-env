@@ -18,6 +18,7 @@
 | 스킬 | 트리거 | 상태 | 출처 |
 |---|---|---|---|
 | jira-task | `/jira <KEY>`, "지라 만들어/업데이트" | **shipped skeleton (P2)** — pull/push wiring P2.5 | jackie/jira-create + jira-update 통합 |
+| epic-curator | "에픽 작성/설명 수정", "epic-curator" | **shipped** — 팀 템플릿 유지·내용 간소화 | megan.won |
 | wrap-up | `/wrap`, "오늘 정리하자" | **shipped (P2)** | jackie/wrap-up |
 
 ## data/ — 쿼리

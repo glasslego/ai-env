@@ -105,6 +105,14 @@ ai-env project sync-codex --copy                   # 심볼릭 링크 대신 복
 ai-env project sync-codex --project-dir /path/to/repo
 ```
 
+## megan.won 문서 작성 규칙
+
+- 팀 스킬 코드·런타임: 최신 develop 원본 유지.
+- Jira·Agit·위키·리뷰·PR·커밋 본문: [개인 작성 규칙](.claude/rules/wiki-jira-writing-style.md) 우선.
+- Epic: **팀 템플릿 유지 + 내용 간소화**. 일반 6섹션·인바운드 8헤더·rubric 형식 유지.
+- [개인 Epic 진입점](megan-harness/skills/work/epic-curator/SKILL.md) · [템플릿 조사·예시](megan-harness/skills/work/epic-curator/references/template.md).
+- `sync --skills-only`는 스킬만 배포한다. 규칙·글로벌 지침은 글로벌 설정 sync에 포함된다.
+
 ## 동기화 대상
 
 | 대상 | 출력 경로 |

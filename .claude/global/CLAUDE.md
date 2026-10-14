@@ -252,6 +252,13 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 - 랭킹 카탈로그는 정본 `README.md`를 따른다. `spark-optimize` → `spark-debug` optimize, `self-review` → `pr-digest` self, `ranking-batch-task-execution` → `ranking-develop` ops로 연결한다.
 - cde-skills 카테고리는 `/Users/megan/work/cde/cde-skills/plugins/cde-skills/skills/`를 사용한다. 나머지 개인 스킬의 기존 우선순위는 유지한다.
 
+## megan.won 문서 작성 우선 규칙
+
+- Jira·Epic·Agit·위키·리뷰·PR·커밋을 작성하기 전에 `~/.claude/rules/wiki-jira-writing-style.md`(Claude) 또는 `~/.codex/rules/wiki-jira-writing-style.md`(Codex)를 읽는다.
+- 표현·분량은 megan.won 개인 규칙을 팀 스킬의 기본 템플릿보다 우선한다. 팀 스킬의 API·필수 필드·검증·권한 규칙은 유지한다.
+- Epic 문서는 개인 `epic-curator` 진입점을 사용하고 선택한 모드의 상세 지침만 추가로 읽는다.
+- 이 규칙의 원본은 ai-env `.claude/rules/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
+
 ## 🤖 Codex 자동 실행 (Full Auto)
 
 - 기본 실행은 Codex 기준으로 한다.
