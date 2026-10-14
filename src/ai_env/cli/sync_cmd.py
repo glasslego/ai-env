@@ -104,6 +104,17 @@ def sync(
         console.print(f"[yellow]⚠ Warning: .env file not found at {sm.env_file}[/yellow]")
         console.print("[dim]💡 Tip: Create .env file - 'cp .env.example .env' then edit it[/dim]\n")
 
+    # 일반 sync에도 중앙 비밀 파일 배포를 포함한다. skills-only는 위에서 종료한다.
+    if (project_root / ".env").is_file():
+        from ..core.env_sync import sync_env_files
+
+        try:
+            env_targets = sync_env_files(project_root, dry_run=dry_run)
+        except (OSError, ValueError) as error:
+            raise click.ClickException(str(error)) from error
+        for env_target in env_targets:
+            console.print(f"  {'Would sync' if dry_run else 'Synced'}: {env_target}")
+
     # 필수 환경변수 확인 (MCP 동기화 시)
     if not claude_only:
         mcp_config = load_mcp_config()

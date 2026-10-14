@@ -193,6 +193,7 @@ def config_show() -> None:
 from . import (  # noqa: E402, F401
     bedrock_cmd,
     doctor_cmd,
+    env_sync_cmd,
     generate_cmd,
     project_cmd,
     status_cmd,

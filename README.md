@@ -245,3 +245,19 @@ uv run pytest              # 테스트
 uv run ruff check . && uv run ruff format .  # 린트·포맷
 uv run mypy src/           # 타입 체크
 ```
+
+## 중앙 환경변수 배포
+
+- 원본: ai-env 루트 `.env` (Git 제외, 권한 600).
+- 대상: 연결된 cde-skills·cde-ranking-skills의 `.env` 일반 파일.
+- 각 저장소의 코드·템플릿이 참조하는 key만 복사한다.
+- 기존 파일은 `.env-backups/`에 백업한다. 비밀값은 출력하지 않는다.
+- 필요한 기존 값이 원본에 없거나 비어 있으면 배포를 중단한다.
+
+```bash
+uv run ai-env sync-env --dry-run
+uv run ai-env sync-env
+```
+
+일반 `ai-env sync`에도 포함된다. `--skills-only`는 환경변수를 배포하지 않는다.
+대상 파일을 직접 수정하지 않고 ai-env `.env`를 수정한 뒤 다시 배포한다.

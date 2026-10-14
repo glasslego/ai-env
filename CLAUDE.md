@@ -70,6 +70,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `mcp/vibe.py` | Agent Fallback 셸 함수 생성 (`claude()` wrapper) |
 | `core/env_example.py` | `.env.example` 자동 생성 — MCP/provider 설정 + 팀 스킬 템플릿·코드의 변수 이름 수집 |
 | `core/bedrock.py` | Claude Code on Bedrock setup helpers. |
+| `core/env_sync.py` | ai-env 원본에서 팀 저장소에 필요한 환경변수를 배포한다. |
 | `cli/` | Click CLI + Rich UI (bedrock, doctor, generate, project, status, sync) |
 
 ### 환경변수 치환

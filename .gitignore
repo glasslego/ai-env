@@ -66,3 +66,6 @@ generated/
 .out
 cde-skills
 cde-ranking-skills
+
+# Local secret deployment backups
+.env-backups/
