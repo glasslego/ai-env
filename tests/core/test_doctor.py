@@ -5,12 +5,57 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from ai_env.core.doctor import (
     CheckResult,
     DoctorReport,
     check_env,
+    check_skill_auth,
     check_tools,
 )
+from ai_env.core.env_sync import sync_env_files
+
+
+def test_skill_auth_reports_missing_email_and_portable_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """마스터 토큰만 있어도 이메일·플러그인용 배포 누락을 감지한다."""
+    (tmp_path / ".env").write_text("JIRA_URL=https://example.atlassian.net\nJIRA_TOKEN=secret\n")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    with patch("ai_env.core.doctor.get_project_root", return_value=tmp_path):
+        report = DoctorReport()
+        check_skill_auth(report)
+    by_name = {check.name: check for check in report.checks}
+    assert by_name["Jira auth"].status == "fail"
+    assert "JIRA_EMAIL" in by_name["Jira auth"].message
+    assert by_name[str(tmp_path / ".cde-skills.env")].status == "fail"
+    assert "secret" not in str(report.to_dict())
+
+
+def test_skill_auth_fallback_and_stale_wiki_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """배포 후 Jira fallback을 인정하고 잘못된 Wiki override가 되살아나면 실패한다."""
+    (tmp_path / ".env").write_text(
+        "JIRA_URL=https://example.atlassian.net\nJIRA_EMAIL=test@example.com\n"
+        "JIRA_TOKEN=secret\nWIKI_TOKEN=\n"
+    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    with patch("ai_env.core.env_sync.collect_team_env_keys", return_value={}):
+        sync_env_files(tmp_path)
+    with patch("ai_env.core.doctor.get_project_root", return_value=tmp_path):
+        report = DoctorReport()
+        check_skill_auth(report)
+        assert report.failed == 0
+        assert all(check.status == "pass" for check in report.checks)
+        portable = tmp_path / ".cde-skills.env"
+        portable.write_text(portable.read_text().replace("WIKI_TOKEN=", "WIKI_TOKEN=obsolete"))
+        report = DoctorReport()
+        check_skill_auth(report)
+    failed = [check for check in report.checks if check.status == "fail"]
+    assert len(failed) == 1
+    assert "WIKI_TOKEN" in failed[0].message
+    assert "obsolete" not in str(report.to_dict())
 
 
 class TestDoctorReport:

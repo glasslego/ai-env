@@ -249,8 +249,9 @@ uv run mypy src/           # 타입 체크
 ## 중앙 환경변수 배포
 
 - 원본: ai-env 루트 `.env` (Git 제외, 권한 600).
-- 대상: 연결된 cde-skills·cde-ranking-skills의 `.env` 일반 파일.
+- 대상: 연결된 cde-skills·cde-ranking-skills의 `.env`와 `~/.cde-skills.env`.
 - 각 저장소의 코드·템플릿이 참조하는 key만 복사한다.
+- 홈 fallback에는 Jira·Wiki 인증과 cde-skills 원본 경로만 배포한다. 플러그인 cache에서도 저장소·다른 에이전트의 설정 없이 읽을 수 있다. 기존 파일의 다른 서비스 key는 보존한다.
 - 기존 파일은 `.env-backups/`에 백업한다. 비밀값은 출력하지 않는다.
 - 필요한 기존 값이 원본에 없거나 비어 있으면 배포를 중단한다.
 
@@ -261,3 +262,7 @@ uv run ai-env sync-env
 
 일반 `ai-env sync`에도 포함된다. `--skills-only`는 환경변수를 배포하지 않는다.
 대상 파일을 직접 수정하지 않고 ai-env `.env`를 수정한 뒤 다시 배포한다.
+
+Wiki Cloud에서 Jira 인증을 재사용하려면 같은 사이트의 `JIRA_URL`, `JIRA_EMAIL`, `JIRA_TOKEN`을 설정하고 `WIKI_TOKEN=''`로 별도 토큰을 명시적으로 비운다. 별도 `WIKI_TOKEN`이 있으면 Jira 토큰보다 먼저 사용된다. 명시적인 빈 값은 같은 Cloud 사이트·계정의 Jira 인증이 있는 경우에만 기존 Wiki 토큰을 대체할 수 있다.
+
+`ai-env doctor`는 Jira·Wiki 필수 변수와 배포 누락·차이·파일 권한을 검사한다. 값이 있는 것과 실제 인증 성공은 구분하며, doctor는 네트워크 요청을 보내지 않는다. 실제 조회는 cde-skills 클라이언트로 확인한다. 셸에서 인증 변수를 사용한다면 `ai-env sync` 후 `source ./generated/shell_exports.sh`로 갱신한다. 빈 Wiki override도 export하므로 기존 셸의 오래된 토큰을 비울 수 있다.

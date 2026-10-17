@@ -67,6 +67,23 @@ class TestExportToShell:
         result = sm.export_to_shell()
         assert "EMPTY" not in result.split("Source:")[-1]
 
+    def test_wiki_fallback_clears_inherited_token(self):
+        """셸을 다시 source하면 옛 Wiki 토큰도 비워 Jira fallback이 적용된다."""
+        import os
+        import subprocess
+
+        sm = self._make_manager({"WIKI_TOKEN": "", "JIRA_TOKEN": "current"})
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                sm.export_to_shell() + '\n test "$WIKI_TOKEN" = "" && test "$JIRA_TOKEN" = current',
+            ],
+            env={**os.environ, "WIKI_TOKEN": "obsolete"},
+            capture_output=True,
+        )
+        assert result.returncode == 0
+
     def test_mixed_special_chars(self):
         """여러 특수문자가 섞인 복합 케이스"""
         sm = self._make_manager({"COMPLEX": "pa$$w0rd'with\"special chars"})

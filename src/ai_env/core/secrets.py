@@ -96,6 +96,10 @@ class SecretsManager:
             "",
         ]
         for key, value in self._cache.items():
+            # 명시적 빈 값은 현재 셸의 옛 Wiki 인증도 비워 Jira fallback을 적용한다.
+            if key in {"WIKI_TOKEN", "WIKI_EMAIL"} and value == "":
+                lines.append(f"export {key}=''")
+                continue
             if value and not key.startswith("#"):
                 # 값에 특수문자가 있으면 작은따옴표로 감싸기
                 # 작은따옴표 자체는 '\'' 패턴으로 이스케이핑

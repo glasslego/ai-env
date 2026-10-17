@@ -4,12 +4,42 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import dotenv_values
 from dotenv.parser import parse_stream
 
 from .env_example import collect_team_env_keys
+
+ATLASSIAN_ENV_KEYS = frozenset(
+    {"JIRA_URL", "JIRA_EMAIL", "JIRA_TOKEN", "WIKI_BASE_URL", "WIKI_EMAIL", "WIKI_TOKEN"}
+)
+
+
+def wiki_uses_jira_cloud_auth(values: Mapping[str, str | None]) -> bool:
+    """같은 Cloud 사이트에서 빈 Wiki 토큰을 Jira 인증으로 대체할 수 있는지 확인한다.
+
+    Args:
+        values: 원본 환경변수 값.
+
+    Returns:
+        같은 사이트·계정의 Jira Cloud 인증이 설정됐으면 True.
+    """
+    jira_url = values.get("JIRA_URL") or ""
+    try:
+        jira_host = urlparse(jira_url).hostname or ""
+        wiki_host = urlparse(values.get("WIKI_BASE_URL") or jira_url).hostname or ""
+    except ValueError:
+        return False
+    return bool(
+        jira_host.endswith(".atlassian.net")
+        and jira_host == wiki_host
+        and values.get("JIRA_EMAIL")
+        and values.get("JIRA_TOKEN")
+        and (not values.get("WIKI_EMAIL") or values["WIKI_EMAIL"] == values["JIRA_EMAIL"])
+    )
 
 
 def sync_env_files(project_root: Path, dry_run: bool = False) -> list[Path]:
@@ -33,6 +63,7 @@ def sync_env_files(project_root: Path, dry_run: bool = False) -> list[Path]:
     values = dotenv_values(source, interpolate=False)
     catalog = collect_team_env_keys(project_root)
     plans: list[tuple[Path, str]] = []
+    targets: list[tuple[str, Path, set[str]]] = []
     for name in ("cde-skills", "cde-ranking-skills"):
         repo = project_root / name
         if not repo.is_dir():
@@ -47,8 +78,24 @@ def sync_env_files(project_root: Path, dry_run: bool = False) -> list[Path]:
         required.update(
             key for key in values if key.startswith(("JIRA_", "WIKI_", "VAULT_", "CDE_SKILLS_"))
         )
+        targets.append((name, target, required))
+    # checkout이나 다른 에이전트의 marketplace 설정에 의존하지 않는 공식 fallback.
+    portable_keys = {key for key in values if key.startswith(("JIRA_", "WIKI_", "CDE_SKILLS_"))}
+    if portable_keys:
+        targets.append(
+            ("global fallback", Path.home() / ".cde-skills.env", portable_keys | ATLASSIAN_ENV_KEYS)
+        )
+    for name, target, required in targets:
         previous = dotenv_values(target, interpolate=False) if target.exists() else {}
-        missing = sorted(key for key in required if previous.get(key) and not values.get(key))
+        missing = sorted(
+            key
+            for key in required
+            if previous.get(key)
+            and not values.get(key)
+            and not (
+                key == "WIKI_TOKEN" and values.get(key) == "" and wiki_uses_jira_cloud_auth(values)
+            )
+        )
         if missing:
             raise ValueError(f"{name}: 원본에 유효한 값이 없는 key: {', '.join(missing)}")
         content = "# Managed by ai-env sync-env; edit ai-env/.env instead.\n"
@@ -56,6 +103,15 @@ def sync_env_files(project_root: Path, dry_run: bool = False) -> list[Path]:
         selected = {
             binding.key: binding.original.string for binding in bindings if binding.key in required
         }
+        if name == "global fallback" and target.exists():
+            # 사용자가 다른 용도로 둔 인증은 중앙 관리 대상 밖으로 보존한다.
+            with target.open(encoding="utf-8") as stream:
+                existing = list(parse_stream(stream))
+            if any(binding.error for binding in existing):
+                raise ValueError("global fallback: .env 구문 오류; 배포하지 않았습니다.")
+            for binding in existing:
+                if binding.key and binding.key not in required:
+                    selected[binding.key] = binding.original.string
         content += "".join(raw if raw.endswith("\n") else raw + "\n" for raw in selected.values())
         plans.append((target, content))
     if dry_run:
@@ -80,7 +136,7 @@ def sync_env_files(project_root: Path, dry_run: bool = False) -> list[Path]:
                 stream.write(content)
             # 원본의 파싱 값과 같음을 확인한 뒤 교체한다.
             actual = dotenv_values(temporary, interpolate=False)
-            if any(actual[key] != values[key] for key in actual):
+            if any(actual.get(key) != values.get(key) for key in required if key in values):
                 raise ValueError(".env 배포 값 검증에 실패했습니다.")
             temporary.replace(target)
         finally:

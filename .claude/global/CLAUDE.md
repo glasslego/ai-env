@@ -198,6 +198,9 @@ from pyspark.sql import functions as F  # 항상 F로 alias
 
 Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `productivity/wiki` 스킬을 사용한다.
 
+- Jira·Wiki 인증 원본은 ai-env `.env`이며 `ai-env sync-env`가 팀 저장소와 `~/.cde-skills.env`에 배포한다. cde-skills 클라이언트의 공통 loader로 읽고, loader 실행 전 `os.getenv`가 비었다는 이유로 토큰 누락을 판단하지 않는다.
+- 토큰을 찾지 못하면 `ai-env doctor`에서 필수 key·배포 차이를 확인한다. 비밀값을 출력하지 않는다. Cloud Wiki의 빈 `WIKI_TOKEN`·`WIKI_EMAIL`은 Jira 인증 fallback일 수 있다.
+
 ### MCP 승인 팁
 특정 MCP의 모든 기능을 영구 승인하려면 settings.json에서 이름만 추가:
 ```json

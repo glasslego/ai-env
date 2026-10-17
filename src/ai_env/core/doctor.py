@@ -8,8 +8,12 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+
+from dotenv import dotenv_values
 
 from .config import expand_path, get_project_root, load_settings
+from .env_sync import ATLASSIAN_ENV_KEYS
 from .secrets import get_secrets_manager
 
 
@@ -99,6 +103,81 @@ def check_tools(report: DoctorReport) -> None:
             report.checks.append(CheckResult(tool, "pass", f"installed ({path})", "tools"))
         else:
             report.checks.append(CheckResult(tool, "warn", "not found", "tools"))
+
+
+def check_skill_auth(report: DoctorReport) -> None:
+    """Jira·Wiki 인증 설정과 배포 상태를 값 노출 없이 검사한다.
+
+    Args:
+        report: 검사 결과를 추가할 보고서. 네트워크 인증 검사는 수행하지 않는다.
+    """
+    root = get_project_root()
+    source = root / ".env"
+    if not source.is_file():
+        return
+    values = dotenv_values(source, interpolate=False)
+    if not any(key.startswith(("JIRA_", "WIKI_")) for key in values):
+        return
+    jira_url = values.get("JIRA_URL") or ""
+    try:
+        cloud = (urlparse(jira_url).hostname or "").endswith(".atlassian.net")
+        wiki_cloud = (urlparse(values.get("WIKI_BASE_URL") or jira_url).hostname or "").endswith(
+            ".atlassian.net"
+        )
+    except ValueError:
+        cloud = wiki_cloud = False
+    jira_required = ["JIRA_URL", "JIRA_TOKEN"] + (["JIRA_EMAIL"] if cloud else [])
+    missing = [key for key in jira_required if not values.get(key)]
+    report.checks.append(
+        CheckResult(
+            "Jira auth",
+            "fail" if missing else "pass",
+            f"missing: {', '.join(missing)}"
+            if missing
+            else "configured (authentication not checked)",
+            "env",
+        )
+    )
+    wiki_missing = []
+    if not values.get("WIKI_BASE_URL") and not (cloud and jira_url):
+        wiki_missing.append("WIKI_BASE_URL")
+    if not values.get("WIKI_TOKEN") and not (wiki_cloud and values.get("JIRA_TOKEN")):
+        wiki_missing.append("WIKI_TOKEN (or JIRA_TOKEN for Cloud)")
+    if wiki_cloud and not (values.get("WIKI_EMAIL") or values.get("JIRA_EMAIL")):
+        wiki_missing.append("WIKI_EMAIL or JIRA_EMAIL")
+    report.checks.append(
+        CheckResult(
+            "Wiki auth",
+            "fail" if wiki_missing else "pass",
+            f"missing: {', '.join(wiki_missing)}"
+            if wiki_missing
+            else "configured (authentication not checked)",
+            "env",
+        )
+    )
+    keys = {
+        key for key in values if key.startswith(("JIRA_", "WIKI_", "CDE_SKILLS_"))
+    } | ATLASSIAN_ENV_KEYS
+    targets = [Path.home() / ".cde-skills.env"]
+    targets.extend(
+        root / name / ".env"
+        for name in ("cde-skills", "cde-ranking-skills")
+        if (root / name).is_dir()
+    )
+    for target in targets:
+        if not target.is_file():
+            report.checks.append(
+                CheckResult(str(target), "fail", "not deployed (run 'ai-env sync-env')", "env")
+            )
+            continue
+        deployed = dotenv_values(target, interpolate=False)
+        drift = sorted(key for key in keys if (values.get(key) or "") != (deployed.get(key) or ""))
+        status = "fail" if drift else "pass"
+        message = f"out of sync: {', '.join(drift)}" if drift else "Jira/Wiki auth matches source"
+        if target.stat().st_mode & 0o077:
+            status = "warn" if not drift else "fail"
+            message += "; expected permissions 600"
+        report.checks.append(CheckResult(str(target), status, message, "env"))
 
 
 def check_sync_drift(report: DoctorReport) -> None:
@@ -191,6 +270,7 @@ def run_doctor() -> DoctorReport:
     report = DoctorReport()
 
     check_env(report)
+    check_skill_auth(report)
     check_tools(report)
     check_sync_drift(report)
     check_shell(report)
