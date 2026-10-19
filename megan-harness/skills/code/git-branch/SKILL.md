@@ -1,6 +1,6 @@
 ---
 name: git-branch
-description: CDE-XXXX 또는 spec/task 컨벤션으로 git 브랜치를 생성한다. 사용자가 "/branch", "브랜치 만들어", "feature 브랜치", "spec 브랜치 따자", "CDE-1234 브랜치" 등을 말하면 트리거. 기본 base 는 `develop` 또는 default branch. branch-guard 와 짝.
+description: CDETEAM-XXXX Jira 키 그대로(없으면 CDETEAM-NOJIRA-YYYYMMDDHH) git 브랜치를 생성한다. codex/claude 등 에이전트 이름은 브랜치명에 절대 넣지 않는다. 사용자가 "/branch", "브랜치 만들어", "CDETEAM-1234 브랜치" 등을 말하면 트리거. 기본 base 는 `develop` 또는 default branch. branch-guard 와 짝.
 ---
 
 # Git Branch
@@ -9,33 +9,29 @@ description: CDE-XXXX 또는 spec/task 컨벤션으로 git 브랜치를 생성�
 
 ## When to invoke
 
-- 사용자가 새 작업 시작 표시: "이 티켓 시작할게", "feature 브랜치 따자"
-- `/branch CDE-1234` 또는 `/branch spec-015/task-02 짧은요약`
+- 사용자가 새 작업 시작 표시: "이 티켓 시작할게", "브랜치 따자"
+- `/branch CDETEAM-1234` 또는 Jira 없이 `/branch`
 - branch-guard 가 차단했을 때 새 브랜치를 만들어야 하는 경우
 
-## 네이밍 컨벤션
+## 네이밍 규칙
 
 | 입력 | 결과 브랜치 |
 |---|---|
-| `CDE-1234` (Jira 키만) | `feat/CDE-1234` |
-| `CDE-1234 add backfill` | `feat/CDE-1234-add-backfill` |
-| `spec-015/task-02 sync rework` | `feat/spec-015-task-02-sync-rework` |
-| `fix CDE-999 oom` | `fix/CDE-999-oom` |
-| `chore docs` | `chore/docs` |
+| `CDETEAM-1234` | `CDETEAM-1234` |
+| `CDETEAM-1234 add backfill` | `CDETEAM-1234` (요약은 버림) |
+| Jira 키 없음 | `CDETEAM-NOJIRA-YYYYMMDDHH` (예: `CDETEAM-NOJIRA-2026101914`) |
 
-prefix 자동 추론:
-- `fix`, `bug`, `oom`, `crash` → `fix/`
-- `chore`, `docs`, `refactor`, `test` → 해당 prefix
-- 그 외 → `feat/`
-
-소문자, 공백→`-`, 특수문자 제거. CDE 키는 대문자 유지.
+- 브랜치명에 `codex`, `claude` 등 에이전트·도구 이름을 절대 넣지 않는다 (`codex/...`, `claude/...` 금지).
+- `feat/`·`fix/` prefix, 요약 slug 를 붙이지 않는다.
+- worktree 디렉터리명도 같은 브랜치명을 쓴다.
+- ai-env 저장소는 main 단일 브랜치 정책이 우선이므로 브랜치를 만들지 않는다.
 
 ## 실행
 
 ```bash
-~/.claude/skills/git-branch/scripts/create.sh "CDE-1234 add backfill"
-~/.claude/skills/git-branch/scripts/create.sh --base main "fix CDE-999 oom"
-~/.claude/skills/git-branch/scripts/create.sh --dry-run "chore docs"
+~/.claude/skills/git-branch/scripts/create.sh CDETEAM-1234
+~/.claude/skills/git-branch/scripts/create.sh --base main CDETEAM-1234
+~/.claude/skills/git-branch/scripts/create.sh --dry-run          # NOJIRA
 ```
 
 ## 동작
@@ -49,4 +45,4 @@ prefix 자동 추론:
 
 - protected 브랜치 push 차단 → branch-guard
 - PR 생성 → github-pr
-- CDE 외 다른 ticket prefix 인식 → 필요 시 `BRANCH_TICKET_PATTERN` 환경변수
+- CDETEAM 외 다른 ticket prefix 인식 → 필요 시 `BRANCH_TICKET_PATTERN` 환경변수

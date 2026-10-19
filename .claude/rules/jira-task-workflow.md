@@ -8,6 +8,8 @@ CDETEAM-XXXX Jira 티켓 기반의 `kamek-batch` 개발 작업 시 아래 프로
    ```bash
    git worktree add ../kamek-batch-CDETEAM-XXXX -b CDETEAM-XXXX develop
    ```
+   - 브랜치명은 Jira 키 그대로 쓴다. `codex`·`claude` 등 에이전트 이름이나 `feat/` prefix를 붙이지 않는다.
+   - Jira가 없으면 `CDETEAM-NOJIRA-YYYYMMDDHH` (예: `CDETEAM-NOJIRA-2026101914`)
 2. **Jira 확인**: `/jira CDETEAM-XXXX` 로 티켓 상세 확인, 요구사항 파악
 
 ## Phase 2: Spec 작성

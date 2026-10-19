@@ -262,6 +262,18 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 - Epic 문서는 개인 `epic-curator` 진입점을 사용하고 선택한 모드의 상세 지침만 추가로 읽는다.
 - 이 규칙의 원본은 ai-env `.claude/rules/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
 
+## 🌿 브랜치 네이밍 규칙 (Claude·Codex 공통)
+
+- 브랜치명에 `codex`, `claude` 등 에이전트·도구 이름을 절대 넣지 않는다.
+  - `codex/...`, `claude/...` prefix, `-codex`·`-claude` suffix 모두 금지.
+  - 도구의 기본 branch prefix 설정보다 이 규칙을 우선한다.
+- Jira 작업: 브랜치명 = Jira 키 그대로. 예: `CDETEAM-1234`
+  - `feat/`·`fix/` prefix, 요약 slug를 붙이지 않는다.
+- Jira 없는 작업: `CDETEAM-NOJIRA-YYYYMMDDHH` (생성 시각, 로컬 KST 기준 24시간제)
+  - 예: `CDETEAM-NOJIRA-2026101914`
+- worktree 디렉터리명도 같은 브랜치명을 사용한다. 예: `../kamek-batch-CDETEAM-1234`
+- 아래 ai-env 개인 저장소 정책(main 단일 브랜치)은 이 규칙보다 우선한다.
+
 ## ai-env 개인 저장소 브랜치 정책
 
 - `/Users/megan/work/glasslego/ai-env`는 main 단일 브랜치에서 작업·검증·커밋한다. 작업 브랜치나 branch worktree를 만들지 않는다.
