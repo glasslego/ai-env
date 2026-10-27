@@ -219,6 +219,9 @@ def check_sync_drift(report: DoctorReport) -> None:
             expected = content
 
         actual = path.read_text()
+        # sync는 codex_global에 Codex 앱 관리 섹션을 보존해 병합하므로 같은 결과와 비교한다
+        if name == "codex_global":
+            expected = MCPConfigGenerator.merge_codex_config(actual, expected)
         if _sha256(expected) == _sha256(actual):
             report.checks.append(CheckResult(name, "pass", "up to date", "sync"))
         else:

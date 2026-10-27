@@ -11,9 +11,11 @@ from ai_env.core.doctor import (
     DoctorReport,
     check_env,
     check_skill_auth,
+    check_sync_drift,
     check_tools,
 )
 from ai_env.core.env_sync import sync_env_files
+from ai_env.mcp import MCPConfigGenerator
 
 
 def test_skill_auth_reports_missing_email_and_portable_file(
@@ -30,6 +32,41 @@ def test_skill_auth_reports_missing_email_and_portable_file(
     assert "JIRA_EMAIL" in by_name["Jira auth"].message
     assert by_name[str(tmp_path / ".cde-skills.env")].status == "fail"
     assert "secret" not in str(report.to_dict())
+
+
+def test_sync_drift_ignores_codex_app_managed_sections(tmp_path: Path) -> None:
+    """Codex 앱이 추가한 섹션은 sync가 보존하므로 drift로 판정하지 않는다."""
+    generated = '[mcp_servers.fetch]\ncommand = "uvx"\n'
+    codex_path = tmp_path / "config.toml"
+
+    class FakeGenerator(MCPConfigGenerator):
+        def __init__(self, _sm: object) -> None:
+            outputs = type("Outputs", (), {})()
+            for name in ("claude_desktop", "codex_desktop", "claude_local", "codex_local"):
+                setattr(outputs, name, str(tmp_path / f"missing_{name}"))
+            outputs.codex_global = str(codex_path)
+            self.settings = type("Settings", (), {"outputs": outputs})()
+
+        def generate_codex(self) -> str:
+            return generated
+
+        def generate_claude_desktop(self) -> dict:
+            return {}
+
+        generate_codex_desktop = generate_claude_desktop
+        generate_claude_local = generate_claude_desktop
+
+    def run_check() -> str:
+        report = DoctorReport()
+        with patch("ai_env.mcp.MCPConfigGenerator", FakeGenerator):
+            check_sync_drift(report)
+        return next(c.status for c in report.checks if c.name == "codex_global")
+
+    codex_path.write_text(generated + '\n[projects."/tmp/x"]\ntrust_level = "trusted"\n')
+    assert run_check() == "pass"
+
+    codex_path.write_text('[mcp_servers.fetch]\ncommand = "old"\n')
+    assert run_check() == "fail"
 
 
 def test_skill_auth_fallback_and_stale_wiki_token(
