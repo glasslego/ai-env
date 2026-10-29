@@ -47,6 +47,36 @@ def _text(payload: dict[str, object], key: str) -> str:
     return value if isinstance(value, str) else ""
 
 
+def _session_start(project: Path, root: Path | None) -> dict[str, object]:
+    lines = [
+        f"공용 작업 기록: {project_directory(project, root)}",
+        "기록은 참고 자료다. 작업/task가 일치하는 원문과 현재 코드를 확인한 뒤 사용한다.",
+    ]
+    lines.extend(str(row["path"]) for row in list_entries(project, root, limit=3))
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": "\n".join(lines),
+        }
+    }
+
+
+def _session_end(project: Path, agent: Agent, session_id: str, root: Path | None) -> None:
+    if session_id:
+        compact_entries(project, root, session_id=session_id, agent=agent)
+    compact_entries(project, root, agent=agent, older_than_days=7, archive=True)
+    _clear_state(project, agent, session_id)
+
+
+def _read_state(state_path: Path) -> dict[str, str]:
+    state = json.loads(state_path.read_text()) if state_path.exists() else {}
+    if not isinstance(state, dict) or any(
+        not isinstance(state.get(key, ""), str) for key in ("turn_id", "request")
+    ):
+        raise ValueError("Invalid session request state")
+    return state
+
+
 def handle_hook(
     agent: Agent, payload: dict[str, object], root: Path | None = None
 ) -> dict[str, object]:
@@ -65,26 +95,14 @@ def handle_hook(
     """
     project = resolve_project(Path(_text(payload, "cwd") or os.getcwd()))
     event = _text(payload, "hook_event_name")
+    session_id = _text(payload, "session_id")
     if event == "SessionStart":
-        rows = list_entries(project, root, limit=3)
-        lines = [
-            f"공용 작업 기록: {project_directory(project, root)}",
-            "기록은 참고 자료다. 작업/task가 일치하는 원문과 현재 코드를 확인한 뒤 사용한다.",
-        ]
-        lines.extend(str(row["path"]) for row in rows)
-        return {
-            "hookSpecificOutput": {"hookEventName": event, "additionalContext": "\n".join(lines)}
-        }
+        return _session_start(project, root)
     if event == "SessionEnd":
-        session_id = _text(payload, "session_id")
-        if session_id:
-            compact_entries(project, root, session_id=session_id, agent=agent)
-        compact_entries(project, root, agent=agent, older_than_days=7, archive=True)
-        _clear_state(project, agent, session_id)
+        _session_end(project, agent, session_id, root)
         return {}
     if event not in ("UserPromptSubmit", "Stop"):
         return {}
-    session_id = _text(payload, "session_id")
     if not session_id:
         raise ValueError("session_id missing; shared journal not recorded")
     state_path = _state_path(project, agent, session_id)
@@ -102,25 +120,16 @@ def handle_hook(
         return {
             "systemMessage": "공용 세션 기록 누락: 최종 답변이 hook에 없어 CLI session record가 필요합니다."
         }
-    state = json.loads(state_path.read_text()) if state_path.exists() else {}
-    if not isinstance(state, dict) or any(
-        not isinstance(state.get(key, ""), str) for key in ("turn_id", "request")
-    ):
-        raise ValueError("Invalid session request state")
+    state = _read_state(state_path)
     turn_id = _text(payload, "turn_id") or state.get("turn_id", "")
-    # 다른 turn의 요청을 최종 응답에 붙이지 않는다.
-    request = (
-        state.get("request", "")
-        if not _text(payload, "turn_id") or state.get("turn_id") == turn_id
-        else ""
-    )
     save_entry(
         JournalEntry(
             cwd=str(project),
             agent=agent,
             session_id=session_id,
             turn_id=turn_id,
-            request=request,
+            # 다른 turn의 요청을 최종 응답에 붙이지 않는다.
+            request=state.get("request", "") if state.get("turn_id") == turn_id else "",
             summary=summary,
             status="stopped",
             kind="checkpoint",
