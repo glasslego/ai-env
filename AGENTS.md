@@ -63,6 +63,7 @@ uv run ai-env sync --claude-only
 ### ③ 문서화
 - README.md, CLAUDE.md, AGENTS.md 업데이트
 - 사용법 및 예제 추가
+- 재사용할 결과 문서는 `.claude/rules/llm-wiki-workflow.md`에 따라 작성 전 Wiki 검색, 저장 후 출처 등록과 관련 종합 갱신
 
 ---
 

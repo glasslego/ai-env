@@ -14,5 +14,6 @@
 | [SPEC-013](SPEC-013-claude-codex-focused-and-session-save.md) | Claude+Codex 중심 정리 및 Obsidian 세션 저장 기능 |
 | [SPEC-014](SPEC-014-cross-agent-handoff.md) | Cross-Agent 핸드오프 (cwd 격리) |
 | [SPEC-015](SPEC-015-megan-skills-harness.md) | Megan Skills Harness |
+| [SPEC-016](SPEC-016-llm-wiki-document-workflow.md) | 문서 작업의 LLM Wiki 검색·등록 연계 |
 
 새 작업은 Spec/Task 경계를 기록하고, [공용 템플릿](../megan-harness/skills/ai-env/spec-manager/references/spec-template.md)을 사용한다.

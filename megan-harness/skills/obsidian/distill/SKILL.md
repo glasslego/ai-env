@@ -16,6 +16,14 @@ description: 길어진 세션 트랜스크립트(jsonl) 또는 임의 텍스트�
 
 ## 동작 (2단계)
 
+### LLM Wiki 연계
+
+- 정리 전 ai-env `llm-wiki-workflow.md` 공용 규칙에 따라 주제 핵심어로 `ai-env wiki search`를 실행하고 관련 종합·근거를 읽는다.
+- 정리한 Markdown 저장 후 `ai-env wiki register "저장한 노트의 절대경로.md"`를 실행한다.
+- 반환된 `related_pages` 중 최대 3개에 새 결론만 반영한다. 원본·직접 작성한 해석은 보존한다.
+- 내용 변화가 없으면 요약·종합·로그를 늘리지 않는다. 등록 성공과 종합 갱신 결과는 구분해 보고한다.
+- CLI 실행: `uv run --directory /Users/megan/work/glasslego/ai-env ai-env wiki ...`.
+
 ### 1) 결정적 전처리 (filter_transcript.py)
 
 ```bash

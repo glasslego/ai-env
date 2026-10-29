@@ -262,6 +262,14 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 - Epic 문서는 개인 `epic-curator` 진입점을 사용하고 선택한 모드의 상세 지침만 추가로 읽는다.
 - 이 규칙의 원본은 ai-env `.claude/rules/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
 
+## 문서 작업과 LLM Wiki
+
+- 재사용할 설계·기술 설명·리서치·회고·세션 요약은 작성 전 기존 지식을 검색하고, 작성 후 로컬 Markdown을 LLM Wiki에 등록한다.
+- 절차 정본: ai-env `.claude/rules/llm-wiki-workflow.md`. 배포본은 `~/.claude/rules/` 또는 `~/.codex/rules/`의 같은 파일이다.
+- CLI: `uv run --directory /Users/megan/work/glasslego/ai-env ai-env wiki search "핵심어"`, `... wiki register "문서.md"`.
+- 등록 후 관련 종합 최대 3개에 실제 새 지식만 반영한다. 원본·개인 해석 보존, 개인·투자 영역은 명시 지정만 허용한다.
+- 지침·템플릿·단순 링크 수정은 등록하지 않는다. 검색·등록 실패를 숨기거나 등록만으로 종합 완료를 표시하지 않는다.
+
 ## 🌿 브랜치 네이밍 규칙 (Claude·Codex 공통)
 
 - 브랜치명에 `codex`, `claude` 등 에이전트·도구 이름을 절대 넣지 않는다.

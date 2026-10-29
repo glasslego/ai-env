@@ -23,6 +23,12 @@ Codex, and future Obsidian review.
 - Preserve `## Ontology Seeds` in every session note.
 - Prefer deterministic extraction scripts for indexing; use LLM summarization
   only for narrative compression.
+- Before document work, follow `llm-wiki-workflow.md` and run `ai-env wiki search`
+  with topic keywords; read the relevant synthesis pages and sources.
+- After saving Markdown, run `ai-env wiki register` on that file. Update up to
+  three relevant synthesis pages only when the evidence changes the conclusion.
+- Preserve original notes and user-authored interpretations. Report source
+  registration separately from synthesis updates; never infer either succeeded.
 
 ## Output
 

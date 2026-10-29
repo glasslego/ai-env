@@ -10,7 +10,7 @@
 
 ## 프로젝트 개요
 
-ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. Claude/Codex 설정 동기화에만 집중하며, 리서치·워크플로우·세션 저장 등 부가 기능은 제거되었다.
+ai-env는 **Claude Code + Codex CLI** 개발 환경의 설정과 MCP 서버를 **하나의 소스에서 통합 관리**하는 CLI 도구다. 설정 동기화와 공용 에이전트 규칙을 관리하며, 문서 작업에는 로컬 LLM Wiki 검색·출처 등록 CLI를 제공한다.
 
 **핵심 가치**: 토큰·MCP 설정을 중앙화하고, 각 AI 도구 형식으로 자동 변환·배포한다.
 
@@ -64,6 +64,7 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `core/secrets.py` | `.env` 환경변수 관리, `${VAR}` 치환 |
 | `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex) |
 | `core/doctor.py` | 환경 건강 검사 (`ai-env doctor`) |
+| `core/wiki_documents.py` | LLM Wiki 종합·출처 검색, Markdown 해시 등록과 불변 스냅샷 |
 | `core/project_sync.py` | 프로젝트 로컬 Claude↔Codex 동기화 |
 | `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE/streamable-http) |
 | `core/codex_skills.py` | Codex 호환 스킬 패키징 (SKILL.md frontmatter 정규화) |
@@ -162,6 +163,9 @@ Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`�
 **세션 로그**: fallback 세션 로그는 현재 프로젝트의 `.claude/logs/`에 `{session_id}_{agent}.log` 형식으로 저장된다. 세션 시작 시 7일 이상 된 로그는 자동 삭제된다. `CLAUDE_FALLBACK_LOG_DIR` 환경변수로 저장 경로를 오버라이드할 수 있다.
 
 ## 주요 규칙
+
+- 문서 작업은 `.claude/rules/llm-wiki-workflow.md`에 따라 작성 전 `ai-env wiki search`, 작성 후 `ai-env wiki register`를 실행한다. 종합은 에이전트가 근거를 읽고 갱신한다.
+- Wiki CLI 계약과 테스트: `specs/SPEC-016-llm-wiki-document-workflow.md`. 검색은 종합·등록 출처 대상이며 전체 Vault 의미 검색은 아니다.
 
 - `.env`는 절대 커밋하지 않음 (`.gitignore`에 `.env`, `*.pem`, `credentials*.json` 포함)
 - 시크릿 하드코딩 절대 금지. 환경변수 또는 `.env` 파일 사용

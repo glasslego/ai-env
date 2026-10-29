@@ -1,0 +1,8 @@
+last_updated: '2026-10-29'
+current_phase: review
+specs:
+  SPEC-016:
+    title: 문서 작업의 LLM Wiki 검색·등록 연계
+    status: review_required
+    tasks_total: 1
+    tasks_done: 1

@@ -39,6 +39,28 @@ uv run ai-env sync --claude-only
 - `~/.claude/CLAUDE.md`, `~/.claude/rules/` (Claude Code)
 - `~/.codex/AGENTS.md`, `~/.codex/rules/`, `~/.codex/skills/`, `~/.codex/commands/`, `~/.codex/project-profile.yaml` (Codex CLI)
 
+## 문서 작업의 LLM Wiki 연계
+
+공용 에이전트 규칙은 재사용할 문서 작성 전 기존 지식을 검색하고, 저장 후 출처를 등록하도록 한다.
+검색·등록은 아래 CLI가 수행하며, 종합 문장·인덱스·로그 갱신은 에이전트가 근거를 읽고 수행한다.
+OS watcher나 백그라운드 LLM은 실행하지 않는다.
+
+```bash
+uv run ai-env wiki search "배치 성능 정합성" --limit 3
+uv run ai-env wiki register /absolute/path/design.md --dry-run
+uv run ai-env wiki register /absolute/path/design.md
+uv run ai-env wiki --vault "/path/to/vault" search "지식 종합"
+```
+
+- Vault 경로: `--vault` → `OBSIDIAN_BASE` → `~/Documents/Obsidian Vault`.
+- 검색 대상: `wiki/`의 `note_type: synthesis`와 등록한 출처. JSON에 경로·상태·근거 발췌를 반환한다.
+- 외부 Markdown: `00_inbox/llm-wiki/<SHA-256>.md`에 불변 스냅샷 저장. 원본은 수정하지 않는다.
+- Vault 내부 원본: 복사 없이 경로·해시 등록. 동일 내용 재등록은 무변경이다.
+- 개인·투자 폴더: 기본 제외. 사용자가 지정한 문서만 `--allow-private` 등록 가능하며 기본 검색에서는 계속 제외된다.
+- 저장소: `_meta/llm-wiki-registry.json`. 상세 계약: [SPEC-016](specs/SPEC-016-llm-wiki-document-workflow.md).
+- 사용·종합 연결 절차: [LLM Wiki 가이드](docs/LLM-WIKI.md).
+- 공용 규칙 배포: `uv run ai-env sync --claude-only` (Claude·Codex 포함). 지침·템플릿·단순 링크 수정은 자동 등록 대상이 아니다.
+
 ## 동작 원리
 
 ```
