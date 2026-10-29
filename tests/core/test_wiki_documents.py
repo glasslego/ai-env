@@ -147,5 +147,18 @@ def test_markdown_without_searchable_title_can_be_registered(tmp_path: Path) -> 
     assert register_document(vault, doc).status == "registered"
 
 
+def test_session_journal_record_is_snapshotted_before_archive(tmp_path: Path) -> None:
+    vault = make_vault(tmp_path)
+    record = vault / "00_session/agent-logs/ai-env-0123/codex__work__보고.md"
+    record.parent.mkdir(parents=True)
+    record.write_text("# 배치 보고\n성능 정합성 검증 완료\n")
+    result = register_document(vault, record)
+    # 7일 뒤 gzip 보관이 본문을 안내로 바꿔도 등록한 근거는 그대로 검색된다.
+    assert result.snapshot.startswith("00_inbox/llm-wiki/")
+    record.write_text("# 배치 보고\n원문은 gzip으로 보관했습니다.\n")
+    hits = [hit for hit in search_wiki(vault, "정합성 검증") if hit.kind == "source"]
+    assert [(hit.path, hit.status) for hit in hits] == [(result.snapshot, "registered")]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

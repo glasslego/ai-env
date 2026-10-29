@@ -33,6 +33,7 @@ uv run --directory /Users/megan/work/glasslego/ai-env ai-env wiki register /abso
 | 대상 | 등록 동작 |
 |---|---|
 | Vault 내부 원본 | 원본 경로·내용 해시 등록. 복사·수정 없음 |
+| Vault 작업 기록 `00_session/agent-logs/` | gzip 보관으로 본문이 바뀌므로 외부 문서처럼 스냅샷 저장 |
 | 외부 Markdown | `00_inbox/llm-wiki/<SHA-256>.md`에 내용별 스냅샷 저장 |
 | 같은 경로·같은 내용 | `unchanged`. 레지스트리·스냅샷 갱신 없음 |
 | 원본 내용 변경 | 새 해시 등록. 외부 문서의 이전 스냅샷 보존 |
@@ -44,6 +45,12 @@ uv run --directory /Users/megan/work/glasslego/ai-env ai-env wiki register /abso
 - 경로 이탈·손상된 레지스트리·외부 스냅샷 변조는 오류로 처리한다.
 - Vault 내부 원본이 등록 후 바뀌면 검색 상태가 `source_changed`다. 원본을 재확인하고 재등록한다.
 - UTF-8 Markdown만 처리하며 파일당 최대 2 MiB다. PDF·원격 URL은 직접 등록하지 않는다.
+
+## Vault 규칙과 작업 기록
+
+- Vault 작업 전 Vault `AGENTS.md`, `wiki/index.md`, `wiki/운영 가이드.md`를 읽는다. 종합 절차·상태 전환의 정본은 운영 가이드다.
+- 공용 작업 기록 중 work·review·fix 완료 보고만 ingest 후보다. checkpoint·summary는 자동 발췌라 출처로 등록하지 않는다.
+- 작업 기록 frontmatter는 Vault 온톨로지(`note_type: log`, `entity_type: evidence`, `status: reference|archived`)를 따른다.
 
 ## 종합에 연결하기
 

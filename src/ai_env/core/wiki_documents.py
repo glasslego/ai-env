@@ -18,6 +18,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from .config import expand_path
+from .session_storage import VAULT_JOURNAL_DIRECTORY
 
 MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
 PRIVATE_DIRECTORIES = {"40_개인", "41_투자_재테크"}
@@ -214,11 +215,10 @@ def register_document(
             return RegistrationResult(status="skipped", origin=str(source))
     data, _, title, _ = _read_document(source)
     digest = hashlib.sha256(data).hexdigest()
-    snapshot = (
-        source.relative_to(vault)
-        if source.is_relative_to(vault)
-        else SNAPSHOT_DIRECTORY / f"{digest}.md"
+    in_place = source.is_relative_to(vault) and not source.is_relative_to(
+        vault / VAULT_JOURNAL_DIRECTORY
     )
+    snapshot = source.relative_to(vault) if in_place else SNAPSHOT_DIRECTORY / f"{digest}.md"
     destination = _contained(vault, snapshot)
     record = DocumentRecord(
         origin=str(source),

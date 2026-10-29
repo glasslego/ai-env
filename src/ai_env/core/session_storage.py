@@ -19,6 +19,8 @@ from .config import expand_path
 
 Scope = Literal["kakao", "personal", "unclassified"]
 KST = ZoneInfo("Asia/Seoul")
+# Vault 안의 기록은 gzip 보관으로 본문이 바뀌므로 wiki 출처는 스냅샷으로 등록한다.
+VAULT_JOURNAL_DIRECTORY = Path("00_session") / "agent-logs"
 FRONT_MATTER = re.compile(r"---\n(.*?)\n---\n(.*)", re.S)
 
 
@@ -78,7 +80,7 @@ def resolve_root(value: Path | None = None) -> Path:
         return expand_path(str(explicit)).resolve()
     vault = expand_path(os.getenv("OBSIDIAN_BASE") or "~/Documents/Obsidian Vault")
     if vault.is_dir():
-        return vault.resolve() / "00_session" / "agent-logs"
+        return vault.resolve() / VAULT_JOURNAL_DIRECTORY
     return Path.home() / ".ai-env" / "session-logs"
 
 
