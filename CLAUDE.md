@@ -65,6 +65,11 @@ config/settings.yaml + config/mcp_servers.yaml  ← 설정 소스 (YAML)
 | `core/sync.py` | 글로벌 설정 동기화 (Claude, Codex) |
 | `core/doctor.py` | 환경 건강 검사 (`ai-env doctor`) |
 | `core/wiki_documents.py` | LLM Wiki 종합·출처 검색, Markdown 해시 등록과 불변 스냅샷 |
+| `core/session_journal.py` | 공용 작업 기록 저장·조회·마스킹 |
+| `core/session_storage.py` | 기록 경로·프로젝트 격리·Markdown 머리말·잠금 |
+| `core/session_hooks.py` | 요청·응답·세션 종료 hook 처리 |
+| `core/session_compaction.py` | 세션·날짜별 탐색 요약 |
+| `core/session_archives.py` | 검증한 gzip 보관·원문 복원 |
 | `core/project_sync.py` | 프로젝트 로컬 Claude↔Codex 동기화 |
 | `mcp/generator.py` | 타겟별 MCP 설정 생성 (stdio/SSE/streamable-http) |
 | `core/codex_skills.py` | Codex 호환 스킬 패키징 (SKILL.md frontmatter 정규화) |
@@ -163,6 +168,9 @@ Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`�
 **세션 로그**: fallback 세션 로그는 현재 프로젝트의 `.claude/logs/`에 `{session_id}_{agent}.log` 형식으로 저장된다. 세션 시작 시 7일 이상 된 로그는 자동 삭제된다. `CLAUDE_FALLBACK_LOG_DIR` 환경변수로 저장 경로를 오버라이드할 수 있다.
 
 ## 주요 규칙
+
+- 지시 완료 보고·교차 리뷰는 `.claude/rules/shared-session-journal.md`에 따라 `ai-env session record|list|show|compact`로 관리한다.
+- Obsidian 작업 기록의 자동 hook·프로젝트 격리·검증 후 gzip 보관은 `docs/SESSION-JOURNAL.md`, `SPEC-017/TASK-01`을 따른다.
 
 - 문서 작업은 `.claude/rules/llm-wiki-workflow.md`에 따라 작성 전 `ai-env wiki search`, 작성 후 `ai-env wiki register`를 실행한다. 종합은 에이전트가 근거를 읽고 갱신한다.
 - Wiki CLI 계약과 테스트: `specs/SPEC-016-llm-wiki-document-workflow.md`. 검색은 종합·등록 출처 대상이며 전체 Vault 의미 검색은 아니다.

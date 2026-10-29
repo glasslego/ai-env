@@ -69,6 +69,11 @@ uv run ai-env sync --claude-only
 
 ## 📌 3. 저장소 구조
 
+공용 작업 기록은 `.claude/rules/shared-session-journal.md`를 따른다. 지시 완료 시
+`ai-env session record`로 Obsidian에 보고하고, 도구 전환 시 같은 task 기록과 현재 diff를 확인한다.
+자동 Stop은 checkpoint, 종료 시 summary와 오래된 원문 gzip 보관을 수행한다.
+운영 절차: `docs/SESSION-JOURNAL.md`, 구현 계약: `SPEC-017/TASK-01`.
+
 ### **src/ai_env/**
 - `cli/`: Click 기반 CLI 패키지 (bedrock, config, doctor, generate, project, secrets, setup, status, sync 명령어)
 - `core/config.py`: Pydantic 모델, YAML 설정 로드

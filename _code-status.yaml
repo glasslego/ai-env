@@ -5,3 +5,9 @@ tasks:
     tests_failed: 0
     coverage_percent: 79.45
     updated: 2026-10-29
+  SPEC-017/TASK-01:
+    status: done
+    tests_passed: 243
+    tests_failed: 0
+    coverage_percent: 82.14
+    updated: '2026-10-29'

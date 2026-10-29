@@ -6,3 +6,8 @@ specs:
     status: review_required
     tasks_total: 1
     tasks_done: 1
+  SPEC-017:
+    title: Claude·Codex 공용 작업·리뷰 기록과 압축 보관
+    status: review_required
+    tasks_total: 1
+    tasks_done: 1

@@ -18,6 +18,8 @@ from .secrets import get_secrets_manager
 
 # cmux 훅 스크립트 파일명
 _CMUX_HOOK_SCRIPT = "cmux_notify.sh"
+# SessionEnd 정리까지 포함한 공용 기록 hook 제한. Claude 템플릿 값과 같아야 한다.
+JOURNAL_HOOK_TIMEOUT_SECONDS = 30
 CDE_RANKING_SKILLS = "cde-ranking-skills"
 CDE_RANKING_BASE_BRANCH = "develop"
 CDE_RANKING_BASE_REMOTE = "origin"
@@ -876,14 +878,19 @@ def _ensure_symlink(
     return True
 
 
-def _codex_hook(command: str) -> dict[str, str]:
+def _codex_hook(command: str, timeout: int | None = None) -> dict[str, str | int]:
     """Codex hooks.json command hook entry."""
-    return {"type": "command", "command": command}
+    hook: dict[str, str | int] = {"type": "command", "command": command}
+    if timeout is not None:
+        hook["timeout"] = timeout
+    return hook
 
 
-def _codex_matcher(*commands: str, matcher: str = "") -> dict[str, Any]:
-    """Codex hooks.json matcher block."""
-    block: dict[str, Any] = {"hooks": [_codex_hook(command) for command in commands]}
+def _codex_matcher(*commands: str | dict[str, str | int], matcher: str = "") -> dict[str, Any]:
+    """Codex hooks.json matcher block. 문자열은 timeout 없는 command hook이다."""
+    block: dict[str, Any] = {
+        "hooks": [_codex_hook(c) if isinstance(c, str) else c for c in commands]
+    }
     if matcher:
         block["matcher"] = matcher
     return block
@@ -897,6 +904,9 @@ def _codex_hooks_json(hooks_dir: Path, *, cmux_enabled: bool) -> str:
     security_guard = f"bash '{hooks_dir / 'security_guard.sh'}'"
     event_log = f"bash '{hooks_dir / 'hook_event_log.sh'}'"
     cmux = f"bash '{hooks_dir / _CMUX_HOOK_SCRIPT}'"
+    journal = _codex_hook(
+        f"bash '{hooks_dir / 'session_journal.sh'}' codex", JOURNAL_HOOK_TIMEOUT_SECONDS
+    )
 
     notify_hooks = [event_log]
     if cmux_enabled:
@@ -905,9 +915,9 @@ def _codex_hooks_json(hooks_dir: Path, *, cmux_enabled: bool) -> str:
     data = {
         "hooks": {
             "SessionStart": [
-                _codex_matcher(session_start, *notify_hooks, matcher="startup|resume")
+                _codex_matcher(session_start, *notify_hooks, journal, matcher="startup|resume")
             ],
-            "UserPromptSubmit": [_codex_matcher(*notify_hooks)],
+            "UserPromptSubmit": [_codex_matcher(*notify_hooks, journal)],
             "PreToolUse": [
                 _codex_matcher(
                     security_guard,
@@ -917,8 +927,8 @@ def _codex_hooks_json(hooks_dir: Path, *, cmux_enabled: bool) -> str:
             ],
             "PostToolUse": [_codex_matcher(*notify_hooks)],
             "PreCompact": [_codex_matcher(pre_compact, *notify_hooks)],
-            "SessionEnd": [_codex_matcher(session_end, *notify_hooks)],
-            "Stop": [_codex_matcher(*notify_hooks)],
+            "SessionEnd": [_codex_matcher(session_end, *notify_hooks, journal)],
+            "Stop": [_codex_matcher(*notify_hooks, journal)],
             "TaskCompleted": [_codex_matcher(*notify_hooks)],
             "Notification": [_codex_matcher(*notify_hooks)],
         }

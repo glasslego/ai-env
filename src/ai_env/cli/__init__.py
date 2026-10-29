@@ -196,6 +196,7 @@ from . import (  # noqa: E402, F401
     env_sync_cmd,
     generate_cmd,
     project_cmd,
+    session_cmd,
     status_cmd,
     sync_cmd,
     wiki_cmd,

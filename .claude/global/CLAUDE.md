@@ -262,6 +262,13 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 - Epic 문서는 개인 `epic-curator` 진입점을 사용하고 선택한 모드의 상세 지침만 추가로 읽는다.
 - 이 규칙의 원본은 ai-env `.claude/rules/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
 
+## 공용 세션 기록
+
+- 사용자 지시 완료 시 `.claude/rules/shared-session-journal.md`에 따라 Obsidian에 작업·검증·TODO를 Markdown으로 기록한다.
+- Claude·Codex를 전환할 때 현재 프로젝트의 동일 task 기록을 읽고, 리뷰·수정은 parent로 연결한다.
+- Stop은 checkpoint이며 성공 판정이 아니다. 세션 종료·7일 지난 기록은 원문을 보존하며 요약한다.
+- 저장·조회·정리 CLI: `ai-env session record|list|compact`. 상세 절차는 배포된 `shared-session-journal.md`를 따른다.
+
 ## 문서 작업과 LLM Wiki
 
 - 재사용할 설계·기술 설명·리서치·회고·세션 요약은 작성 전 기존 지식을 검색하고, 작성 후 로컬 Markdown을 LLM Wiki에 등록한다.

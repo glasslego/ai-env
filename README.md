@@ -61,6 +61,14 @@ uv run ai-env wiki --vault "/path/to/vault" search "지식 종합"
 - 사용·종합 연결 절차: [LLM Wiki 가이드](docs/LLM-WIKI.md).
 - 공용 규칙 배포: `uv run ai-env sync --claude-only` (Claude·Codex 포함). 지침·템플릿·단순 링크 수정은 자동 등록 대상이 아니다.
 
+## 공용 작업·리뷰 기록
+
+- Obsidian `00_session/agent-logs/`에 Claude·Codex 기록을 프로젝트별 Markdown으로 남긴다.
+- 지시 완료 보고는 work/review/fix, 응답 종료는 checkpoint, 세션 종료는 summary로 구분한다.
+- `ai-env session record|list|show|compact`. 도구·kakao/personal·프로젝트·Jira/브랜치·시각·주제를 파일명으로 찾는다.
+- 7일 지난 기록은 종료 시 요약·gzip 검증 후 긴 본문을 안내 노트로 교체한다. 원문 복원과 기존 링크를 유지한다.
+- 설치·도구 전환·압축 절차: [공용 세션 기록](docs/SESSION-JOURNAL.md), [SPEC-017](specs/SPEC-017-shared-session-journal.md).
+
 ## 동작 원리
 
 ```
