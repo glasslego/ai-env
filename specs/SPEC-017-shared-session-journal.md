@@ -22,7 +22,9 @@ created: 2026-10-29
 - 파일: `<agent>__<scope>__<project>__<kind>__[Jira/branch]__<KST timestamp>__<record-id>__<topic>.md`.
   agent는 codex/claude, scope는 kakao/personal/unclassified. 분류는 프로젝트 설정으로 명시한다.
   kind는 work/review/fix/checkpoint/summary. Jira와 브랜치가 같으면 파일명에서 중복하지 않는다.
-  본문에 task·Jira·branch·HEAD·parent·상태를 저장한다. 의미 변경 없이 불변 기록으로 남기되,
+  본문에 task·Jira·branch·HEAD·parent·상태를 저장한다. frontmatter는 Vault 온톨로지
+  (`note_type: log`, `entity_type: evidence`, `status: reference|archived`)를 따르고 기록 상태는
+  `report_status`, parent는 위키링크로 둔다. 의미 변경 없이 불변 기록으로 남기되,
   검증한 gzip 보관 후 기존 경로는 메타데이터·압축본 링크 안내로 교체할 수 있다.
 - CLI: `ai-env session record|list|show|compact`. task/agent/kind 필터, dry-run 지원.
 - 공용 hook: UserPromptSubmit에서 요청을 보존하고 Stop에서 last_assistant_message를 저장.

@@ -33,6 +33,8 @@ claude__kakao__kamek-batch__review__20261029T185000__c3d4e5f6a7b8c9d0__집계로
 
 - Jira 키와 브랜치가 같으면 파일명에서 중복하지 않는다. 다르면 둘 다 표시한다.
 - 본문 frontmatter에는 Jira·브랜치·HEAD·Spec/Task·도구·상태·세션/turn ID·원본 parent를 저장한다.
+- Vault 온톨로지 필드: `note_type: log`, `entity_type: evidence`, `status: reference`(gzip 보관 후 `archived`).
+  기록 상태(`--status`)는 `report_status`, parent는 원본 기록 위키링크(`[[파일명]]`)다.
 - 주제는 `--title`로 명시한다. 자동 checkpoint는 요청 첫 유효 줄, 없으면 최종 답변 첫 줄을 사용한다.
 - 경로 구분자와 위험한 문자는 정리하고 한글 UTF-8 바이트 길이를 제한한다.
 

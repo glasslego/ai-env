@@ -32,6 +32,8 @@ Kind = Literal["work", "review", "fix", "checkpoint", "summary"]
 Status = Literal["recorded", "stopped", "needs-review", "changes-requested", "approved", "blocked"]
 MAX_TEXT_CHARACTERS = 24000
 RECORD_KEYS = frozenset({"id", "cwd", "created"})
+# Vault 온톨로지 필드. 기록 자체의 진행 상태는 report_status에 둔다.
+ONTOLOGY_FIELDS = {"note_type": "log", "entity_type": "evidence", "status": "reference"}
 
 
 class JournalEntry(BaseModel):
@@ -182,7 +184,7 @@ def save_entry(
             raise ValueError("parent must be an existing record in this project")
         if read_metadata(parent).get("cwd") != str(project):
             raise ValueError("parent project metadata mismatch")
-        data["parent"] = str(parent.resolve())
+        data["parent"] = f"[[{parent.resolve().stem}]]"
     # 재전달 사이에 checkout/commit이 있어도 같은 이벤트는 중복 저장하지 않는다.
     identity_data = {key: value for key, value in data.items() if key not in ("branch", "head")}
     identity = digest(json.dumps(identity_data, sort_keys=True, ensure_ascii=False))
@@ -197,14 +199,18 @@ def save_entry(
     parts.extend([f"{now:%Y%m%dT%H%M%S}", identity, slug(data["title"])])
     name = "__".join(parts) + ".md"
     path = directory / name
-    metadata = {key: value for key, value in data.items() if key not in ("request", "summary")}
+    metadata = {
+        **ONTOLOGY_FIELDS,
+        "report_status": data["status"],
+        **{k: v for k, v in data.items() if k not in ("request", "summary", "status")},
+    }
     metadata.update(
         id=identity,
         project=project.name,
         created=now.isoformat(),
         source="agent-report",
     )
-    parent_link = f"[[{Path(entry.parent).stem}]]" if entry.parent else "없음"
+    parent_link = data["parent"] or "없음"
     body = f"# {data['title']}\n\n## 요청\n\n{data['request'] or '미수집 — 수동 기록 또는 hook 입력 누락'}\n\n"
     body += (
         f"## 작업·검증·TODO 보고\n\n{data['summary']}\n\n## 연결 기록\n\n- 원본: {parent_link}\n\n"

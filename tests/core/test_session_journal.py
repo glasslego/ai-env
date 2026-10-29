@@ -56,7 +56,12 @@ def test_idempotency_turns_concurrency_and_parent(tmp_path: Path) -> None:
     assert len(list_entries(tmp_path, root)) == 3
     hits = list_entries(tmp_path, root, agent="claude", kind="review", task="SPEC-017")
     assert len(hits) == 1
-    assert hits[0]["parent"] == parent
+    # Vault 온톨로지: 기록 상태는 report_status, 관계는 위키링크로 남긴다.
+    assert hits[0]["parent"] == f"[[{Path(parent).stem}]]"
+    assert hits[0]["note_type"] == "log"
+    assert hits[0]["entity_type"] == "evidence"
+    assert hits[0]["status"] == "reference"
+    assert hits[0]["report_status"] == "changes-requested"
     assert hits[0]["path"] == result["path"]
     foreign = tmp_path / "foreign"
     foreign.mkdir()

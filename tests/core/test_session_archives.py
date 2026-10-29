@@ -31,6 +31,7 @@ def test_archive_roundtrip_and_tamper_detection(tmp_path: Path) -> None:
     assert read_entry_text(path) == original
     assert archive_entry(path) == "unchanged"
     row = list_entries(tmp_path, root)[0]
+    assert (row["status"], row["report_status"]) == ("archived", "recorded")
     archive = path.parent / str(row["archive"])
     assert archive.stat().st_mode & 0o777 == 0o600
     assert gzip.decompress(archive.read_bytes()).decode() == original

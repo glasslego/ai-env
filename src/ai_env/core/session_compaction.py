@@ -65,7 +65,7 @@ def _summary_text(rows: list[Row]) -> str:
         _, body = split_record(read_entry_text(path))
         report = body.split("## 작업·검증·TODO 보고\n\n", 1)[-1].split("\n\n## 연결 기록", 1)[0]
         lines.append(
-            f"### {row['title']}\n\n- 도구/유형/상태: {row['agent']} / {row['kind']} / {row['status']}\n- Task/Jira/브랜치: {row['task']} / {row.get('jira', '')} / {row['branch']}\n- 원문: [[{path.stem}]]\n\n{report[:EXCERPT_CHARACTERS]}{' … [원문 계속]' if len(report) > EXCERPT_CHARACTERS else ''}\n"
+            f"### {row['title']}\n\n- 도구/유형/상태: {row['agent']} / {row['kind']} / {row.get('report_status', row['status'])}\n- Task/Jira/브랜치: {row['task']} / {row.get('jira', '')} / {row['branch']}\n- 원문: [[{path.stem}]]\n\n{report[:EXCERPT_CHARACTERS]}{' … [원문 계속]' if len(report) > EXCERPT_CHARACTERS else ''}\n"
         )
     return "\n".join(lines)
 

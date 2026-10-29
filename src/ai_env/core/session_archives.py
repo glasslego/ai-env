@@ -70,13 +70,16 @@ def archive_entry(path: Path) -> str:
         if gzip.decompress(archive.read_bytes()) != original:
             raise ValueError("Archive verification failed; original retained")
         metadata.pop("path", None)
+        # report_status 도입 전 기록은 status에 진행 상태가 있다.
+        metadata.setdefault("report_status", metadata.get("status"))
         metadata.update(
+            status="archived",
             archived=True,
             archive=str(archive.relative_to(path.parent)),
             archive_sha256=hashlib.sha256(original).hexdigest(),
         )
         body = f"# {metadata['title']}\n\n원문은 검증한 gzip 파일로 보관했습니다. 이 노트는 기존 링크를 유지하는 안내입니다.\n\n"
-        body += f"- 작업: {metadata.get('task', '')}\n- 상태: {metadata['status']}\n"
+        body += f"- 작업: {metadata.get('task', '')}\n- 상태: {metadata['report_status']}\n"
         body += f"- [원문 압축파일]({quote(str(archive.relative_to(path.parent)))})\n"
         body += f'- 원문 확인: `ai-env session show "{path}"`\n'
         _atomic_write(path, render_record(metadata, body).encode())

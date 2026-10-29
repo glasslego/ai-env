@@ -34,6 +34,8 @@ always: true
 
 - 기본은 Obsidian `00_session/agent-logs/<프로젝트명-경로해시>/`. Vault가 없으면 `~/.ai-env/session-logs/`.
 - 파일명: 도구__kakao/personal/unclassified__프로젝트__유형__[work의 Jira/브랜치]__KST시각__ID__주제.md.
+- frontmatter는 Vault 온톨로지를 따른다: `note_type: log`, `entity_type: evidence`, `status: reference`(보관 후 `archived`).
+  `--status` 값은 `report_status`, parent는 원본 기록 위키링크로 저장한다.
 - UserPromptSubmit/Stop hook은 요청·최종 답변만 수집한다. session state는 `~/.ai-env/session-state/`.
 - SessionEnd hook은 세션별 탐색 요약과 7일 지난 날짜별 요약을 만든다.
 - 7일 지난 원문은 gzip 저장·디스크 재복원 검증 후 긴 Markdown을 짧은 안내로 교체한다.

@@ -44,7 +44,7 @@ def test_hook_prompt_stop_restart_and_no_success_inference(tmp_path: Path) -> No
     result = runner.invoke(main, ["session", "--project", str(tmp_path), "list"])
     rows = json.loads(result.output)["records"]
     assert len(rows) == 2
-    assert all(row["status"] == "stopped" for row in rows)
+    assert all(row["report_status"] == "stopped" for row in rows)
     texts = [Path(row["path"]).read_text() for row in rows]
     assert any("첫 작업" in text for text in texts)
     assert any("두 번째 작업" in text for text in texts)
