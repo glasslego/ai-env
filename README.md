@@ -63,7 +63,7 @@ uv run ai-env wiki --vault "/path/to/vault" search "지식 종합"
 
 ## 공용 작업·리뷰 기록
 
-- Obsidian `00_session/agent-logs/`에 Claude·Codex 기록을 프로젝트별 Markdown으로 남긴다.
+- Obsidian `00_session/<저장소명>/agent-logs/`에 Claude·Codex 기록을 프로젝트별 Markdown으로 남긴다.
 - 지시 완료 보고는 work/review/fix, 응답 종료는 checkpoint, 세션 종료는 summary로 구분한다.
 - `ai-env session record|list|show|compact`. 도구·kakao/personal·프로젝트·Jira/브랜치·시각·주제를 파일명으로 찾는다.
 - 7일 지난 기록은 종료 시 요약·gzip 검증 후 긴 본문을 안내 노트로 교체한다. 원문 복원과 기존 링크를 유지한다.

@@ -12,7 +12,7 @@ updated: 2026-10-29
 
 - Vault 경로: `--vault` → `OBSIDIAN_BASE` → `~/Documents/Obsidian Vault`.
 - `ai-env wiki search QUERY`: 종합 페이지와 등록한 출처를 로컬 키워드 검색하고 JSON 반환. 읽기 전용.
-- `ai-env wiki register FILE`: 명시한 UTF-8 Markdown의 경로·제목·SHA-256 등록. 외부 파일과 Vault 작업 기록(`00_session/agent-logs/`, gzip 보관으로 본문이 바뀜)은 `00_inbox/llm-wiki/<content-hash>.md`에 불변 스냅샷으로 보관.
+- `ai-env wiki register FILE`: 명시한 UTF-8 Markdown의 경로·제목·SHA-256 등록. 외부 파일과 Vault 작업 기록(`00_session/<저장소명>/agent-logs/`, gzip 보관으로 본문이 바뀜)은 `00_inbox/llm-wiki/<content-hash>.md`에 불변 스냅샷으로 보관.
 - Vault 안 원본은 복사·수정하지 않는다. 외부 원본도 수정하지 않는다.
 - 동일 경로·내용 재등록은 무변경. 변경 시 이전 스냅샷 보존. `--dry-run`은 파일을 만들지 않는다.
 - 레지스트리: `_meta/llm-wiki-registry.json`, 버전 1, 원본 절대 경로별 최신 등록. 잠금·원자적 저장으로 동시 등록 손실 방지.

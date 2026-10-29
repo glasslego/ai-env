@@ -8,12 +8,13 @@
 기본 경로:
 
 ```text
-~/Documents/Obsidian Vault/00_session/agent-logs/<프로젝트명-실제경로해시>/
+~/Documents/Obsidian Vault/00_session/<저장소명>/agent-logs/
 ```
 
 - `OBSIDIAN_BASE`가 있으면 해당 Vault를 사용한다.
 - Vault가 없으면 `~/.ai-env/session-logs/`. 다른 위치는 `AI_ENV_SESSION_LOG_DIR` 또는 `session --root`로 지정한다.
-- 같은 이름의 다른 저장소·worktree는 실제 경로 해시로 구분한다.
+- 기존 세션 노트와 같은 저장소 폴더를 쓴다. Jira별 worktree도 메인 저장소 폴더에 모이며 브랜치·Jira는 파일명·frontmatter(`cwd`, `branch`)로 구분한다.
+- 이름만 같은 다른 저장소는 `<저장소명>-<경로해시>/agent-logs/`로 분리한다. 폴더 소유는 숨김 파일 `.repository`에 기록한다.
 - 분류는 `kakao / personal / unclassified`. 내용이나 경로로 업무·개인을 추측하지 않는다.
 - 파일·압축본은 0600, 프로젝트 기록 폴더는 0700. Vault의 동기화·공유 정책은 그대로 적용된다.
 - 현재 ai-env는 personal로 설정했다. 다른 프로젝트는 `.claude/project-profile.yaml`에 다음을 추가한다.

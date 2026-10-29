@@ -15,10 +15,11 @@ created: 2026-10-29
 
 ## 계약
 
-- 공통 저장소: `{OBSIDIAN_BASE}/00_session/agent-logs/<project-name>-<resolved-project-path-hash>/`.
+- 공통 저장소: `{OBSIDIAN_BASE}/00_session/<repo-name>/agent-logs/`. worktree는 메인 저장소 폴더를 공유하고,
+  이름만 같은 다른 저장소는 `<repo-name>-<repo-path-hash>`로 분리한다.
   기본 Vault는 `~/Documents/Obsidian Vault`, Vault가 없으면 `~/.ai-env/session-logs/`.
-  `AI_ENV_SESSION_LOG_DIR` 또는 CLI `--root`로 변경 가능. Git 프로젝트 루트를 기준으로
-  격리하며 별도 worktree도 다른 경로로 취급한다. 같은 이름의 다른 프로젝트를 섞지 않는다.
+  `AI_ENV_SESSION_LOG_DIR` 또는 CLI `--root`로 변경 가능. Git 저장소(`--git-common-dir`)
+  기준으로 묶고 같은 이름의 다른 프로젝트는 섞지 않는다.
 - 파일: `<agent>__<scope>__<project>__<kind>__[Jira/branch]__<KST timestamp>__<record-id>__<topic>.md`.
   agent는 codex/claude, scope는 kakao/personal/unclassified. 분류는 프로젝트 설정으로 명시한다.
   kind는 work/review/fix/checkpoint/summary. Jira와 브랜치가 같으면 파일명에서 중복하지 않는다.

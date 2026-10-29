@@ -70,8 +70,6 @@ def archive_entry(path: Path) -> str:
         if gzip.decompress(archive.read_bytes()) != original:
             raise ValueError("Archive verification failed; original retained")
         metadata.pop("path", None)
-        # report_status 도입 전 기록은 status에 진행 상태가 있다.
-        metadata.setdefault("report_status", metadata.get("status"))
         metadata.update(
             status="archived",
             archived=True,

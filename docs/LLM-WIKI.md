@@ -33,7 +33,7 @@ uv run --directory /Users/megan/work/glasslego/ai-env ai-env wiki register /abso
 | 대상 | 등록 동작 |
 |---|---|
 | Vault 내부 원본 | 원본 경로·내용 해시 등록. 복사·수정 없음 |
-| Vault 작업 기록 `00_session/agent-logs/` | gzip 보관으로 본문이 바뀌므로 외부 문서처럼 스냅샷 저장 |
+| Vault 작업 기록 `00_session/<저장소명>/agent-logs/` | gzip 보관으로 본문이 바뀌므로 외부 문서처럼 스냅샷 저장 |
 | 외부 Markdown | `00_inbox/llm-wiki/<SHA-256>.md`에 내용별 스냅샷 저장 |
 | 같은 경로·같은 내용 | `unchanged`. 레지스트리·스냅샷 갱신 없음 |
 | 원본 내용 변경 | 새 해시 등록. 외부 문서의 이전 스냅샷 보존 |

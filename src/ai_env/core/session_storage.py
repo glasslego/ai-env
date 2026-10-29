@@ -19,8 +19,11 @@ from .config import expand_path
 
 Scope = Literal["kakao", "personal", "unclassified"]
 KST = ZoneInfo("Asia/Seoul")
-# Vault 안의 기록은 gzip 보관으로 본문이 바뀌므로 wiki 출처는 스냅샷으로 등록한다.
-VAULT_JOURNAL_DIRECTORY = Path("00_session") / "agent-logs"
+# 기존 세션 노트와 같은 `00_session/<저장소>/` 아래에 공용 기록을 둔다.
+VAULT_SESSION_DIRECTORY = Path("00_session")
+JOURNAL_DIRECTORY_NAME = "agent-logs"
+# 같은 이름의 다른 저장소를 구분하는 소유 표시 파일.
+OWNER_FILE = ".repository"
 FRONT_MATTER = re.compile(r"---\n(.*?)\n---\n(.*)", re.S)
 
 
@@ -80,23 +83,60 @@ def resolve_root(value: Path | None = None) -> Path:
         return expand_path(str(explicit)).resolve()
     vault = expand_path(os.getenv("OBSIDIAN_BASE") or "~/Documents/Obsidian Vault")
     if vault.is_dir():
-        return vault.resolve() / VAULT_JOURNAL_DIRECTORY
+        return vault.resolve() / VAULT_SESSION_DIRECTORY
     return Path.home() / ".ai-env" / "session-logs"
 
 
-def project_directory(project: Path, root: Path | None = None) -> Path:
-    """프로젝트 경로 해시로 같은 이름의 저장소도 격리한다.
+def is_vault_journal(relative: Path) -> bool:
+    """Vault 상대 경로가 공용 작업 기록 아래인지 판단한다.
 
     Args:
-        project: 프로젝트 cwd.
+        relative: Vault 기준 상대 경로.
+
+    Returns:
+        `00_session/<저장소>/agent-logs/` 아래이면 True.
+    """
+    return (
+        relative.parts[:1] == VAULT_SESSION_DIRECTORY.parts
+        and JOURNAL_DIRECTORY_NAME in relative.parts[1:-1]
+    )
+
+
+def resolve_repository(project: Path) -> Path:
+    """worktree를 포함해 같은 Git 저장소를 하나의 경로로 묶는다.
+
+    Args:
+        project: 세션의 실제 cwd.
+
+    Returns:
+        메인 작업 트리 경로. Git이 아니면 cwd 실제 경로.
+    """
+    project = resolve_project(project)
+    common = git_output(project, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(common).parent.resolve() if common and Path(common).name == ".git" else project
+
+
+def project_directory(project: Path, root: Path | None = None) -> Path:
+    """저장소 이름 폴더를 쓰고, 이름만 같은 다른 저장소는 해시로 분리한다.
+
+    Args:
+        project: 프로젝트 cwd. worktree도 메인 저장소 폴더를 쓴다.
         root: 선택적 공용 저장소.
 
     Returns:
-        프로젝트별 기록 디렉터리. 생성하지 않는다.
+        `<root>/<저장소>/agent-logs` 기록 디렉터리. 생성하지 않는다.
+
+    Raises:
+        ValueError: 기록 디렉터리 경로에 symlink가 있을 때.
     """
-    project = resolve_project(project)
-    directory = resolve_root(root) / f"{slug(project.name)}-{digest(str(project))}"
-    if directory.is_symlink():
+    repository = resolve_repository(project)
+    base = resolve_root(root)
+    directory = base / slug(repository.name) / JOURNAL_DIRECTORY_NAME
+    owner = directory / OWNER_FILE
+    if owner.is_file() and owner.read_text(encoding="utf-8").strip() != str(repository):
+        name = f"{slug(repository.name)}-{digest(str(repository))}"
+        directory = base / name / JOURNAL_DIRECTORY_NAME
+    if directory.is_symlink() or directory.parent.is_symlink():
         raise ValueError("Journal project directory must not be a symlink")
     return directory
 

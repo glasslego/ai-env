@@ -149,7 +149,7 @@ def test_markdown_without_searchable_title_can_be_registered(tmp_path: Path) -> 
 
 def test_session_journal_record_is_snapshotted_before_archive(tmp_path: Path) -> None:
     vault = make_vault(tmp_path)
-    record = vault / "00_session/agent-logs/ai-env-0123/codex__work__보고.md"
+    record = vault / "00_session/ai-env/agent-logs/codex__work__보고.md"
     record.parent.mkdir(parents=True)
     record.write_text("# 배치 보고\n성능 정합성 검증 완료\n")
     result = register_document(vault, record)

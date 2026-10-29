@@ -18,7 +18,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from .config import expand_path
-from .session_storage import VAULT_JOURNAL_DIRECTORY
+from .session_storage import is_vault_journal
 
 MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
 PRIVATE_DIRECTORIES = {"40_개인", "41_투자_재테크"}
@@ -215,9 +215,8 @@ def register_document(
             return RegistrationResult(status="skipped", origin=str(source))
     data, _, title, _ = _read_document(source)
     digest = hashlib.sha256(data).hexdigest()
-    in_place = source.is_relative_to(vault) and not source.is_relative_to(
-        vault / VAULT_JOURNAL_DIRECTORY
-    )
+    # 작업 기록은 gzip 보관으로 본문이 바뀌므로 불변 스냅샷으로 등록한다.
+    in_place = source.is_relative_to(vault) and not is_vault_journal(source.relative_to(vault))
     snapshot = source.relative_to(vault) if in_place else SNAPSHOT_DIRECTORY / f"{digest}.md"
     destination = _contained(vault, snapshot)
     record = DocumentRecord(

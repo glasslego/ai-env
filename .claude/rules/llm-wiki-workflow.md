@@ -20,7 +20,7 @@ always: true
 ## Vault 규칙
 
 - Vault 문서를 다루기 전에 Vault `AGENTS.md`, `wiki/index.md`, `wiki/운영 가이드.md`를 읽는다. 종합 절차·상태 전환은 운영 가이드가 정본이다.
-- 공용 작업 기록(`00_session/agent-logs/`)은 work·review·fix 완료 보고만 ingest 후보다. checkpoint·summary는 등록하지 않는다.
+- 공용 작업 기록(`00_session/<저장소명>/agent-logs/`)은 work·review·fix 완료 보고만 ingest 후보다. checkpoint·summary는 등록하지 않는다.
 - 작업 기록은 gzip 보관 전에 스냅샷으로 등록되므로 원본 안내 노트로 바뀌어도 근거가 유지된다.
 
 ## 작성 전 — 검색

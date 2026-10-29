@@ -76,7 +76,7 @@ def test_symlink_escape_and_secret_redaction(tmp_path: Path) -> None:
     outside = tmp_path / "outside"
     outside.mkdir()
     directory = project_directory(project, root)
-    root.mkdir()
+    directory.parent.mkdir(parents=True)
     directory.symlink_to(outside, target_is_directory=True)
     with pytest.raises(ValueError, match="symlink"):
         save_entry(entry(project), root)

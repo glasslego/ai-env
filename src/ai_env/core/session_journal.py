@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from .session_storage import (
     KST,
+    OWNER_FILE,
     Scope,
     digest,
     git_output,
@@ -23,6 +24,7 @@ from .session_storage import (
     read_metadata,
     render_record,
     resolve_project,
+    resolve_repository,
     slug,
 )
 from .wiki_documents import _atomic_write
@@ -94,6 +96,7 @@ def list_entries(
 ) -> list[dict[str, object]]:
     """같은 프로젝트의 기록만 필터링해 최신순으로 반환한다.
 
+    worktree를 포함한 같은 저장소의 기록을 함께 반환한다.
     기록 메타데이터(id·cwd·created)가 없는 일반 노트는 건너뛴다.
 
     Args:
@@ -107,7 +110,7 @@ def list_entries(
     Returns:
         기록의 메타데이터와 실제 Markdown 경로.
     """
-    project = resolve_project(project)
+    repository = str(resolve_repository(project))
     records = []
     for path in project_directory(project, root).glob("*.md"):
         if path.is_symlink():
@@ -118,7 +121,7 @@ def list_entries(
             continue  # Obsidian에서 만든 일반 노트는 기록이 아니므로 조회를 막지 않는다.
         if not RECORD_KEYS <= data.keys():
             continue
-        if data.get("cwd") != str(project):
+        if data.get("repo") != repository:
             raise ValueError("Journal project metadata mismatch")
         if all(
             value is None or data.get(key) == value
@@ -128,14 +131,14 @@ def list_entries(
     return sorted(records, key=lambda row: str(row["created"]), reverse=True)[:limit]
 
 
-def _parent_link(parent_value: str, directory: Path, project: Path) -> str:
+def _parent_link(parent_value: str, directory: Path, repository: str) -> str:
     """같은 프로젝트의 실제 기록만 parent로 허용하고 위키링크로 반환한다."""
     if not parent_value:
         return ""
     parent = Path(parent_value).expanduser()
     if parent.is_symlink() or parent.resolve().parent != directory or not parent.is_file():
         raise ValueError("parent must be an existing record in this project")
-    if read_metadata(parent).get("cwd") != str(project):
+    if read_metadata(parent).get("repo") != repository:
         raise ValueError("parent project metadata mismatch")
     return f"[[{parent.resolve().stem}]]"
 
@@ -171,6 +174,7 @@ def save_entry(
     directory = project_directory(project, root)
     data = entry.model_dump()
     data["cwd"] = str(project)
+    data["repo"] = str(resolve_repository(project))
     data["scope"] = entry.scope if entry.scope != "unclassified" else project_scope(project)
     data["branch"] = git_output(project, "branch", "--show-current")
     data["head"] = git_output(project, "rev-parse", "HEAD")
@@ -201,7 +205,7 @@ def save_entry(
             "작업-기록",
         )[:80]
     )
-    data["parent"] = _parent_link(entry.parent, directory, project)
+    data["parent"] = _parent_link(entry.parent, directory, data["repo"])
     # 재전달 사이에 checkout/commit이 있어도 같은 이벤트는 중복 저장하지 않는다.
     identity_data = {key: value for key, value in data.items() if key not in ("branch", "head")}
     identity = digest(json.dumps(identity_data, sort_keys=True, ensure_ascii=False))
@@ -232,6 +236,9 @@ def save_entry(
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     directory.chmod(0o700)
     with journal_lock(directory):
+        owner = directory / OWNER_FILE
+        if not owner.exists():
+            _atomic_write(owner, f"{data['repo']}\n".encode())
         existing = next(directory.glob(f"*__{identity}__*.md"), None)
         if existing:
             if existing.is_symlink():
