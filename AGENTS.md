@@ -4,6 +4,8 @@
 
 - ai-env는 `main` 단일 브랜치에서 바로 작업·검증·커밋한다.
 - 별도 작업 브랜치나 브랜치용 worktree를 만들지 않는다. 일반 스킬의 작업 브랜치 생성 권고보다 이 규칙이 우선한다.
+- 머지하지 않는다. `git merge`, 머지 커밋을 만드는 `git pull`, PR 머지(`gh pr merge`, GitHub MCP merge)를 모두 금지한다.
+  원격 반영은 `git pull --ff-only`만 쓰고, fast-forward가 안 되면 멈추고 사용자에게 보고한다.
 - 이 정책은 ai-env에만 적용한다. 연결된 cde-skills·cde-ranking-skills의 develop 정책은 유지한다.
 - 원격 push는 사용자가 요청한 범위에서 수행한다.
 

@@ -293,6 +293,8 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 
 - `/Users/megan/work/glasslego/ai-env`는 main 단일 브랜치에서 작업·검증·커밋한다. 작업 브랜치나 branch worktree를 만들지 않는다.
 - ai-env에서는 일반 commit/git-branch/branch-guard의 작업 브랜치 생성 권고보다 이 사용자 정책을 우선한다. 다른 저장소의 브랜치 정책은 유지한다.
+- ai-env에서는 머지를 하지 않는다. `git merge`, 머지 커밋을 만드는 `git pull`, PR 머지(`gh pr merge`, GitHub MCP merge)를 모두 금지한다.
+  - 원격 반영은 `git pull --ff-only`만 사용한다. fast-forward가 안 되면 멈추고 사용자에게 보고한다.
 
 ## 🤖 Codex 자동 실행 (Full Auto)
 
