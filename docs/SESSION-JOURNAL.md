@@ -131,6 +131,9 @@ uv run ai-env session show "/absolute/path/to/record.md"
 
 - source: `.claude/hooks/session_journal.sh`, Claude settings 템플릿 두 개, Codex `_codex_hooks_json()`.
 - Claude와 Codex 모두 SessionStart / UserPromptSubmit / Stop / SessionEnd에 recorder를 연결한다.
+- SessionStart는 기록 폴더와 함께 work/review/fix만 안내한다. 후속 기록(parent)이 없는
+  `needs-review`·`changes-requested`·`blocked`를 "처리 대기"로 최대 5개 먼저, 최근 완료 보고 3개를 그다음에 보여준다.
+  checkpoint·summary는 안내하지 않는다.
 - hook은 안정적인 `prompt`·`last_assistant_message`를 사용한다. 비공개 transcript 포맷은 파싱하지 않는다.
 - 요청 임시 상태는 `~/.ai-env/session-state/`에 두고, Vault에는 읽을 Markdown과 gzip만 남긴다.
   SessionEnd에서 해당 세션 상태와 7일 넘게 갱신되지 않은 상태 파일을 지운다.

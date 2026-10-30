@@ -125,3 +125,66 @@ def test_compact_and_show_archived_original_without_cross_project_read(tmp_path:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+
+
+def test_session_start_lists_pending_reviews_before_recent_reports(tmp_path: Path) -> None:
+    runner = CliRunner(
+        env={
+            "AI_ENV_SESSION_LOG_DIR": str(tmp_path / "logs"),
+            "AI_ENV_SESSION_STATE_DIR": str(tmp_path / "state"),
+        }
+    )
+    project = tmp_path / "project"
+    project.mkdir()
+    body = tmp_path / "report.md"
+    body.write_text("변경·검증·TODO")
+
+    def record(*args: str) -> str:
+        result = runner.invoke(
+            main,
+            [
+                "session",
+                "--project",
+                str(project),
+                "record",
+                "--agent",
+                "claude",
+                "--body-file",
+                str(body),
+                *args,
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        return str(json.loads(result.output)["path"])
+
+    reviewed = record("--title", "리뷰 끝난 작업", "--task", "T-1", "--status", "needs-review")
+    record(
+        "--kind",
+        "review",
+        "--title",
+        "T-1 리뷰",
+        "--task",
+        "T-1",
+        "--parent",
+        reviewed,
+        "--status",
+        "approved",
+    )
+    pending = record("--title", "리뷰 대기 작업", "--task", "T-2", "--status", "needs-review")
+    record("--title", "최근 완료 작업", "--task", "T-3")
+    invoke_hook(
+        runner, project, "claude", {"hook_event_name": "UserPromptSubmit", "prompt": "질문"}
+    )
+    invoke_hook(
+        runner, project, "claude", {"hook_event_name": "Stop", "last_assistant_message": "답"}
+    )
+
+    start = invoke_hook(runner, project, "claude", {"hook_event_name": "SessionStart"})
+    context = str(start["hookSpecificOutput"]["additionalContext"])
+    waiting, recent = context.split("최근 완료 보고", 1)
+    # 후속 리뷰가 달린 요청은 처리 대기에서 빠지고, 남은 리뷰 요청이 먼저 보인다.
+    assert pending in waiting
+    assert reviewed not in waiting
+    assert "최근 완료 작업" in recent
+    # checkpoint는 대화 흔적이라 시작 안내에 넣지 않는다.
+    assert "checkpoint" not in context

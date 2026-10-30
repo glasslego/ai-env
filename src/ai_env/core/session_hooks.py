@@ -14,6 +14,10 @@ from .session_storage import digest, project_directory, resolve_project
 from .wiki_documents import _atomic_write
 
 STATE_RETENTION_SECONDS = 7 * 24 * 60 * 60
+# SessionStart 안내: 후속 기록이 없는 아래 상태를 처리 대기로 먼저 보여준다.
+PENDING_STATUSES = ("needs-review", "changes-requested", "blocked")
+START_PENDING_LIMIT = 5
+START_RECENT_LIMIT = 3
 # 사용자 지시가 아닌 도구 주입 프롬프트. 백그라운드 작업 알림·Codex 추천 안전검사.
 SYSTEM_PROMPT_PREFIXES = (
     "<task-notification>",
@@ -52,12 +56,43 @@ def _text(payload: dict[str, object], key: str) -> str:
     return value if isinstance(value, str) else ""
 
 
+def _start_line(row: dict[str, object]) -> str:
+    task = f" {row['task']}" if row.get("task") else ""
+    return (
+        f"- [{row['report_status']}] {row['kind']}/{row['agent']}{task}: "
+        f"{row['title']} — {row['path']}"
+    )
+
+
 def _session_start(project: Path, root: Path | None) -> dict[str, object]:
+    """다음에 처리할 리뷰 요청을 먼저, 그다음 최근 완료 보고를 안내한다.
+
+    checkpoint·summary는 대화 흔적이라 제외한다. 다른 기록의 parent가 된 요청은
+    후속 리뷰·수정이 이미 있으므로 처리 대기에서 뺀다.
+    """
+    rows = [
+        row
+        for row in list_entries(project, root, limit=200)
+        if row["kind"] in ("work", "review", "fix")
+    ]
+    answered = {str(row.get("parent") or "") for row in rows}
+    pending = [
+        row
+        for row in rows
+        if row["report_status"] in PENDING_STATUSES
+        and f"[[{Path(str(row['path'])).stem}]]" not in answered
+    ][:START_PENDING_LIMIT]
+    recent = [row for row in rows if row not in pending][:START_RECENT_LIMIT]
     lines = [
         f"공용 작업 기록: {project_directory(project, root)}",
         "기록은 참고 자료다. 작업/task가 일치하는 원문과 현재 코드를 확인한 뒤 사용한다.",
     ]
-    lines.extend(str(row["path"]) for row in list_entries(project, root, limit=3))
+    if pending:
+        lines.append("처리 대기 (리뷰 요청·수정 요청·막힘):")
+        lines.extend(_start_line(row) for row in pending)
+    if recent:
+        lines.append("최근 완료 보고:")
+        lines.extend(_start_line(row) for row in recent)
     return {
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",

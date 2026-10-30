@@ -66,6 +66,12 @@ created: 2026-10-29
   - 기존 Vault 기록: checkpoint를 새 형식으로 합치고 원본은 압축 보관, 구형 세션 노트는
     `00_session/_legacy/<프로젝트>/`로 옮기고 Vault 내부 링크를 갱신한다(사용자 승인 2026-10-30).
   - Tests: checkpoint 이어 붙이기·멱등성, 주입 프롬프트 제외, clone 통합, 세션 요약 제외.
+- [x] TASK-06: SessionStart 안내가 다음에 처리할 기록을 먼저 보여준다.
+  - AC: checkpoint·summary를 제외한 work/review/fix만 안내한다.
+    `needs-review`·`changes-requested`·`blocked` 중 아직 다른 기록의 parent가 되지 않은 것을
+    "처리 대기"로 먼저 보여주고, 그다음 최근 완료 보고를 보여준다.
+    각 줄에 상태·유형·도구·task·제목·경로를 담는다. 기록이 없으면 경로 안내만 남긴다.
+  - Tests: checkpoint 제외, 후속 기록이 달린 리뷰 요청은 대기에서 빠짐, 처리 대기 우선 순서.
 
 ## 가정
 
