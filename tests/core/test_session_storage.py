@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -69,6 +70,17 @@ def test_clones_of_same_remote_share_repository_directory(tmp_path: Path) -> Non
     save_entry(JournalEntry(cwd=str(clones[1]), agent="claude", summary="clone 작업"), root)
     rows = list_entries(clones[0], root)
     assert [row["repo"] for row in rows] == ["github.example.com/cde/kamek-batch"]
+
+
+def test_korean_path_shares_directory_regardless_of_unicode_form(tmp_path: Path) -> None:
+    root = tmp_path / "logs"
+    project = tmp_path / unicodedata.normalize("NFC", "경력관리")
+    project.mkdir()
+    # macOS 도구마다 cwd를 NFD/NFC로 다르게 넘겨도 같은 폴더를 쓴다.
+    decomposed = Path(unicodedata.normalize("NFD", str(project)))
+    save_entry(JournalEntry(cwd=str(decomposed), agent="codex", summary="NFD 경로"), root)
+    assert project_directory(project, root) == project_directory(decomposed, root)
+    assert len(list_entries(project, root)) == 1
 
 
 def test_values_ending_with_separator_keep_front_matter_boundary() -> None:

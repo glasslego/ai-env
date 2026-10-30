@@ -7,6 +7,7 @@ import hashlib
 import os
 import re
 import subprocess
+import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
@@ -125,14 +126,14 @@ def repository_identity(project: Path) -> str:
         project: 세션의 실제 cwd.
 
     Returns:
-        origin 원격의 `host/경로`. 원격이 없으면 메인 작업 트리 경로.
+        origin 원격의 `host/경로`. 원격이 없으면 메인 작업 트리 경로. 도구마다 다른
+        한글 경로의 유니코드 형식(NFD/NFC)은 NFC로 맞춘다.
     """
     repository = resolve_repository(project)
     remote = git_output(repository, "remote", "get-url", "origin").removesuffix("/")
     match = REMOTE_URL.match(remote.removesuffix(".git"))
-    if match:
-        return f"{match.group(1)}/{match.group(2)}"
-    return remote or str(repository)
+    identity = f"{match.group(1)}/{match.group(2)}" if match else remote or str(repository)
+    return unicodedata.normalize("NFC", identity)
 
 
 def project_directory(project: Path, root: Path | None = None) -> Path:
