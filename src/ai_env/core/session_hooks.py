@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import sys
 import time
 import uuid
 from pathlib import Path
+from typing import cast
+
+import yaml
 
 from .session_compaction import compact_entries
 from .session_journal import Agent, JournalEntry, list_entries, redact, save_entry
@@ -18,6 +23,10 @@ STATE_RETENTION_SECONDS = 7 * 24 * 60 * 60
 PENDING_STATUSES = ("needs-review", "changes-requested", "blocked")
 START_PENDING_LIMIT = 5
 START_RECENT_LIMIT = 3
+HOOK_USER_ERRORS = (OSError, ValueError, EOFError, yaml.YAMLError)
+HOOK_FAILURE = {
+    "systemMessage": "공용 세션 기록 실패: 경로·권한·hook 입력을 확인하고 session record로 기록하세요."
+}
 # 사용자 지시가 아닌 도구 주입 프롬프트. 백그라운드 작업 알림·Codex 추천 안전검사.
 SYSTEM_PROMPT_PREFIXES = (
     "<task-notification>",
@@ -182,3 +191,44 @@ def handle_hook(
         root,
     )
     return {}
+
+
+def hook_response(agent: Agent, raw: str, root: Path | None = None) -> dict[str, object]:
+    """stdin hook JSON 문자열을 처리하고 도구에 돌려줄 JSON을 만든다.
+
+    Args:
+        agent: 호출한 도구.
+        raw: hook stdin 원문.
+        root: 선택적 기록 저장소.
+
+    Returns:
+        hook 결과. 사용자 입력·경로 오류는 원문 없이 systemMessage로만 알린다.
+    """
+    try:
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ValueError("hook input must be an object")
+        return handle_hook(agent, payload, root)
+    except HOOK_USER_ERRORS:
+        # payload나 예외에 포함된 민감한 원문은 출력하지 않는다.
+        return dict(HOOK_FAILURE)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """hook 스크립트 진입점. CLI 전체를 import하지 않아 매 턴 지연을 줄인다.
+
+    Args:
+        argv: 명령행 인자. 기본은 sys.argv.
+
+    Returns:
+        항상 0. 기록 실패가 도구 실행을 막지 않게 한다.
+    """
+    parser = argparse.ArgumentParser(prog="python -m ai_env.core.session_hooks")
+    parser.add_argument("--agent", choices=("codex", "claude"), required=True)
+    agent = cast(Agent, parser.parse_args(argv).agent)
+    print(json.dumps(hook_response(agent, sys.stdin.read()), ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

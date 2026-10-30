@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -64,6 +65,30 @@ def test_recorder_in_both_profiles_and_codex_without_cmux() -> None:
         ]
         # SessionEnd 정리가 Codex에서만 먼저 끊기지 않도록 Claude와 같은 제한을 쓴다.
         assert [hook["timeout"] for hook in journal] == [JOURNAL_HOOK_TIMEOUT_SECONDS]
+
+
+def test_hook_module_entry_keeps_json_contract(tmp_path: Path) -> None:
+    env = {
+        **os.environ,
+        "AI_ENV_SESSION_LOG_DIR": str(tmp_path / "logs"),
+        "AI_ENV_SESSION_STATE_DIR": str(tmp_path / "state"),
+    }
+    command = [sys.executable, "-m", "ai_env.core.session_hooks", "--agent", "claude"]
+    # hook 스크립트가 쓰는 모듈 진입점도 CLI와 같은 JSON 계약을 지킨다.
+    payload = {
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": "s",
+        "cwd": str(tmp_path),
+        "prompt": "요청",
+    }
+    done = subprocess.run(
+        command, input=json.dumps(payload), capture_output=True, text=True, env=env
+    )
+    assert (done.returncode, json.loads(done.stdout)) == (0, {})
+    failed = subprocess.run(command, input="not JSON", capture_output=True, text=True, env=env)
+    assert failed.returncode == 0
+    assert "not JSON" not in failed.stdout
+    assert "systemMessage" in json.loads(failed.stdout)
 
 
 if __name__ == "__main__":

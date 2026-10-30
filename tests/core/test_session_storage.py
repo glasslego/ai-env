@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 # isort: split
+from ai_env.core import session_storage
 from ai_env.core.session_journal import JournalEntry, list_entries, save_entry
 from ai_env.core.session_storage import (
     project_directory,
@@ -92,6 +93,28 @@ def test_korean_path_shares_directory_regardless_of_unicode_form(tmp_path: Path)
     save_entry(JournalEntry(cwd=str(decomposed), agent="codex", summary="NFD 경로"), root)
     assert project_directory(project, root) == project_directory(decomposed, root)
     assert len(list_entries(project, root)) == 1
+
+
+def test_repository_shape_is_queried_once_per_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "logs"
+    project = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", str(project)], check=True)
+    save_entry(JournalEntry(cwd=str(project), agent="codex", summary="첫 기록"), root)
+    calls: list[tuple[str, ...]] = []
+    original = session_storage._run_git
+
+    def counting(path: Path, arguments: tuple[str, ...]) -> str:
+        calls.append(arguments)
+        return original(path, arguments)
+
+    monkeypatch.setattr(session_storage, "_run_git", counting)
+    save_entry(JournalEntry(cwd=str(project), agent="codex", summary="둘째 기록"), root)
+    # 같은 프로세스의 두 번째 기록은 branch·HEAD·status만 새로 조회한다.
+    assert sorted(calls) == sorted(
+        [("branch", "--show-current"), ("rev-parse", "HEAD"), ("status", "--short")]
+    )
 
 
 def test_values_ending_with_separator_keep_front_matter_boundary() -> None:

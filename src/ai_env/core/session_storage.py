@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import functools
 import hashlib
 import os
 import re
@@ -42,7 +43,39 @@ def slug(text: str, limit: int = 40) -> str:
     return cleaned.encode()[:limit].decode("utf-8", errors="ignore").rstrip(".-_") or "untitled"
 
 
+# 저장소 구조(루트·공용 git 디렉터리·origin)는 한 프로세스 안에서 바뀌지 않으므로 경로별로 한 번만 묻는다.
+# branch·HEAD·status는 매번 조회한다.
+REPOSITORY_SHAPE_QUERIES = frozenset(
+    {
+        ("rev-parse", "--show-toplevel"),
+        ("rev-parse", "--path-format=absolute", "--git-common-dir"),
+        ("rev-parse", "--git-dir"),
+        ("remote", "get-url", "origin"),
+    }
+)
+
+
 def git_output(project: Path, *arguments: str) -> str:
+    """git 명령의 표준 출력을 반환한다. 실패하면 빈 문자열.
+
+    Args:
+        project: git을 실행할 디렉터리.
+        *arguments: git 하위 명령과 인자.
+
+    Returns:
+        앞뒤 공백을 제거한 출력. 저장소 구조 조회는 프로세스 안에서 캐시한다.
+    """
+    if arguments in REPOSITORY_SHAPE_QUERIES:
+        return _cached_git_output(str(project), arguments)
+    return _run_git(project, arguments)
+
+
+@functools.lru_cache(maxsize=256)
+def _cached_git_output(project: str, arguments: tuple[str, ...]) -> str:
+    return _run_git(Path(project), arguments)
+
+
+def _run_git(project: Path, arguments: tuple[str, ...]) -> str:
     try:
         result = subprocess.run(
             ["git", "-C", str(project), *arguments],

@@ -1,6 +1,5 @@
 """공용 Markdown 작업 기록 CLI 및 lifecycle hook 진입점."""
 
-import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,7 +10,7 @@ import yaml
 
 from ..core.session_archives import read_entry_text
 from ..core.session_compaction import compact_entries
-from ..core.session_hooks import handle_hook
+from ..core.session_hooks import hook_response
 from ..core.session_journal import (
     Agent,
     JournalEntry,
@@ -135,17 +134,8 @@ def list_records(
 @click.pass_obj
 def hook(context: tuple[Path, Path | None], agent: str) -> None:
     """stdin hook JSON을 처리하고 비차단 JSON만 반환."""
-    try:
-        payload = json.load(click.get_text_stream("stdin"))
-        if not isinstance(payload, dict):
-            raise ValueError("hook input must be an object")
-        result = handle_hook(cast(Agent, agent), payload, context[1])
-    except _USER_ERRORS:
-        # payload나 예외에 포함된 민감한 원문은 출력하지 않는다.
-        result = {
-            "systemMessage": "공용 세션 기록 실패: 경로·권한·hook 입력을 확인하고 session record로 기록하세요."
-        }
-    console.print_json(data=result)
+    raw = click.get_text_stream("stdin").read()
+    console.print_json(data=hook_response(cast(Agent, agent), raw, context[1]))
 
 
 @session.command("compact")
