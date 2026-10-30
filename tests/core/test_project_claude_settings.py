@@ -18,8 +18,8 @@ _SETTINGS = _PROJECT_ROOT / ".claude" / "settings.json"
 
 def test_rule_sources_are_excluded_but_deployed_rules_still_load() -> None:
     patterns = json.loads(_SETTINGS.read_text(encoding="utf-8"))["claudeMdExcludes"]
-    source_rule = "/Users/megan/work/glasslego/ai-env/.claude/rules/commit-message.md"
-    deployed_rule = "/Users/megan/.claude/rules/commit-message.md"
+    source_rule = "/Users/megan/work/glasslego/ai-env/.claude/rules/shared-session-journal.md"
+    deployed_rule = "/Users/megan/.claude/rules/shared-session-journal.md"
     project_memory = "/Users/megan/work/glasslego/ai-env/CLAUDE.md"
     assert any(fnmatch(source_rule, pattern) for pattern in patterns)
     # 배포된 글로벌 규칙과 프로젝트 CLAUDE.md는 계속 로드돼야 한다.

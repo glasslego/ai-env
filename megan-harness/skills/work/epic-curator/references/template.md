@@ -50,7 +50,7 @@
 * 미완료 — 적용 후 검증 결과 기록
 
 ☑️ 관련 링크
-* [개인 작성 규칙|https://github.com/glasslego/ai-env/blob/main/.claude/rules/wiki-jira-writing-style.md]
+* [개인 작성 규칙|https://github.com/glasslego/ai-env/blob/main/.claude/guides/wiki-jira-writing-style.md]
 ```
 
 ## 작성·읽기 범위

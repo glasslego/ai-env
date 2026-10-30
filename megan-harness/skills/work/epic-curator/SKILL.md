@@ -7,7 +7,7 @@ description: megan.won의 Jira Epic 작성·현행화. 짧은 6섹션 본문과 
 
 ## 기준
 
-- 개인 작성 규칙: `~/.codex/rules/wiki-jira-writing-style.md` 또는 `~/.claude/rules/wiki-jira-writing-style.md`.
+- 개인 작성 규칙: `~/.codex/guides/wiki-jira-writing-style.md` 또는 `~/.claude/guides/wiki-jira-writing-style.md`.
 - 이 진입점은 문서 표현과 읽는 범위를 줄인다. 팀의 API·필수 구조·rubric·검증을 대체하지 않는다.
 - 팀 원본: `ai-env/cde-skills` 링크를 resolve한 저장소의 `plugins/cde-skills/skills/development/epic-curator/`.
 - 프로젝트가 ai-env 밖이면 `~/work/cde/cde-skills`를 확인한다. 설치된 카테고리 링크는 `~/.codex/skills/development` 또는 `~/.claude/skills/development`다. 첫 유효 원본만 선택한다.

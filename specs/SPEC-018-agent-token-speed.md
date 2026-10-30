@@ -1,7 +1,7 @@
 ---
 id: SPEC-018
 title: 코딩 에이전트 토큰·속도 최적화
-status: done
+status: in_progress
 created: 2026-10-30
 ---
 
@@ -35,7 +35,13 @@ created: 2026-10-30
     글로벌 `~/.claude/rules`는 계속 로드된다.
   - Tests: 설정 파일 JSON 유효성, 패턴이 글로벌 규칙 경로와 겹치지 않음.
 
+- [x] TASK-04: 특정 작업에서만 쓰는 규칙 4개를 필요할 때만 읽게 한다(사용자 승인 2026-10-30).
+  - AC: wiki-jira-writing-style·jira-task-workflow·commit-message·pr-review-cleanup을 `.claude/guides/`로 옮겨
+    `~/.claude/guides/`·`~/.codex/guides/`에 배포한다. 자동 로드 `rules/`와 Codex rule 인덱스에는 넣지 않는다.
+    글로벌 지침에 작업별로 읽을 지침을 표로 안내한다. 세션당 약 24KB 감소.
+  - Tests: guides 배포 위치, rules·AGENTS.md 인덱스 미포함.
+
 ## 제외·후속 결정
 
-- 상시 로드 규칙의 범위 축소, 팀 스킬과 겹치는 개인 wrapper 스킬 정리는 규칙 적용 범위가 바뀌므로 사용자 결정 후 별도 Task로 진행한다.
+- 팀 스킬과 겹치는 개인 wrapper 스킬 정리는 비교표를 보고 사용자가 결정한다.
 - 모델·라이브러리 버전, 팀 스킬 원본은 바꾸지 않는다.

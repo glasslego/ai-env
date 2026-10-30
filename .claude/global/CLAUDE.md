@@ -257,10 +257,22 @@ Jira 이슈는 cde-skills `development/jira`, Confluence 문서는 cde-skills `p
 
 ## megan.won 문서 작성 우선 규칙
 
-- Jira·Epic·Agit·위키·리뷰·PR·커밋을 작성하기 전에 `~/.claude/rules/wiki-jira-writing-style.md`(Claude) 또는 `~/.codex/rules/wiki-jira-writing-style.md`(Codex)를 읽는다.
+- Jira·Epic·Agit·위키·리뷰·PR·커밋을 작성하기 전에 `wiki-jira-writing-style.md`를 읽는다(아래 `필요할 때 읽는 지침`).
 - 표현·분량은 megan.won 개인 규칙을 팀 스킬의 기본 템플릿보다 우선한다. 팀 스킬의 API·필수 필드·검증·권한 규칙은 유지한다.
 - Epic 문서는 개인 `epic-curator` 진입점을 사용하고 선택한 모드의 상세 지침만 추가로 읽는다.
-- 이 규칙의 원본은 ai-env `.claude/rules/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
+- 이 규칙의 원본은 ai-env `.claude/guides/wiki-jira-writing-style.md`다. 글로벌 배포본만 고치지 않는다.
+
+## 필요할 때 읽는 지침
+
+- 위치: `~/.claude/guides/`(Claude), `~/.codex/guides/`(Codex). 원본은 ai-env `.claude/guides/`.
+- 매 세션 자동 로드하지 않는다. 아래 작업을 시작하기 전에 해당 파일을 읽고 따른다.
+
+| 작업 | 지침 |
+|---|---|
+| Jira·Epic·Agit·위키·코드 리뷰 결과·PR 본문·커밋 메시지 작성 | `wiki-jira-writing-style.md` |
+| CDE 랭킹 저장소 또는 CDETEAM Jira 작업의 커밋 | `commit-message.md` (저장소 규칙이 있으면 그것 우선) |
+| kamek-batch의 CDETEAM Jira 개발 작업 진행 | `jira-task-workflow.md` |
+| PR 리뷰·커밋 정리·"커밋 묶어줘" | `pr-review-cleanup.md` |
 
 ## 공용 세션 기록
 

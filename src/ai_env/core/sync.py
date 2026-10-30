@@ -1058,10 +1058,12 @@ def sync_claude_global_config(
     if desc:
         results[desc] = str(target_dir / "commands")
 
-    # 4. rules/ 동기화 (.claude/rules → ~/.claude/rules)
-    desc, _ = _sync_file_or_dir(source_dir / "rules", target_dir / "rules", dry_run)
-    if desc:
-        results[desc] = str(target_dir / "rules")
+    # 4. rules/ 동기화 (.claude/rules → ~/.claude/rules). guides/는 자동 로드 폴더 밖에 두고
+    #    글로벌 CLAUDE.md 안내에 따라 필요한 작업에서만 읽는다.
+    for asset in ("rules", "guides"):
+        desc, _ = _sync_file_or_dir(source_dir / asset, target_dir / asset, dry_run)
+        if desc:
+            results[desc] = str(target_dir / asset)
 
     # 5. agents/ 동기화 (.claude/agents + megan-harness/agents → ~/.claude/agents)
     agent_count = _sync_agents_merged(project_root, target_dir / "agents", dry_run)
@@ -1086,7 +1088,7 @@ def sync_claude_global_config(
     # (settings.json은 위에서 personal 전용 내용으로 이미 기록함)
     if (global_dir / "settings.personal.json.template").exists():
         personal_dir = Path.home() / ".claude-personal"
-        for asset in ("CLAUDE.md", "commands", "rules", "skills", "agents", "hooks"):
+        for asset in ("CLAUDE.md", "commands", "rules", "guides", "skills", "agents", "hooks"):
             if _ensure_symlink(target_dir / asset, personal_dir / asset, dry_run=dry_run):
                 results[f"personal:{asset}"] = str(personal_dir / asset)
 
@@ -1224,6 +1226,10 @@ def sync_codex_global_config(
     desc, _ = _sync_file_or_dir(rules_source, agent_root / "rules", dry_run)
     if desc:
         results[desc] = str(agent_root / "rules")
+    # 필요할 때만 읽는 지침. 글로벌 지침의 안내에 따라 해당 작업에서 읽는다.
+    desc, _ = _sync_file_or_dir(project_root / ".claude" / "guides", agent_root / "guides", dry_run)
+    if desc:
+        results[desc] = str(agent_root / "guides")
 
     # 3) skills/ — Codex 호환 frontmatter로 정규화하여 ~/.codex/skills 와
     #    ~/.agents/skills (Codex 0.125+ 통합 위치) 두 곳에 복사
@@ -1276,6 +1282,7 @@ def sync_codex_global_config(
     for asset in (
         "AGENTS.md",
         "rules",
+        "guides",
         "skills",
         "commands",
         "agents",

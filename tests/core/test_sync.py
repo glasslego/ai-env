@@ -223,6 +223,32 @@ def test_sync_claude_global_config_includes_global_rules(tmp_path, mock_secrets_
     assert (personal_dir / "rules").resolve() == (target_dir / "rules").resolve()
 
 
+def test_guides_are_deployed_outside_auto_loaded_rules(tmp_path, mock_secrets_manager):
+    """필요할 때 읽는 guides/는 rules/와 분리해 배포하고 rule 로딩 인덱스에 넣지 않는다."""
+    project_root = tmp_path / "ai-env"
+    global_dir = project_root / ".claude" / "global"
+    global_dir.mkdir(parents=True)
+    (global_dir / "CLAUDE.md").write_text("# Global Instructions")
+    (project_root / ".claude" / "rules").mkdir()
+    (project_root / ".claude" / "rules" / "journal.md").write_text("# 상시 규칙\n")
+    (project_root / ".claude" / "guides").mkdir()
+    (project_root / ".claude" / "guides" / "writing.md").write_text("# 작성 지침\n")
+    home_dir = tmp_path / "home"
+
+    with (
+        patch("ai_env.core.sync.get_project_root", return_value=project_root),
+        patch("pathlib.Path.home", return_value=home_dir),
+    ):
+        sync_codex_global_config()
+        sync_claude_global_config()
+
+    for agent_root in (home_dir / ".codex", home_dir / ".claude"):
+        assert (agent_root / "guides" / "writing.md").is_file()
+        # Claude는 rules/ 아래 파일을 매 세션 자동 로드하므로 guides가 섞이면 안 된다.
+        assert not (agent_root / "rules" / "writing.md").exists()
+    assert "writing.md" not in (home_dir / ".codex" / "AGENTS.md").read_text()
+
+
 def test_collect_skill_sources_personal_only(tmp_path):
     """personal skills만 있을 때 수집."""
     project_root = tmp_path / "ai-env"

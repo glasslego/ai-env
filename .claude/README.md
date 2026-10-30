@@ -187,7 +187,8 @@ ai-env repo (git)                    ~/.claude/ (로컬, git 미추적)
 .claude/global/settings*.json   →    settings.json / settings.enterprise.json (~/.claude),
                                      settings.personal.json.template → ~/.claude-personal/settings.json
 .claude/commands/               →    commands/
-.claude/rules/                  →    rules/
+.claude/rules/                  →    rules/   (매 세션 자동 로드)
+.claude/guides/                 →    guides/  (필요한 작업에서만 읽음)
 .claude/skills/ (개인)          ─┐
 cde-skills/ (팀 symlink)       ─┤→  skills/ (머지 결과)
                                  │
