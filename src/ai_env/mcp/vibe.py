@@ -466,6 +466,7 @@ claude() {{
     _parse_reset_epoch() {{
         # 세션 로그에서 "resets [날짜/시간]" 파싱 → 리셋 시각 epoch 반환
         # macOS date -j 사용 (BSD date). 파싱 실패 시 return 1
+        # date -j -f는 형식에 없는 분·초를 현재 시각으로 채우므로 정각(00분 00초)을 명시한다.
         local log_file="$1"
         [[ ! -f "$log_file" ]] && return 1
         local _cleaned
@@ -483,12 +484,12 @@ claude() {{
             [[ ${{#_hour}} -eq 1 ]] && _hour="0$_hour"
             _year=$(date +%Y)
             # LC_ALL=C: 영어 월/AM·PM 토큰을 사용자 로케일(예: ko_KR)과 무관하게 파싱
-            _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y" "$_month $_day ${{_hour}}${{_ampm}} $_year" +%s 2>/dev/null)
+            _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y %M %S" "$_month $_day ${{_hour}}${{_ampm}} $_year 00 00" +%s 2>/dev/null)
             if [[ -n "$_reset_ep" ]]; then
                 local _now=$(date +%s)
                 # 이미 1일 이상 지난 시각이면 내년으로 보정
                 if [[ $((_now - _reset_ep)) -gt 86400 ]]; then
-                    _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y" "$_month $_day ${{_hour}}${{_ampm}} $((_year + 1))" +%s 2>/dev/null)
+                    _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y %M %S" "$_month $_day ${{_hour}}${{_ampm}} $((_year + 1)) 00 00" +%s 2>/dev/null)
                 fi
                 [[ -n "$_reset_ep" ]] && echo "$_reset_ep" && return 0
             fi
@@ -503,7 +504,7 @@ claude() {{
             _ampm=$(echo "$_time" | command grep -oEi '[ap]m$' | tr '[:lower:]' '[:upper:]')
             [[ ${{#_hour}} -eq 1 ]] && _hour="0$_hour"
             # LC_ALL=C: 영어 월/AM·PM 토큰을 사용자 로케일과 무관하게 생성·파싱
-            _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y" "$(LC_ALL=C date '+%b %d') ${{_hour}}${{_ampm}} $(date +%Y)" +%s 2>/dev/null)
+            _reset_ep=$(LC_ALL=C date -j -f "%b %d %I%p %Y %M %S" "$(LC_ALL=C date '+%b %d') ${{_hour}}${{_ampm}} $(date +%Y) 00 00" +%s 2>/dev/null)
             if [[ -n "$_reset_ep" ]]; then
                 local _now=$(date +%s)
                 [[ $_reset_ep -lt $_now ]] && _reset_ep=$((_reset_ep + 86400))

@@ -4,6 +4,7 @@ import os
 import stat
 import subprocess
 import time
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1001,6 +1002,47 @@ exit 0
             timeout=30,
         )
 
+        assert trace_file.read_text().splitlines() == ["claude", "codex"]
+
+    def test_reset_hour_in_current_hour_is_not_parsed_as_now(self, tmp_path):
+        """BSD date가 분·초를 현재 시각으로 채워 리셋 시각이 '지금'이 되면 Claude를 즉시 재시도한다."""
+        now = datetime.now()
+        if now.minute == 0 and now.second < 3:
+            time.sleep(3)  # 정각 직후에는 HH:00:00이 현재와 같아 판정이 모호하다.
+            now = datetime.now()
+        reset = f"{now.hour % 12 or 12}{'am' if now.hour < 12 else 'pm'}"
+        gen = self._make_generator(["claude", "codex"])
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        trace_file = tmp_path / "trace.log"
+        fn_file = tmp_path / "claude_fn.sh"
+        claude_script = bin_dir / "claude"
+        claude_script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "claude" >> "$TRACE_FILE"\n'
+            f'echo "You\'ve hit your limit • resets {reset} (Asia/Seoul)"\n'
+            "exit 0\n"
+        )
+        claude_script.chmod(claude_script.stat().st_mode | stat.S_IXUSR)
+        codex_script = bin_dir / "codex"
+        codex_script.write_text('#!/usr/bin/env bash\necho "codex" >> "$TRACE_FILE"\nexit 1\n')
+        codex_script.chmod(codex_script.stat().st_mode | stat.S_IXUSR)
+        fn_file.write_text(gen.generate_shell_functions())
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["TRACE_FILE"] = str(trace_file)
+        env.pop("CLAUDECODE", None)
+
+        subprocess.run(
+            ["bash", "-c", f"source {fn_file} && claude --fallback test"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        # 이번 시간대의 정각은 이미 지났으므로 리셋은 내일 같은 시각이다.
         assert trace_file.read_text().splitlines() == ["claude", "codex"]
 
     def test_fallback_triggers_on_rate_limit_option_singular(self, tmp_path):
