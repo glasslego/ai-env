@@ -9,7 +9,7 @@ import re
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Literal, cast
 from zoneinfo import ZoneInfo
 
@@ -25,6 +25,8 @@ JOURNAL_DIRECTORY_NAME = "agent-logs"
 # 같은 이름의 다른 저장소를 구분하는 소유 표시 파일.
 OWNER_FILE = ".repository"
 FRONT_MATTER = re.compile(r"---\n(.*?)\n---\n(.*)", re.S)
+# ssh·https 원격 URL을 `host/경로`로 맞춘다. 예: git@host:org/repo.git, https://u@host/org/repo
+REMOTE_URL = re.compile(r"^(?:[\w+.-]+://)?(?:[^@/]+@)?([^/:]+)[:/](.+)$")
 
 
 def digest(text: str) -> str:
@@ -116,11 +118,28 @@ def resolve_repository(project: Path) -> Path:
     return Path(common).parent.resolve() if common and Path(common).name == ".git" else project
 
 
+def repository_identity(project: Path) -> str:
+    """worktree·별도 clone을 같은 저장소로 묶는 식별자를 반환한다.
+
+    Args:
+        project: 세션의 실제 cwd.
+
+    Returns:
+        origin 원격의 `host/경로`. 원격이 없으면 메인 작업 트리 경로.
+    """
+    repository = resolve_repository(project)
+    remote = git_output(repository, "remote", "get-url", "origin").removesuffix("/")
+    match = REMOTE_URL.match(remote.removesuffix(".git"))
+    if match:
+        return f"{match.group(1)}/{match.group(2)}"
+    return remote or str(repository)
+
+
 def project_directory(project: Path, root: Path | None = None) -> Path:
     """저장소 이름 폴더를 쓰고, 이름만 같은 다른 저장소는 해시로 분리한다.
 
     Args:
-        project: 프로젝트 cwd. worktree도 메인 저장소 폴더를 쓴다.
+        project: 프로젝트 cwd. worktree·같은 원격의 clone도 같은 폴더를 쓴다.
         root: 선택적 공용 저장소.
 
     Returns:
@@ -129,13 +148,13 @@ def project_directory(project: Path, root: Path | None = None) -> Path:
     Raises:
         ValueError: 기록 디렉터리 경로에 symlink가 있을 때.
     """
-    repository = resolve_repository(project)
+    identity = repository_identity(project)
+    name = slug(PurePosixPath(identity).name)
     base = resolve_root(root)
-    directory = base / slug(repository.name) / JOURNAL_DIRECTORY_NAME
+    directory = base / name / JOURNAL_DIRECTORY_NAME
     owner = directory / OWNER_FILE
-    if owner.is_file() and owner.read_text(encoding="utf-8").strip() != str(repository):
-        name = f"{slug(repository.name)}-{digest(str(repository))}"
-        directory = base / name / JOURNAL_DIRECTORY_NAME
+    if owner.is_file() and owner.read_text(encoding="utf-8").strip() != identity:
+        directory = base / f"{name}-{digest(identity)}" / JOURNAL_DIRECTORY_NAME
     if directory.is_symlink() or directory.parent.is_symlink():
         raise ValueError("Journal project directory must not be a symlink")
     return directory

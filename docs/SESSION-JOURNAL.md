@@ -13,8 +13,8 @@
 
 - `OBSIDIAN_BASE`가 있으면 해당 Vault를 사용한다.
 - Vault가 없으면 `~/.ai-env/session-logs/`. 다른 위치는 `AI_ENV_SESSION_LOG_DIR` 또는 `session --root`로 지정한다.
-- 기존 세션 노트와 같은 저장소 폴더를 쓴다. Jira별 worktree도 메인 저장소 폴더에 모이며 브랜치·Jira는 파일명·frontmatter(`cwd`, `branch`)로 구분한다.
-- 이름만 같은 다른 저장소는 `<저장소명>-<경로해시>/agent-logs/`로 분리한다. 폴더 소유는 숨김 파일 `.repository`에 기록한다.
+- 저장소는 origin 원격(`host/경로`)으로 식별한다. Jira별 worktree와 같은 원격의 별도 clone도 한 폴더에 모이며 브랜치·Jira는 파일명·frontmatter(`cwd`, `branch`)로 구분한다.
+- 원격이 없으면 메인 작업 트리 경로로 식별한다. 이름만 같은 다른 저장소는 `<저장소명>-<식별자해시>/agent-logs/`로 분리한다. 폴더 소유는 숨김 파일 `.repository`, 기록의 `repo` 필드에 같은 식별자를 둔다.
 - 분류는 `kakao / personal / unclassified`. 내용이나 경로로 업무·개인을 추측하지 않는다.
 - 파일·압축본은 0600, 프로젝트 기록 폴더는 0700. Vault의 동기화·공유 정책은 그대로 적용된다.
 - 현재 ai-env는 personal로 설정했다. 다른 프로젝트는 `.claude/project-profile.yaml`에 다음을 추가한다.
@@ -36,7 +36,7 @@ claude__kakao__kamek-batch__review__20261029T185000__c3d4e5f6a7b8c9d0__집계로
 - 본문 frontmatter에는 Jira·브랜치·HEAD·Spec/Task·도구·상태·세션/turn ID·원본 parent를 저장한다.
 - Vault 온톨로지 필드: `note_type: log`, `entity_type: evidence`, `status: reference`(gzip 보관 후 `archived`).
   기록 상태(`--status`)는 `report_status`, parent는 원본 기록 위키링크(`[[파일명]]`)다.
-- 주제는 `--title`로 명시한다. 자동 checkpoint는 요청 첫 유효 줄, 없으면 최종 답변 첫 줄을 사용한다.
+- 주제는 `--title`로 명시한다. 자동 checkpoint는 첫 요청의 첫 유효 줄, 없으면 최종 답변 첫 줄을 사용한다.
 - 경로 구분자와 위험한 문자는 정리하고 한글 UTF-8 바이트 길이를 제한한다.
 
 ## 기록 시점
@@ -44,11 +44,13 @@ claude__kakao__kamek-batch__review__20261029T185000__c3d4e5f6a7b8c9d0__집계로
 | 시점 | 기록 | 의미 |
 |---|---|---|
 | 하나의 사용자 지시 완료 | work / review / fix | 에이전트가 변경·검증·TODO를 정리한 보고 |
-| 응답 종료 Stop | checkpoint / stopped | 요청과 최종 답변의 자동 안전망. 성공 판정 아님 |
-| 세션 종료 SessionEnd | summary | 해당 도구·세션의 작업 목록·짧은 발췌·원문 링크. 재개한 세션은 직전 요약 이후 기록만 묶는다 |
+| 응답 종료 Stop | checkpoint / stopped | 요청과 최종 답변의 자동 안전망. 세션·날짜별 노트 1개에 turn을 이어 붙인다. 성공 판정 아님 |
+| 세션 종료 SessionEnd | summary | 해당 도구·세션의 work/review/fix 목록·짧은 발췌·원문 링크. 보고가 없으면 만들지 않는다. 재개한 세션은 직전 요약 이후 기록만 묶는다 |
 | 7일 지난 기록, 다음 SessionEnd | 날짜별 summary + gzip | 도구와 무관하게 날짜당 1개. 요약 후 원문 압축 검증, 긴 Markdown 본문 정리 |
 
 - Stop은 질문·막힘·부분 완료 때도 실행될 수 있다. 이를 완료 이력과 구분한다.
+- 백그라운드 작업 알림(`<task-notification>`)과 Codex 추천 안전검사처럼 도구가 주입한 프롬프트의 응답은 기록하지 않는다.
+- 같은 turn이 다시 전달되면 checkpoint 노트의 `<!-- turn: ID -->` 표식으로 걸러낸다. 날짜가 바뀌면 새 노트를 시작한다.
 - 의미 기반 요약은 에이전트가 지시 완료 보고를 작성할 때 한다. 자동 summary는 메타데이터와
   보고 앞부분 최대 400자의 발췌로 만들며 새로운 판단이나 테스트 결과를 생성하지 않는다.
 - background timer나 별도 LLM은 없다. 7일 기준 정리는 현재 프로젝트의 다음 종료 이벤트에서 실행된다.

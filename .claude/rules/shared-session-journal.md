@@ -7,7 +7,7 @@ always: true
 ## 기록 시점
 
 - 하나의 사용자 지시를 끝냈을 때 최종 응답 전에 `ai-env session record`로 기록한다.
-- 하나의 지시가 진행 중이면 작업 완료로 기록하지 않는다. 자동 Stop hook은 checkpoint/stopped만 남긴다.
+- 하나의 지시가 진행 중이면 작업 완료로 기록하지 않는다. 자동 Stop hook은 세션·날짜별 checkpoint 노트 1개에 stopped turn을 이어 붙인다.
 - 중단·테스트 실패·승인 대기는 보고에 명시한다. 성공·완료·리뷰 승인을 추정하지 않는다.
 - CLI 실행: `uv run --directory /Users/megan/work/glasslego/ai-env ai-env session --project "현재 프로젝트 절대경로" ...`.
 - 완료 보고 Markdown에는 수행한 Spec/Task·변경·실행한 검증과 결과·미해결/TODO·다음 리뷰 요청을 쓴다.
@@ -32,12 +32,13 @@ always: true
 
 ## 저장과 정리
 
-- 기본은 Obsidian `00_session/<저장소명>/agent-logs/`. worktree도 메인 저장소 폴더를 함께 쓴다. 이름만 같은 다른 저장소는 `<저장소명>-<경로해시>`. Vault가 없으면 `~/.ai-env/session-logs/`.
+- 기본은 Obsidian `00_session/<저장소명>/agent-logs/`. worktree·같은 origin의 별도 clone도 한 폴더를 쓴다. 이름만 같은 다른 저장소는 `<저장소명>-<식별자해시>`. Vault가 없으면 `~/.ai-env/session-logs/`.
 - 파일명: 도구__kakao/personal/unclassified__프로젝트__유형__[work의 Jira/브랜치]__KST시각__ID__주제.md.
 - frontmatter는 Vault 온톨로지를 따른다: `note_type: log`, `entity_type: evidence`, `status: reference`(보관 후 `archived`).
   `--status` 값은 `report_status`, parent는 원본 기록 위키링크로 저장한다.
 - UserPromptSubmit/Stop hook은 요청·최종 답변만 수집한다. session state는 `~/.ai-env/session-state/`.
-- SessionEnd hook은 세션별 탐색 요약과 7일 지난 날짜별 요약을 만든다.
+- 백그라운드 작업 알림·Codex 추천 안전검사 등 도구 주입 프롬프트는 기록하지 않는다.
+- SessionEnd hook은 work/review/fix가 있는 세션의 탐색 요약과 7일 지난 날짜별 요약을 만든다.
 - 7일 지난 원문은 gzip 저장·디스크 재복원 검증 후 긴 Markdown을 짧은 안내로 교체한다.
   기존 링크·ID는 유지하고 `session show "기록.md"`로 원문을 복원해 읽는다.
 - 즉시 정리: `session compact --older-than-days 7 --archive`. 세션 지정은 `--session-id ID --agent codex|claude`(`--archive`를 붙이면 기간과 무관하게 즉시 보관).

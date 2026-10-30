@@ -69,6 +69,38 @@ def test_idempotency_turns_concurrency_and_parent(tmp_path: Path) -> None:
         save_entry(entry(foreign, parent=parent), root)
 
 
+def test_checkpoints_append_one_note_per_session(tmp_path: Path) -> None:
+    root = tmp_path / "logs"
+
+    def stop(session_id: str, turn_id: str, request: str) -> dict[str, str]:
+        return save_entry(
+            entry(
+                tmp_path,
+                kind="checkpoint",
+                status="stopped",
+                session_id=session_id,
+                turn_id=turn_id,
+                request=request,
+            ),
+            root,
+        )
+
+    first = stop("s", "t1", "첫 요청")
+    assert stop("s", "t2", "둘째 요청") == {"status": "appended", "path": first["path"]}
+    # hook 재전달로 같은 turn을 두 번 붙이지 않는다.
+    assert stop("s", "t2", "둘째 요청")["status"] == "unchanged"
+    assert stop("other", "t1", "다른 세션")["path"] != first["path"]
+    # 요청 수집이 누락돼 turn ID가 없어도 서로 다른 응답을 버리지 않는다.
+    assert stop("s", "", "누락1")["status"] == "appended"
+    assert stop("s", "", "누락2")["status"] == "appended"
+    text = Path(first["path"]).read_text()
+    assert "첫 요청" in text
+    assert text.count("<!-- turn: t2 -->") == 1
+    assert "다른 세션" not in text
+    rows = list_entries(tmp_path, root, kind="checkpoint")
+    assert len(rows) == 2
+
+
 def test_symlink_escape_and_secret_redaction(tmp_path: Path) -> None:
     root = tmp_path / "logs"
     project = tmp_path / "project"

@@ -25,7 +25,12 @@ def _group_rows(
     groups: dict[str, list[Row]] = defaultdict(list)
     for row in sorted(rows, key=_created):
         if session_id is not None:
-            if row["session_id"] == session_id and row["agent"] == agent:
+            # checkpoint 노트가 이미 세션 흐름이므로 보고 기록만 세션 요약에 묶는다.
+            if (
+                row["session_id"] == session_id
+                and row["agent"] == agent
+                and row["kind"] != "checkpoint"
+            ):
                 groups[f"세션-{agent}-{session_id}"].append(row)
             continue
         day = _created(row).astimezone(KST).date()

@@ -14,6 +14,11 @@ from .session_storage import digest, project_directory, resolve_project
 from .wiki_documents import _atomic_write
 
 STATE_RETENTION_SECONDS = 7 * 24 * 60 * 60
+# 사용자 지시가 아닌 도구 주입 프롬프트. 백그라운드 작업 알림·Codex 추천 안전검사.
+SYSTEM_PROMPT_PREFIXES = (
+    "<task-notification>",
+    "You are an expert at upholding safety and compliance standards for Codex",
+)
 
 
 def _state_root() -> Path:
@@ -71,7 +76,7 @@ def _session_end(project: Path, agent: Agent, session_id: str, root: Path | None
 def _read_state(state_path: Path) -> dict[str, str]:
     state = json.loads(state_path.read_text()) if state_path.exists() else {}
     if not isinstance(state, dict) or any(
-        not isinstance(state.get(key, ""), str) for key in ("turn_id", "request")
+        not isinstance(state.get(key, ""), str) for key in ("turn_id", "request", "system")
     ):
         raise ValueError("Invalid session request state")
     return state
@@ -107,9 +112,11 @@ def handle_hook(
         raise ValueError("session_id missing; shared journal not recorded")
     state_path = _state_path(project, agent, session_id)
     if event == "UserPromptSubmit":
+        prompt = _text(payload, "prompt")
         state = {
             "turn_id": _text(payload, "turn_id") or str(uuid.uuid4()),
-            "request": redact(_text(payload, "prompt")),
+            "request": redact(prompt),
+            "system": "yes" if prompt.lstrip().startswith(SYSTEM_PROMPT_PREFIXES) else "",
         }
         state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         state_path.parent.chmod(0o700)
@@ -122,6 +129,8 @@ def handle_hook(
         }
     state = _read_state(state_path)
     turn_id = _text(payload, "turn_id") or state.get("turn_id", "")
+    if state.get("system") and state.get("turn_id") == turn_id:
+        return {}
     save_entry(
         JournalEntry(
             cwd=str(project),

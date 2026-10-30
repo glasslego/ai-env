@@ -15,11 +15,11 @@ created: 2026-10-29
 
 ## 계약
 
-- 공통 저장소: `{OBSIDIAN_BASE}/00_session/<repo-name>/agent-logs/`. worktree는 메인 저장소 폴더를 공유하고,
-  이름만 같은 다른 저장소는 `<repo-name>-<repo-path-hash>`로 분리한다.
+- 공통 저장소: `{OBSIDIAN_BASE}/00_session/<repo-name>/agent-logs/`. worktree와 같은 origin 원격의 별도 clone은
+  한 폴더를 공유하고, 이름만 같은 다른 저장소는 `<repo-name>-<repo-identity-hash>`로 분리한다.
   기본 Vault는 `~/Documents/Obsidian Vault`, Vault가 없으면 `~/.ai-env/session-logs/`.
-  `AI_ENV_SESSION_LOG_DIR` 또는 CLI `--root`로 변경 가능. Git 저장소(`--git-common-dir`)
-  기준으로 묶고 같은 이름의 다른 프로젝트는 섞지 않는다.
+  `AI_ENV_SESSION_LOG_DIR` 또는 CLI `--root`로 변경 가능. origin 원격 `host/경로`, 원격이 없으면
+  Git 저장소(`--git-common-dir`) 경로 기준으로 묶고 같은 이름의 다른 프로젝트는 섞지 않는다.
 - 파일: `<agent>__<scope>__<project>__<kind>__[Jira/branch]__<KST timestamp>__<record-id>__<topic>.md`.
   agent는 codex/claude, scope는 kakao/personal/unclassified. 분류는 프로젝트 설정으로 명시한다.
   kind는 work/review/fix/checkpoint/summary. Jira와 브랜치가 같으면 파일명에서 중복하지 않는다.
@@ -30,10 +30,12 @@ created: 2026-10-29
 - CLI: `ai-env session record|list|show|compact`. task/agent/kind 필터, dry-run 지원.
 - 공용 hook: UserPromptSubmit에서 요청을 보존하고 Stop에서 last_assistant_message를 저장.
   SessionStart에서는 현재 프로젝트 기록 경로와 최근 기록만 안내한다.
-  SessionEnd는 세션별 요약과 7일 지난 날짜별 요약을 생성한다. 자동 요약은 발췌·목록이며
+  도구 주입 프롬프트(백그라운드 작업 알림·Codex 추천 안전검사)의 응답은 저장하지 않는다.
+  SessionEnd는 work/review/fix가 있는 세션의 요약과 7일 지난 날짜별 요약을 생성한다. 자동 요약은 발췌·목록이며
   의미 기반 요약은 지시 완료 시 에이전트가 작성한 work/review/fix 보고로 담당한다.
   transcript 비공개 포맷을 파싱하지 않으며 도구 출력·내부 추론·환경변수를 수집하지 않는다.
-- Stop 유형/상태는 checkpoint/stopped다. 작업 성공·테스트 통과·리뷰 승인을 자동 추정하지 않는다.
+- Stop 유형/상태는 checkpoint/stopped다. checkpoint는 도구·세션·날짜별 노트 1개에 turn 표식과 함께
+  이어 붙이며 같은 turn은 다시 붙이지 않는다. 작업 성공·테스트 통과·리뷰 승인을 자동 추정하지 않는다.
   구조화한 수동 기록은 task·검증·TODO를 포함한 Markdown을 받아 상태를 명시한다.
 - 파일 0600, 프로젝트 로그 디렉터리 0700. 알려진 credential 표기는 마스킹하되 완전한
   비밀 탐지를 보장하지 않는다. 원본 로그는 도구의 원래 위치에 두고 로컬 경로만 참조한다.
@@ -56,6 +58,13 @@ created: 2026-10-29
   - AC 추가: Obsidian 기본 경로·한글 파일명 바이트 한도·Jira/브랜치·분류·세션/일별 요약,
     gzip 복원·충돌 시 원문 보존·기존 링크 유지·압축 후 재요약·cross-project show 차단.
   - Tests: core/CLI/hook integration 및 기존 sync 회귀, 전체 pytest·ruff·mypy·pre-commit.
+- [x] TASK-05: 세션 로그 노이즈를 줄이고 같은 저장소 기록을 한 폴더로 모은다.
+  - AC: checkpoint는 세션·날짜별 노트 1개에 이어 붙이고 turn 재전달은 무시한다.
+    도구 주입 프롬프트는 기록하지 않는다. checkpoint만 있는 세션은 세션 요약을 만들지 않는다.
+    같은 origin 원격의 별도 clone은 한 저장소 폴더와 `repo` 식별자를 공유한다.
+  - 기존 Vault 기록: checkpoint를 새 형식으로 합치고 원본은 압축 보관, 구형 세션 노트는
+    `00_session/_legacy/<프로젝트>/`로 옮기고 Vault 내부 링크를 갱신한다(사용자 승인 2026-10-30).
+  - Tests: checkpoint 이어 붙이기·멱등성, 주입 프롬프트 제외, clone 통합, 세션 요약 제외.
 
 ## 가정
 

@@ -54,6 +54,23 @@ def test_worktrees_share_repository_directory_and_same_names_are_split(tmp_path:
     assert list_entries(other, root) == []
 
 
+def test_clones_of_same_remote_share_repository_directory(tmp_path: Path) -> None:
+    root = tmp_path / "logs"
+    clones = []
+    for path, url in (
+        (tmp_path / "kamek-batch", "git@github.example.com:cde/kamek-batch.git"),
+        (tmp_path / "kamek-batch-CDETEAM-2", "https://github.example.com/cde/kamek-batch"),
+    ):
+        subprocess.run(["git", "init", "-q", str(path)], check=True)
+        subprocess.run(["git", "-C", str(path), "remote", "add", "origin", url], check=True)
+        clones.append(path)
+    # Jira별 별도 clone도 같은 원격이면 하나의 저장소 폴더를 함께 쓴다.
+    assert project_directory(clones[1], root) == root / "kamek-batch" / "agent-logs"
+    save_entry(JournalEntry(cwd=str(clones[1]), agent="claude", summary="clone 작업"), root)
+    rows = list_entries(clones[0], root)
+    assert [row["repo"] for row in rows] == ["github.example.com/cde/kamek-batch"]
+
+
 def test_values_ending_with_separator_keep_front_matter_boundary() -> None:
     header, body = split_record(render_record({"title": "구분선 ---", "task": "A ---"}, "본문\n"))
     assert "구분선 ---" in header

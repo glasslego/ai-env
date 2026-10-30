@@ -41,13 +41,23 @@ def test_hook_prompt_stop_restart_and_no_success_inference(tmp_path: Path) -> No
         runner, tmp_path, agent, {"hook_event_name": "UserPromptSubmit", "prompt": "두 번째 작업"}
     )
     invoke_hook(runner, tmp_path, agent, payload)
+    # 도구가 주입한 백그라운드 알림은 사용자 지시가 아니므로 기록하지 않는다.
+    invoke_hook(
+        runner,
+        tmp_path,
+        agent,
+        {"hook_event_name": "UserPromptSubmit", "prompt": "<task-notification>\n<status>done"},
+    )
+    invoke_hook(runner, tmp_path, agent, {**payload, "last_assistant_message": "알림 처리"})
     result = runner.invoke(main, ["session", "--project", str(tmp_path), "list"])
     rows = json.loads(result.output)["records"]
-    assert len(rows) == 2
-    assert all(row["report_status"] == "stopped" for row in rows)
-    texts = [Path(row["path"]).read_text() for row in rows]
-    assert any("첫 작업" in text for text in texts)
-    assert any("두 번째 작업" in text for text in texts)
+    # 같은 세션의 응답은 하루 하나의 checkpoint 노트에 이어 붙인다.
+    assert [(row["kind"], row["report_status"]) for row in rows] == [("checkpoint", "stopped")]
+    text = Path(str(rows[0]["path"])).read_text()
+    assert text.count("검증 실패, 수정 필요") == 2
+    assert "첫 작업" in text
+    assert "두 번째 작업" in text
+    assert "알림 처리" not in text
     start = invoke_hook(runner, tmp_path, agent, {"hook_event_name": "SessionStart"})
     assert "additionalContext" in start["hookSpecificOutput"]
     stale = tmp_path / "state" / "ended-elsewhere.json"
@@ -59,7 +69,8 @@ def test_hook_prompt_stop_restart_and_no_success_inference(tmp_path: Path) -> No
     result = runner.invoke(
         main, ["session", "--project", str(tmp_path), "list", "--kind", "summary"]
     )
-    assert len(json.loads(result.output)["records"]) == 1
+    # checkpoint 노트가 이미 세션 흐름이므로 같은 내용의 세션 요약을 또 만들지 않는다.
+    assert json.loads(result.output)["records"] == []
 
 
 def test_missing_hook_fields_report_without_success_record(tmp_path: Path) -> None:
