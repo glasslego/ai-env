@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from .codex_skills import _strip_wrapping_quotes, copy_skill_tree_for_codex
+from .codex_skills import copy_skill_tree_for_codex
 from .config import get_project_root, load_settings
 from .secrets import get_secrets_manager
 
@@ -1093,94 +1093,6 @@ def sync_claude_global_config(
     return results
 
 
-def _extract_skill_summary(skill_dir: Path) -> tuple[str, str] | None:
-    """SKILL.md frontmatter에서 name과 description 첫 줄을 추출.
-
-    Args:
-        skill_dir: 스킬 디렉토리 (SKILL.md 포함)
-
-    Returns:
-        (name, description_first_line) 또는 None
-    """
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
-        return None
-
-    content = skill_md.read_text(encoding="utf-8")
-
-    # frontmatter 파싱 (--- ... ---)
-    fm_match = re.search(r"^---\s*\n(.*?)\n---", content, re.DOTALL | re.MULTILINE)
-    if not fm_match:
-        return None
-
-    fm_text = fm_match.group(1)
-
-    # name 추출
-    name_match = re.search(r"^name:\s*(.+)$", fm_text, re.MULTILINE)
-    name = _strip_wrapping_quotes(name_match.group(1).strip()) if name_match else skill_dir.name
-
-    # description 추출 (첫 줄만, | 블록이면 다음 줄)
-    desc_match = re.search(r"^description:\s*\|?\s*\n?\s*(.+)$", fm_text, re.MULTILINE)
-    if desc_match:
-        desc = _strip_wrapping_quotes(desc_match.group(1).strip())
-    else:
-        # 인라인 description
-        desc_inline = re.search(r"^description:\s*(.+)$", fm_text, re.MULTILINE)
-        desc = _strip_wrapping_quotes(desc_inline.group(1).strip()) if desc_inline else name
-
-    return name, desc
-
-
-def _build_skills_index(
-    project_root: Path,
-    skills_include: list[str] | None = None,
-    skills_exclude: list[str] | None = None,
-    prepare_team_rebase: bool = True,
-) -> str:
-    """스킬 인덱스 Markdown 섹션 생성.
-
-    수집된 스킬의 name + description 첫 줄로 "Available Skills" 섹션을 만든다.
-
-    Args:
-        project_root: ai-env 프로젝트 루트
-        skills_include: 포함할 팀 스킬 디렉토리 이름
-        skills_exclude: 제외할 팀 스킬 디렉토리 이름
-        prepare_team_rebase: True면 cde-ranking 작업 브랜치용 rebase worktree를 준비한다.
-
-    Returns:
-        Markdown 섹션 문자열 (스킬 없으면 빈 문자열)
-    """
-    skill_dirs = _collect_skill_sources(
-        project_root,
-        skills_include,
-        skills_exclude,
-        prepare_team_rebase=prepare_team_rebase,
-    )
-    if not skill_dirs:
-        return ""
-
-    lines = [
-        "",
-        "---",
-        "",
-        "## Available Skills",
-        "",
-    ]
-    for skill_dir in skill_dirs:
-        summary = _extract_skill_summary(skill_dir)
-        if summary:
-            name, desc = summary
-            lines.append(f"- **{name}**: {desc}")
-        else:
-            lines.append(f"- **{skill_dir.name}**")
-
-    lines.append("")
-    lines.append("각 스킬의 상세 가이드: `~/.claude/skills/{name}/SKILL.md` 참조")
-    lines.append("")
-
-    return "\n".join(lines)
-
-
 def _copy_commands_tree(src: Path, dst: Path, dry_run: bool) -> int:
     """commands/ 트리에서 .md 파일만 보존 복사 (서브디렉토리 포함).
 
@@ -1287,20 +1199,13 @@ def sync_codex_global_config(
     if not source.exists():
         return {}
 
-    # 1) AGENTS.md = CLAUDE.md + 스킬 인덱스
+    # 1) AGENTS.md = CLAUDE.md + 규칙 인덱스. 스킬 목록은 Codex가 ~/.agents/skills에서
+    #    자체 예산으로 읽으므로 중복해서 넣지 않는다.
     content = source.read_text(encoding="utf-8")
     rules_source = project_root / ".claude" / "rules"
     rules_index = _build_rules_index(rules_source)
     if rules_index:
         content = content.rstrip() + "\n" + rules_index
-    skills_index = _build_skills_index(
-        project_root,
-        skills_include,
-        skills_exclude,
-        prepare_team_rebase=not dry_run,
-    )
-    if skills_index:
-        content = content.rstrip() + "\n" + skills_index
 
     agent_root = Path.home() / ".codex"
     agents_md = agent_root / "AGENTS.md"

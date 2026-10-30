@@ -8,10 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from ai_env.core.sync import (
-    _build_skills_index,
     _collect_agent_sources,
     _collect_skill_sources,
-    _extract_skill_summary,
     _sync_file_or_dir,
     _sync_skills_merged,
     safe_copy_skill_tree,
@@ -1056,85 +1054,8 @@ def test_sync_hooks_overwrites_existing(tmp_path):
     assert not (dst / "old_hook.sh").exists()  # 기존 파일 제거됨
 
 
-def test_extract_skill_summary_inline(tmp_path):
-    """인라인 description이 있는 SKILL.md에서 name+desc 추출."""
-    skill_dir = tmp_path / "my-skill"
-    skill_dir.mkdir()
-    (skill_dir / "SKILL.md").write_text(
-        "---\nname: my-skill\ndescription: 스킬 설명입니다\n---\n# Content"
-    )
-
-    result = _extract_skill_summary(skill_dir)
-    assert result == ("my-skill", "스킬 설명입니다")
-
-
-def test_extract_skill_summary_multiline(tmp_path):
-    """멀티라인(|) description에서 첫 줄만 추출."""
-    skill_dir = tmp_path / "multi-skill"
-    skill_dir.mkdir()
-    (skill_dir / "SKILL.md").write_text(
-        "---\nname: multi-skill\ndescription: |\n  첫 번째 줄 설명\n  두 번째 줄\n---\n"
-    )
-
-    result = _extract_skill_summary(skill_dir)
-    assert result is not None
-    assert result[0] == "multi-skill"
-    assert result[1] == "첫 번째 줄 설명"
-
-
-def test_extract_skill_summary_no_frontmatter(tmp_path):
-    """frontmatter 없는 SKILL.md는 None 반환."""
-    skill_dir = tmp_path / "no-fm"
-    skill_dir.mkdir()
-    (skill_dir / "SKILL.md").write_text("# Just a heading\nSome content")
-
-    result = _extract_skill_summary(skill_dir)
-    assert result is None
-
-
-def test_extract_skill_summary_no_skill_md(tmp_path):
-    """SKILL.md 없으면 None 반환."""
-    skill_dir = tmp_path / "empty"
-    skill_dir.mkdir()
-
-    result = _extract_skill_summary(skill_dir)
-    assert result is None
-
-
-def test_build_skills_index(tmp_path):
-    """스킬 인덱스 Markdown 생성 확인."""
-    project_root = tmp_path / "ai-env"
-    skills_dir = project_root / "megan-harness" / "skills"
-
-    (skills_dir / "spec-manager").mkdir(parents=True)
-    (skills_dir / "spec-manager" / "SKILL.md").write_text(
-        "---\nname: spec-manager\ndescription: Spec 문서 관리\n---\n"
-    )
-    (skills_dir / "code-review").mkdir()
-    (skills_dir / "code-review" / "SKILL.md").write_text(
-        "---\nname: code-review\ndescription: 코드 리뷰 통합\n---\n"
-    )
-
-    index = _build_skills_index(project_root)
-
-    assert "## Available Skills" in index
-    assert "**spec-manager**" in index
-    assert "**code-review**" in index
-    assert "Spec 문서 관리" in index
-    assert "코드 리뷰 통합" in index
-
-
-def test_build_skills_index_empty(tmp_path):
-    """스킬 없으면 빈 문자열 반환."""
-    project_root = tmp_path / "ai-env"
-    project_root.mkdir(parents=True)
-
-    index = _build_skills_index(project_root)
-    assert index == ""
-
-
-def test_sync_codex_includes_skills_index(tmp_path, mock_secrets_manager):
-    """Codex 동기화 시 AGENTS.md에 스킬 인덱스가 포함되는지 확인."""
+def test_sync_codex_agents_md_leaves_skill_list_to_codex(tmp_path, mock_secrets_manager):
+    """AGENTS.md에는 스킬 목록을 넣지 않고, 스킬은 Codex 스킬 디렉터리로만 배포한다."""
     project_root = tmp_path / "ai-env"
     global_dir = project_root / ".claude" / "global"
     global_dir.mkdir(parents=True)
@@ -1159,9 +1080,11 @@ def test_sync_codex_includes_skills_index(tmp_path, mock_secrets_manager):
     agents_md = target_dir / "AGENTS.md"
     content = agents_md.read_text()
     assert "# Global Instructions" in content
-    assert "## Available Skills" in content
-    assert "**task-implement**" in content
-    assert "TDD 코드 구현" in content
+    # Codex가 ~/.agents/skills의 이름·설명을 직접 읽으므로 AGENTS.md에 중복하지 않는다.
+    assert "## Available Skills" not in content
+    assert "TDD 코드 구현" not in content
+    for skills_root in (target_dir / "skills", tmp_path / "home" / ".agents" / "skills"):
+        assert (skills_root / "task-impl" / "SKILL.md").is_file()
 
 
 def test_sync_codex_global_config_prunes_stale_skills_but_keeps_meta(

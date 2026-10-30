@@ -27,7 +27,7 @@ created: 2026-10-30
     branch·HEAD·status는 매번 조회한다. hook 스크립트는 CLI 전체 대신 hook 모듈 진입점을 실행하며
     stdin/stdout JSON·실패 시 systemMessage 계약을 유지한다.
   - Tests: 저장 1건의 git 호출 수 상한, hook 진입점 입출력·실패 메시지, 기존 session 테스트.
-- [ ] TASK-02: Codex AGENTS.md에서 스킬 목록을 뺀다.
+- [x] TASK-02: Codex AGENTS.md에서 스킬 목록을 뺀다.
   - AC: AGENTS.md는 글로벌 지침과 규칙 인덱스만 담는다. 스킬은 `~/.agents/skills`·`~/.codex/skills` 배포를 유지한다.
   - Tests: sync 결과 AGENTS.md에 스킬 목록이 없고 스킬 디렉터리 배포는 그대로.
 - [ ] TASK-03: ai-env 세션에서 규칙 원본의 중복 로드를 막는다.

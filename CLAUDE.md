@@ -194,7 +194,7 @@ Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`�
 
 `ai-env sync` 1회 실행으로 Codex CLI도 Claude의 다음 자산을 사용한다:
 
-- `~/.codex/AGENTS.md` — Claude 글로벌 지침 + 스킬 인덱스
+- `~/.codex/AGENTS.md` — Claude 글로벌 지침 + 규칙 인덱스 (스킬 목록은 Codex가 `~/.agents/skills`에서 직접 읽음)
 - `~/.codex/skills/` — 활성 팀 스킬은 정본 심링크, 개인 스킬은 YAML 정규화 사본
 - `~/.codex/commands/` — `.claude/commands/*.md` 트리 미러 (참조용)
 - `~/.codex/project-profile.yaml` — 프로젝트 프로파일 미러
