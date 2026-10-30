@@ -25,6 +25,8 @@ VAULT_SESSION_DIRECTORY = Path("00_session")
 JOURNAL_DIRECTORY_NAME = "agent-logs"
 # 같은 이름의 다른 저장소를 구분하는 소유 표시 파일.
 OWNER_FILE = ".repository"
+# Git 저장소가 아닌 작업 폴더(홈·Vault 하위 등)의 기록은 저장소 폴더와 섞지 않는다.
+MISC_DIRECTORY_NAME = "_misc"
 FRONT_MATTER = re.compile(r"---\n(.*?)\n---\n(.*)", re.S)
 # ssh·https 원격 URL을 `host/경로`로 맞춘다. 예: git@host:org/repo.git, https://u@host/org/repo
 REMOTE_URL = re.compile(r"^(?:[\w+.-]+://)?(?:[^@/]+@)?([^/:]+)[:/](.+)$")
@@ -144,7 +146,8 @@ def project_directory(project: Path, root: Path | None = None) -> Path:
         root: 선택적 공용 저장소.
 
     Returns:
-        `<root>/<저장소>/agent-logs` 기록 디렉터리. 생성하지 않는다.
+        `<root>/<저장소>/agent-logs` 기록 디렉터리. Git 저장소가 아닌 cwd는
+        `<root>/_misc/<폴더>/agent-logs`. 생성하지 않는다.
 
     Raises:
         ValueError: 기록 디렉터리 경로에 symlink가 있을 때.
@@ -152,6 +155,8 @@ def project_directory(project: Path, root: Path | None = None) -> Path:
     identity = repository_identity(project)
     name = slug(PurePosixPath(identity).name)
     base = resolve_root(root)
+    if not git_output(resolve_project(project), "rev-parse", "--git-dir"):
+        base = base / MISC_DIRECTORY_NAME
     directory = base / name / JOURNAL_DIRECTORY_NAME
     owner = directory / OWNER_FILE
     if owner.is_file() and owner.read_text(encoding="utf-8").strip() != identity:

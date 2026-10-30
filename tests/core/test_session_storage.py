@@ -50,7 +50,7 @@ def test_worktrees_share_repository_directory_and_same_names_are_split(tmp_path:
     assert [(row["cwd"], row["branch"]) for row in rows] == [(str(worktree.resolve()), "CDETEAM-1")]
     # 이름만 같은 다른 저장소는 해시를 붙여 분리한다.
     other = tmp_path / "other" / "kamek-batch"
-    other.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(other)], check=True)
     assert project_directory(other, root).parent.name.startswith("kamek-batch-")
     assert list_entries(other, root) == []
 
@@ -70,6 +70,17 @@ def test_clones_of_same_remote_share_repository_directory(tmp_path: Path) -> Non
     save_entry(JournalEntry(cwd=str(clones[1]), agent="claude", summary="clone 작업"), root)
     rows = list_entries(clones[0], root)
     assert [row["repo"] for row in rows] == ["github.example.com/cde/kamek-batch"]
+
+
+def test_non_repository_cwd_uses_misc_directory(tmp_path: Path) -> None:
+    root = tmp_path / "logs"
+    folder = tmp_path / "work"
+    folder.mkdir()
+    # 저장소가 아닌 작업 폴더의 기록은 저장소 폴더 목록과 섞이지 않게 _misc 아래에 둔다.
+    assert project_directory(folder, root) == root / "_misc" / "work" / "agent-logs"
+    save_entry(JournalEntry(cwd=str(folder), agent="claude", summary="폴더 작업"), root)
+    assert len(list_entries(folder, root)) == 1
+    assert not (root / "work").exists()
 
 
 def test_korean_path_shares_directory_regardless_of_unicode_form(tmp_path: Path) -> None:

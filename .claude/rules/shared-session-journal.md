@@ -33,7 +33,7 @@ always: true
 
 ## 저장과 정리
 
-- 기본은 Obsidian `00_session/<저장소명>/agent-logs/`. worktree·같은 origin의 별도 clone도 한 폴더를 쓴다. 이름만 같은 다른 저장소는 `<저장소명>-<식별자해시>`. Vault가 없으면 `~/.ai-env/session-logs/`.
+- 기본은 Obsidian `00_session/<저장소명>/agent-logs/`. worktree·같은 origin의 별도 clone도 한 폴더를 쓴다. 이름만 같은 다른 저장소는 `<저장소명>-<식별자해시>`. Git 저장소가 아닌 cwd는 `_misc/<폴더명>/agent-logs/`. Vault가 없으면 `~/.ai-env/session-logs/`.
 - 파일명: 도구__kakao/personal/unclassified__프로젝트__유형__[work의 Jira/브랜치]__KST시각__ID__주제.md.
 - frontmatter는 Vault 온톨로지를 따른다: `note_type: log`, `entity_type: evidence`, `status: reference`(보관 후 `archived`).
   `--status` 값은 `report_status`, parent는 원본 기록 위키링크로 저장한다.

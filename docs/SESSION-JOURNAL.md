@@ -14,6 +14,7 @@
 - `OBSIDIAN_BASE`가 있으면 해당 Vault를 사용한다.
 - Vault가 없으면 `~/.ai-env/session-logs/`. 다른 위치는 `AI_ENV_SESSION_LOG_DIR` 또는 `session --root`로 지정한다.
 - 저장소는 origin 원격(`host/경로`)으로 식별한다. Jira별 worktree와 같은 원격의 별도 clone도 한 폴더에 모이며 브랜치·Jira는 파일명·frontmatter(`cwd`, `branch`)로 구분한다.
+- Git 저장소가 아닌 작업 폴더(홈·Vault 하위 등)는 `00_session/_misc/<폴더명>/agent-logs/`에 둔다.
 - 원격이 없으면 메인 작업 트리 경로로 식별한다. 이름만 같은 다른 저장소는 `<저장소명>-<식별자해시>/agent-logs/`로 분리한다. 폴더 소유는 숨김 파일 `.repository`, 기록의 `repo` 필드에 같은 식별자를 둔다.
 - 분류는 `kakao / personal / unclassified`. 내용이나 경로로 업무·개인을 추측하지 않는다.
 - 파일·압축본은 0600, 프로젝트 기록 폴더는 0700. Vault의 동기화·공유 정책은 그대로 적용된다.
