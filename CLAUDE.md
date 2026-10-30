@@ -189,6 +189,7 @@ Codex 대화형 실행(프롬프트 없음)일 때만 `--yolo --no-alt-screen`�
 - MCP `type`은 `stdio | sse | http`(streamable-http) 지원. url 기반(sse/http)은 `url_env`로 URL 주입.
 - glocal = "global template for local" (MCP generator가 생성, git 추적)
 - local = 프로젝트별 permissions (sync가 덮어쓰지 않음)
+- `.claude/settings.json`의 `claudeMdExcludes`는 ai-env 세션에서 규칙 원본(`.claude/rules`)을 제외한다. 같은 내용의 `~/.claude/rules` 배포본만 로드된다. 규칙 수정 후 `ai-env sync --claude-only`로 배포해야 세션에 반영된다.
 
 ### Codex가 Claude 자산을 활용하는 범위
 

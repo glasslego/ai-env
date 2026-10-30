@@ -1,7 +1,7 @@
 ---
 id: SPEC-018
 title: 코딩 에이전트 토큰·속도 최적화
-status: in_progress
+status: done
 created: 2026-10-30
 ---
 
@@ -30,7 +30,7 @@ created: 2026-10-30
 - [x] TASK-02: Codex AGENTS.md에서 스킬 목록을 뺀다.
   - AC: AGENTS.md는 글로벌 지침과 규칙 인덱스만 담는다. 스킬은 `~/.agents/skills`·`~/.codex/skills` 배포를 유지한다.
   - Tests: sync 결과 AGENTS.md에 스킬 목록이 없고 스킬 디렉터리 배포는 그대로.
-- [ ] TASK-03: ai-env 세션에서 규칙 원본의 중복 로드를 막는다.
+- [x] TASK-03: ai-env 세션에서 규칙 원본의 중복 로드를 막는다.
   - AC: 프로젝트 `.claude/settings.json`의 `claudeMdExcludes`로 ai-env `.claude/rules/**`만 제외한다.
     글로벌 `~/.claude/rules`는 계속 로드된다.
   - Tests: 설정 파일 JSON 유효성, 패턴이 글로벌 규칙 경로와 겹치지 않음.
